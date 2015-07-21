@@ -1,50 +1,215 @@
 //#include <ncurses.h>
 #include <string>
 #include <chrono>
-#include "Level.hpp"
+#include "GameState.hpp"
 #include "Console.hpp"
+#include "Level.hpp"
+#include <iostream>
+#include "string_utils.hpp"
+
+void outline_frame(Console& console, int frame, bool top, bool bottom, bool left, bool right)
+{
+	for (int i = 0; i < console.get_width(frame); ++i)
+	{
+		if (top)
+			console.write_character(0,i,' ',frame);
+		
+		if (bottom)
+			console.write_character(console.get_height(frame) - 1, i, ' ', frame);
+	}
+	
+	for (int i = 0; i < console.get_height(frame); ++i)
+	{
+		if (left)
+			console.write_character(i,0,' ',frame);
+		if (right)
+			console.write_character(i,console.get_width(frame)-1,' ',frame);
+	}
+}
+
+void handle_input(Console& console, GameState& gs)
+{
+	std::string input = console.check_for_input();
+	std::string lower_input = StringUtils::to_lowercase(input);
+	
+	//depends greatly on the current menu, but all menus accept "quit"
+	if (lower_input == "q" || lower_input == "quit")
+	{
+		if (gs.menu_index == 0)
+			gs.menu_index = -1;
+		else
+			gs.menu_index = 0;
+	}
+	else if (input != "")
+	{
+		if (gs.menu_index == 0)//main menu
+		{
+			if (lower_input == "1")//New Game
+			{
+				gs.menu_index = 1;
+				console.clear();
+			}
+			else if (lower_input == "2") //Continue Game
+			{
+				gs.menu_index = 2;
+				console.clear();
+			}
+			else if (lower_input == "3") //Restart Game
+			{
+				gs.menu_index = 1;//change this later
+				console.clear();
+			}
+			else if (lower_input == "4") //Quit
+			{
+				gs.menu_index = -1;
+			}
+		}
+		else if (gs.menu_index == 1)//Game creation screen
+		{
+		
+		}
+		else if (gs.menu_index == 2)//the actual game
+		{
+			gs.main_text += "\n";
+			gs.main_text += input;
+			gs.main_text_dirty_flag = true;
+		}
+	}
+}
+
+void update_game(Console& console, GameState& gs)//normally I'd pass in a delta, but we're going to lock this to X frames per second (probably 5)
+{
+	//first off, the menu will be the real defining factor here
+	if (gs.menu_index < 0)//shouldn't ever happen, but better safe than sorry
+	{
+		return;
+	}
+	else if (gs.menu_index == 0)//main menu
+	{
+		gs.main_text = "Please enter the number of your choice then press <fg=red>ENTER<fg=white>.\n";
+		gs.main_text += "1. New Game\n";
+		gs.main_text += "2. Continue Game\n";
+		gs.main_text += "3. Restart Game\n";
+		gs.main_text += "4. Quit\n";
+	}
+	else if (gs.menu_index == 1)//Game creation screen
+	{
+	
+	}
+	else if (gs.menu_index == 2)//the actual game
+	{
+		
+	}
+}
+
+void draw_screen(Console& console, GameState& gs, int text_box_frame, int lower_bar_frame, int minimap_frame, int NPC_frame, int inventory_frame)
+{
+	//if the main text window got new text, redraw it
+	if (gs.main_text_dirty_flag)
+	{
+		//recalculate the string
+		gs.main_text_dirty_flag = false;
+		gs.main_text = console.get_last_n_lines(gs.main_text,console.get_height(text_box_frame),text_box_frame);
+		
+		//change color and write out the text-box stuff
+		console.set_fgcolor(Console::Color::White);
+		console.set_bgcolor(Console::Color::Black);
+		console.write_string(0,0,gs.main_text,text_box_frame);
+	}
+	
+	//draw the borders for any menu
+	console.set_fgcolor(Console::Color::White);
+	console.set_bgcolor(Console::Color::Blue);
+	outline_frame(console,lower_bar_frame,true,false,false,false);
+	
+	if (gs.menu_index == 2)
+	{
+		//draw the borders for menu 1
+		outline_frame(console,minimap_frame,false,true,true,false);
+		outline_frame(console,NPC_frame,false,true,true,false);
+		outline_frame(console,inventory_frame,false,false,true,false);
+		
+		//write the frame count for debugging
+		console.write_string(0,0,StringUtils::to_string(gs.frames_elapsed),minimap_frame);
+		
+		//display some status bar text
+		console.write_string(0,0,"Health: 85% Stamina: 100%",lower_bar_frame);
+	}
+	
+	//change color and write out the text-box stuff
+	console.set_fgcolor(Console::Color::White);
+	console.set_bgcolor(Console::Color::Black);
+	console.write_string(0,0,gs.main_text,text_box_frame);
+	
+	//refresh the console to display the changes
+	console.refresh();
+}
 
 void game_loop(Console& console)
 {
+	//set up the console frames
+	int tw = console.get_width()-8;
+	int text_box_frame = console.add_frame(console.get_height() - 2, tw, 0, 0, false, false, true);
+	int minimap_frame = console.add_frame(8,8,0,tw,false,false,false);
+	int NPC_frame = console.add_frame(8,8,8,tw,false,false,false);
+	int inventory_frame = console.add_frame(console.get_height() - 18, 8, 16, tw, false, false, false);
+	int lower_bar_frame = console.add_frame(1,-1,console.get_height()-2,0,true,false,false);
+	int echo_frame = console.add_frame(1,-1,console.get_height()-1,0,true,false,false);
+	
+	//set up the console echo frame (where the user input is displayed until ENTER is hit)
+	console.set_echo_frame(echo_frame);
+	console.set_echo_colors(Console::Color::White, Console::Color::Black);
+
+	//set up the timing stuff
 	auto start_time = std::chrono::high_resolution_clock::now();
 	unsigned long mcount = 0;
-	unsigned long frame_period = 250;
-	unsigned long next_frame = frame_period;
+	unsigned long frame_period = 1000/5;//5 FPS (updates)
+	unsigned long next_frame = 0;
+	unsigned long draw_period = 1000/30;//30 FPS (draws)
+	unsigned long next_draw = 0;
 	
-	for(int counter = 0;;++counter) {
+	
+	//set up the game state
+	GameState gs;
+	gs.menu_index = 0;
+	gs.main_text = "<fg=Red>Welcome! <fg=white>Type your command then press ENTER.\n";
+	gs.main_text_dirty_flag = true;
+	gs.level = new Level(5,5);
+	gs.frames_elapsed = 0;
+	
+	//loop until something calls 'break'
+	for(int counter = 0;;++counter)
+	{
+		//check for input from the user
+		handle_input(console,gs);
+		
+		//if the user quit, then kill the program
+		if (gs.menu_index < 0)
+			break;
+	
+		//if we're ready for another frame, fill it in!
 		mcount = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start_time).count();
-		
-		unsigned long i = mcount / frame_period;
-		std::string s = "000";
-		s[0] += char((i%1000)/100);
-		s[1] += char((i%100)/10);
-		s[2] += char(i%10);
-		
-		
 		if (mcount > next_frame)
 		{
-			console.set_fgcolor(Console::Color::White);
-			console.set_bgcolor(Console::Color::Black);
-			console.write_string(0,0,s,1);
+			++gs.frames_elapsed;
+			next_frame += frame_period;
 			
-			console.set_bgcolor(Console::Color::Green);
-			for (int i = 0; i < console.get_width(1); ++i)
-				console.write_character(console.get_height(1)-1,i,' ');
-				
-			for (int i = 0; i < console.get_width(3); ++i)
-				console.write_character(0,i,' ');
-			
-			console.refresh();
+			update_game(console, gs);//pass in the number of ms since the last frame
+		}
+		
+		//if we're ready for another draw, draw it!
+		if (mcount > next_draw)
+		{
+			next_draw += draw_period;
+			draw_screen(console, gs, text_box_frame, lower_bar_frame, minimap_frame, NPC_frame, inventory_frame);
 		}
 	}
 }
 
 int main()
 {
+	//set up the console with the settings we want
 	Console console;
-	console.add_frame(5,-1,0,0,true,false,false);
-	console.add_frame(console.get_height()-7,-1,0,5,false,false,true);
-	console.add_frame(2,-1,0,console.get_height()-2,true,false,false);
 	
 	game_loop(console);
 	

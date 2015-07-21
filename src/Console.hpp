@@ -27,16 +27,26 @@ public:
 	Console();
 	~Console();
 	
+	std::string check_for_input();
+	std::string get_last_n_lines(std::string input, unsigned n_lines, int frame = 0);
+	
 	void write_character(int row, int column, char c, int frame = 0);
 	void write_string(int row, int column, const std::string & s, int frame = 0);
 	
 	void set_fgcolor(Color color);
 	void set_bgcolor(Color color);
 	
+	void save_colors();
+	void restore_colors();
+	
+	void set_echo_frame(int frame);
+	void set_echo_colors(Color fg_color, Color bg_color);
+	
 	int get_width(int frame = 0);
 	int get_height(int frame = 0);
 	
 	void refresh();
+	void clear(int frame = 0);
 	
-	void add_frame(int height, int width, int x, int y, bool height_locked, bool width_locked, bool word_wrap);
+	int add_frame(int height, int width, int x, int y, bool height_locked, bool width_locked, bool word_wrap);
 };
