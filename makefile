@@ -1,7 +1,7 @@
 CC=g++
-CFLAGS=-c -Wall -std=c++11 -lncurses
+CFLAGS=-c -Wall -std=c++11
 LDFLAGS=-lncurses
-SUBFOLDERS=Components Systems
+SUBFOLDERS=src
 OBJFOLDER=obj
 EXECUTABLE=test.exe
 
@@ -13,7 +13,7 @@ OBJECTS=$(patsubst %.cpp,$(OBJFOLDER)/%.o,$(notdir $(SOURCES) ) )
 all: $(SOURCES) $(OBJFOLDER)/$(EXECUTABLE)
 	
 $(OBJFOLDER)/$(EXECUTABLE): $(OBJECTS) 
-	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
+	$(CC) $(OBJECTS) -o $@ $(LDFLAGS)
 
 $(OBJFOLDER)/%.o: %.cpp
 	$(CC) $(CFLAGS) $< -o $@

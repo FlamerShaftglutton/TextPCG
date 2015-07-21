@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include "Handle.hpp"
+#include <vector>
 
 class Room
 {
@@ -10,6 +11,7 @@ class Room
 	std::string description;
 	int x;
 	int y;
+	std::vector<ECS::Handle> objs;
 	
 public:
 	enum class Exit
@@ -35,8 +37,9 @@ public:
 	inline void set_special_exit(Exit e, ECS::Handle h) { special_exits[static_cast<std::size_t>(e)] = h; }
 	
 	inline ECS::Handle get_handle() { return my_handle; }
-	//inline void set_handle(ECS::Handle h) { my_handle = h; } //VERY DANGEROUS!
 	
 	inline std::string get_description() { return description; }
 	inline void set_description(std::string s) { description = s; }
+	
+	inline std::vector<ECS::Handle>& objects() { return objs; }
 };

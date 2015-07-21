@@ -1,28 +1,64 @@
-#include <ncurses.h>
+//#include <ncurses.h>
 #include <string>
 #include <chrono>
 #include "Level.hpp"
+#include "Console.hpp"
 
-void erase (int y, int x) {
-	mvaddch(y, x, '#');
-}
-
-bool dead(int y, int x)
+void game_loop(Console& console)
 {
-	char ch = mvinch(y,x) & A_CHARTEXT;
-	int h,w;
-	getmaxyx(stdscr,h,w);
+	auto start_time = std::chrono::high_resolution_clock::now();
+	unsigned long mcount = 0;
+	unsigned long frame_period = 250;
+	unsigned long next_frame = frame_period;
 	
-	return (ch == '#' || y < 0 || y >= h || x < 0 || x >= w);
+	for(int counter = 0;;++counter) {
+		mcount = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start_time).count();
+		
+		unsigned long i = mcount / frame_period;
+		std::string s = "000";
+		s[0] += char((i%1000)/100);
+		s[1] += char((i%100)/10);
+		s[2] += char(i%10);
+		
+		
+		if (mcount > next_frame)
+		{
+			console.set_fgcolor(Console::Color::White);
+			console.set_bgcolor(Console::Color::Black);
+			console.write_string(0,0,s,1);
+			
+			console.set_bgcolor(Console::Color::Green);
+			for (int i = 0; i < console.get_width(1); ++i)
+				console.write_character(console.get_height(1)-1,i,' ');
+				
+			for (int i = 0; i < console.get_width(3); ++i)
+				console.write_character(0,i,' ');
+			
+			console.refresh();
+		}
+	}
 }
 
+int main()
+{
+	Console console;
+	console.add_frame(5,-1,0,0,true,false,false);
+	console.add_frame(console.get_height()-7,-1,0,5,false,false,true);
+	console.add_frame(2,-1,0,console.get_height()-2,true,false,false);
+	
+	game_loop(console);
+	
+	return 0;
+}
+
+/*
 void game_loop(char main_char, int row, int col, int ch) {
 	// Check if the user wishes to play the game
 	if(ch == 'q' || ch =='Q') return;
 
 	// Show the main character on the screen
-	mvaddch(row, col, main_char);
-	refresh();
+	//mvaddch(row, col, main_char);
+	//refresh();
 	
 	int last_move = KEY_RIGHT;
 	int this_move = KEY_RIGHT;
@@ -31,6 +67,11 @@ void game_loop(char main_char, int row, int col, int ch) {
 	unsigned long mcount = 0;
 	unsigned long frame_period = 250;
 	unsigned long next_frame = frame_period;
+	
+	std::string te = "";
+	std::string text_stream = "Type your commands, then hit enter.";
+	
+	init_pair(1,COLOR_BLACK,COLOR_GREEN);
 	
 	for(int counter = 0;;++counter) {
 		ch = getch();
@@ -45,6 +86,16 @@ void game_loop(char main_char, int row, int col, int ch) {
 			this_move = KEY_DOWN;
 		else if(ch == 'q' || ch == 'Q')
 			break;
+		else if (ch == KEY_BACKSPACE && te.length() > 0)
+			te.pop_back();
+		else if (ch == KEY_ENTER || ch == '\n')
+		{
+			wprintw(windowText, "\n");
+			wprintw(windowText, te.c_str());
+			te = "";
+		}
+		else if (ch >= 0)
+			te += char(ch);
 		
 		mcount = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start_time).count();
 		
@@ -75,11 +126,31 @@ void game_loop(char main_char, int row, int col, int ch) {
 				next_frame += frame_period;
 				last_move = this_move;
 			}
-			refresh();
 		}
 		
-		move(0,0);
-		printw(s.c_str());
+		
+		int y,x;
+		getmaxyx(windowBottom,y,x);
+		
+		attrset(COLOR_PAIR(1));
+		wmove(windowBottom,0,0);
+		for (y = 0; y < x; ++y)
+			mvwaddch(windowBottom,0, y, ' ');
+		//wmove(windowBottom,0,0);
+		//wprintw(windowBottom,"HP: 87 %");
+		
+		//attrset(A_NORMAL);
+		//wmove(windowBottom,1,0);
+		//wclrtoeol(windowBottom);
+		
+		//printw(s.c_str());
+		//wprintw(windowBottom,te.c_str());
+		wrefresh(windowBottom);
+		
+		
+		outline_window(windowTop);
+		//outline_window(windowText);
+		//outline_window(windowBottom);
 	}
 }
 
@@ -92,6 +163,7 @@ void init()
 	keypad(stdscr, TRUE);
 	nodelay(stdscr,TRUE);
 	curs_set(0);
+	start_color();
 }
 
 int main() {
@@ -103,22 +175,28 @@ int main() {
 	init();
 
 	// Print a welcome message on screen
-	printw("Welcome to the RR game.\nPress any key to start.\nIf you want to quit press \"q\" or \"Q\"");
+	//printw("Welcome to the RR game.\nPress any key to start.\nIf you want to quit press \"q\" or \"Q\"");
 
 	// Wait until the user press a key
 	int ch = getch();
 
 	// Clear the screen
-	clear();	
+	clear();
 
 	// Start the game loop
 	game_loop(main_char, row, col, ch);
+	
+	// Destroy window objects
+	delwin(windowTop);
+	delwin(windowText);
+	delwin(windowBottom);
 
 	// Clear ncurses data structures
 	endwin();
 
 	return 0;
 }
+*/
 
 /*
 #include <iostream>

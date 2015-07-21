@@ -1,0 +1,34 @@
+#pragma once
+
+#include "Handle.hpp"
+#include <string>
+#include <vector>
+
+
+class Object
+{
+	ECS::Handle handle;
+
+public:
+	Object(ECS::Handle h) : handle(h) { }
+	
+	inline ECS::Handle get_handle() { return handle; }
+
+	bool visible;
+	bool friendly;
+	bool mobile;
+	
+	ECS::Handle object_container;
+	ECS::Handle room_container;
+	
+	int hitpoints;
+	int attack;
+	float hit_chance;
+	
+	std::vector<ECS::Handle> objects;
+	
+	std::string description;
+	std::string name;
+	
+	std::string on_use;//this will probably become another class called Program or something.
+};
