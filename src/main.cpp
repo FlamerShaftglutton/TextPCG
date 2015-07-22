@@ -47,17 +47,17 @@ void handle_input(Console& console, GameState& gs)
 			if (lower_input == "1")//New Game
 			{
 				gs.menu_index = 1;
-				console.clear();
+				gs.menu_transition = true;
 			}
 			else if (lower_input == "2") //Continue Game
 			{
 				gs.menu_index = 2;
-				console.clear();
+				gs.menu_transition = true;
 			}
 			else if (lower_input == "3") //Restart Game
 			{
 				gs.menu_index = 1;//change this later
-				console.clear();
+				gs.menu_transition = true;
 			}
 			else if (lower_input == "4") //Quit
 			{
@@ -86,19 +86,34 @@ void update_game(Console& console, GameState& gs)//normally I'd pass in a delta,
 	}
 	else if (gs.menu_index == 0)//main menu
 	{
-		gs.main_text = "Please enter the number of your choice then press <fg=red>ENTER<fg=white>.\n";
-		gs.main_text += "1. New Game\n";
-		gs.main_text += "2. Continue Game\n";
-		gs.main_text += "3. Restart Game\n";
-		gs.main_text += "4. Quit\n";
+		if (gs.menu_transition)
+		{
+			gs.menu_transition = false;
+			console.clear();
+			gs.main_text = "Please enter the number of your choice then press <fg=red>ENTER<fg=white>.\n";
+			gs.main_text += "1. New Game\n";
+			gs.main_text += "2. Continue Game\n";
+			gs.main_text += "3. Restart Game\n";
+			gs.main_text += "4. Quit\n";
+		}
 	}
 	else if (gs.menu_index == 1)//Game creation screen
 	{
-	
+		if (gs.menu_transition)
+		{
+			gs.menu_transition = false;
+			console.clear();
+			//put some text into gs.main_text
+		}
 	}
 	else if (gs.menu_index == 2)//the actual game
 	{
-		
+		if (gs.menu_transition)
+		{
+			gs.menu_transition = false;
+			console.clear();
+			gs.main_text = "<fg=Red>Welcome! <fg=white>Type your command then press ENTER.\n";
+		}
 	}
 }
 
@@ -176,6 +191,7 @@ void game_loop(Console& console)
 	gs.main_text_dirty_flag = true;
 	gs.level = new Level(5,5);
 	gs.frames_elapsed = 0;
+	gs.menu_transition = true;
 	
 	//loop until something calls 'break'
 	for(int counter = 0;;++counter)

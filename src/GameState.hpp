@@ -6,6 +6,7 @@ struct GameState
 {
 	int frames_elapsed;
 	int menu_index;
+	bool menu_transition;
 	Level* level;
 	
 	std::string main_text;
