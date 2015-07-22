@@ -3,6 +3,9 @@
 #include <string>
 #include <vector>
 #include "string_utils.hpp"
+#ifdef DEBUG
+	#include "Log.hpp"
+#endif
 
 struct Frame //this class doesn't exist outside of this file
 {
@@ -25,6 +28,8 @@ struct Console_Pimpl
 	std::string echo_string;
 	Console::Color saved_fg_color,
 				   saved_bg_color;
+	std::vector<std::string> commands;
+	int command_spot;
 };
 
 Console::Console()
@@ -48,6 +53,7 @@ Console::Console()
 	private_members->echo_enabled = false;
 	private_members->echo_string = "";
 	save_colors();
+	private_members->command_spot = -1;
 	
 	//fill in the color table
 	for (int i = 0; i < 64; ++i)
@@ -70,9 +76,53 @@ std::string Console::check_for_input()
 	if (private_members->echo_enabled)
 	{
 		//check for special keys!
-		
+		if (c == KEY_UP)
+		{
+			#ifdef DEBUG
+				Log::write("User pressed the UP arrow.");
+			#endif
+			
+			//grab the previous thing in the command list
+			if (private_members->command_spot < 0)
+			{
+				private_members->command_spot = (int)private_members->commands.size();
+			}
+			
+			if (private_members->command_spot > 0)
+			{
+				private_members->echo_string = private_members->commands[--private_members->command_spot];
+			}
+		}
+		else if (c == KEY_DOWN)
+		{
+			#ifdef DEBUG
+				Log::write("User pressed the DOWN arrow.");
+			#endif
+			
+			//grab the next thing in the command list
+			if (private_members->command_spot >= 0)
+			{
+				++private_members->command_spot;
+				if (private_members->command_spot >= (int)private_members->commands.size())
+				{
+					private_members->echo_string = "";
+					private_members->command_spot = (int)private_members->commands.size();
+				}
+				else
+				{
+					private_members->echo_string = private_members->commands[private_members->command_spot];
+				}
+			}
+		}
+		else if (c == KEY_LEFT || c == KEY_RIGHT)
+		{
+			//just ignore them for now
+			#ifdef DEBUG
+				Log::write("User pressed a SPECIAL KEY that isn't used.");
+			#endif
+		}
 		//check for normal keys
-		if (c == KEY_BACKSPACE || c == 127)
+		else if (c == KEY_BACKSPACE || c == 127)
 		{
 			if (private_members->echo_string.length() > 0)
 			{
@@ -83,6 +133,12 @@ std::string Console::check_for_input()
 		{
 			retval = private_members->echo_string;
 			private_members->echo_string = "";
+			
+			if (private_members->commands.empty() || private_members->commands.back() != retval)
+			{
+				private_members->commands.push_back(retval);
+			}
+			private_members->command_spot = -1;
 		}
 		else if (c >= 0)
 		{
@@ -107,10 +163,10 @@ std::string Console::get_last_n_lines(std::string input, unsigned n_lines, int f
 	for (unsigned i = 0; i < input.length(); ++i)
 	{
 		//first off, don't count any formatting tags (<fg=color> or <bg=color>)
-		if (input[i] == '<' && (i == 0 || input[i-1] != '\\'))//check for an escaped bracket "\<"
+		if (input[i] == '<' && (i == 0 || input.substr(i-1,2) != R"(\<)"))//check for an escaped bracket "\<"
 		{
 			//skip ahead to a closing brace
-			for (;i<input.length() && input[i] != '>';++i,current_line += input[i]);
+			for (;i<input.length() && input[i] != '>';current_line += input[i],++i);
 			
 			current_line += '>';//add the closing brace
 		}
@@ -124,9 +180,16 @@ std::string Console::get_last_n_lines(std::string input, unsigned n_lines, int f
 		//if it's not a tag or newline character, add it in
 		else
 		{
+			#ifdef DEBUG
+					Log::write(std::string("Here1! ") + (line_wraps ? "Wraps" : "Doesn't wrap") + ", frame_width is " + StringUtils::to_string(frame_width));
+				#endif
+		
 			//skip to the next line if necessary
 			if (line_wraps && current_width >= frame_width)
 			{
+				#ifdef DEBUG
+					Log::write("Here!2");
+				#endif
 				lines.push_back(current_line);
 				current_line = "";
 				current_width = 0;
@@ -327,14 +390,12 @@ void Console::write_string(int row, int column, const std::string & s, int frame
 void Console::set_fgcolor(Color color)
 {
 	private_members->current_fg_color = color;
-	//init_pair(1,(int)color,(int)(private_members->current_bg_color));
 	attrset(COLOR_PAIR(1 + (((int)(private_members->current_bg_color)<<3) | (int)(private_members->current_fg_color))));
 }
 
 void Console::set_bgcolor(Color color)
 {
 	private_members->current_bg_color = color;
-	//init_pair(1,(int)(private_members->current_fg_color),(int)color);
 	attrset(COLOR_PAIR(1 + (((int)(private_members->current_bg_color)<<3) | (int)(private_members->current_fg_color))));
 }
 

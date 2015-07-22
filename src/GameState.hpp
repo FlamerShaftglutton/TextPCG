@@ -7,6 +7,7 @@ struct GameState
 	int frames_elapsed;
 	int menu_index;
 	bool menu_transition;
+	ECS::Handle playable_character;
 	Level* level;
 	
 	std::string main_text;

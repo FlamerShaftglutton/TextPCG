@@ -1,5 +1,6 @@
 CC=g++
-CFLAGS=-c -Wall -std=c++11
+CFLAGS=-c -Wall -std=c++11 -DDEBUG
+#add -DDEBUG to CFLAGS for debugging messages
 LDFLAGS=-lncurses
 SUBFOLDERS=src
 OBJFOLDER=obj

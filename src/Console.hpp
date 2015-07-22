@@ -48,5 +48,5 @@ public:
 	void refresh();
 	void clear(int frame = 0);
 	
-	int add_frame(int height, int width, int x, int y, bool height_locked, bool width_locked, bool word_wrap);
+	int add_frame(int height, int width, int y, int x, bool height_locked, bool width_locked, bool word_wrap);
 };

@@ -4,170 +4,18 @@
 #include "GameState.hpp"
 #include "Console.hpp"
 #include "Level.hpp"
-#include <iostream>
-#include "string_utils.hpp"
-
-void outline_frame(Console& console, int frame, bool top, bool bottom, bool left, bool right)
-{
-	for (int i = 0; i < console.get_width(frame); ++i)
-	{
-		if (top)
-			console.write_character(0,i,' ',frame);
-		
-		if (bottom)
-			console.write_character(console.get_height(frame) - 1, i, ' ', frame);
-	}
-	
-	for (int i = 0; i < console.get_height(frame); ++i)
-	{
-		if (left)
-			console.write_character(i,0,' ',frame);
-		if (right)
-			console.write_character(i,console.get_width(frame)-1,' ',frame);
-	}
-}
-
-void handle_input(Console& console, GameState& gs)
-{
-	std::string input = console.check_for_input();
-	std::string lower_input = StringUtils::to_lowercase(input);
-	
-	//depends greatly on the current menu, but all menus accept "quit"
-	if (lower_input == "q" || lower_input == "quit")
-	{
-		if (gs.menu_index == 0)
-			gs.menu_index = -1;
-		else
-			gs.menu_index = 0;
-	}
-	else if (input != "")
-	{
-		if (gs.menu_index == 0)//main menu
-		{
-			if (lower_input == "1")//New Game
-			{
-				gs.menu_index = 1;
-				gs.menu_transition = true;
-			}
-			else if (lower_input == "2") //Continue Game
-			{
-				gs.menu_index = 2;
-				gs.menu_transition = true;
-			}
-			else if (lower_input == "3") //Restart Game
-			{
-				gs.menu_index = 1;//change this later
-				gs.menu_transition = true;
-			}
-			else if (lower_input == "4") //Quit
-			{
-				gs.menu_index = -1;
-			}
-		}
-		else if (gs.menu_index == 1)//Game creation screen
-		{
-		
-		}
-		else if (gs.menu_index == 2)//the actual game
-		{
-			gs.main_text += "\n";
-			gs.main_text += input;
-			gs.main_text_dirty_flag = true;
-		}
-	}
-}
-
-void update_game(Console& console, GameState& gs)//normally I'd pass in a delta, but we're going to lock this to X frames per second (probably 5)
-{
-	//first off, the menu will be the real defining factor here
-	if (gs.menu_index < 0)//shouldn't ever happen, but better safe than sorry
-	{
-		return;
-	}
-	else if (gs.menu_index == 0)//main menu
-	{
-		if (gs.menu_transition)
-		{
-			gs.menu_transition = false;
-			console.clear();
-			gs.main_text = "Please enter the number of your choice then press <fg=red>ENTER<fg=white>.\n";
-			gs.main_text += "1. New Game\n";
-			gs.main_text += "2. Continue Game\n";
-			gs.main_text += "3. Restart Game\n";
-			gs.main_text += "4. Quit\n";
-		}
-	}
-	else if (gs.menu_index == 1)//Game creation screen
-	{
-		if (gs.menu_transition)
-		{
-			gs.menu_transition = false;
-			console.clear();
-			//put some text into gs.main_text
-		}
-	}
-	else if (gs.menu_index == 2)//the actual game
-	{
-		if (gs.menu_transition)
-		{
-			gs.menu_transition = false;
-			console.clear();
-			gs.main_text = "<fg=Red>Welcome! <fg=white>Type your command then press ENTER.\n";
-		}
-	}
-}
-
-void draw_screen(Console& console, GameState& gs, int text_box_frame, int lower_bar_frame, int minimap_frame, int NPC_frame, int inventory_frame)
-{
-	//if the main text window got new text, redraw it
-	if (gs.main_text_dirty_flag)
-	{
-		//recalculate the string
-		gs.main_text_dirty_flag = false;
-		gs.main_text = console.get_last_n_lines(gs.main_text,console.get_height(text_box_frame),text_box_frame);
-		
-		//change color and write out the text-box stuff
-		console.set_fgcolor(Console::Color::White);
-		console.set_bgcolor(Console::Color::Black);
-		console.write_string(0,0,gs.main_text,text_box_frame);
-	}
-	
-	//draw the borders for any menu
-	console.set_fgcolor(Console::Color::White);
-	console.set_bgcolor(Console::Color::Blue);
-	outline_frame(console,lower_bar_frame,true,false,false,false);
-	
-	if (gs.menu_index == 2)
-	{
-		//draw the borders for menu 1
-		outline_frame(console,minimap_frame,false,true,true,false);
-		outline_frame(console,NPC_frame,false,true,true,false);
-		outline_frame(console,inventory_frame,false,false,true,false);
-		
-		//write the frame count for debugging
-		console.write_string(0,0,StringUtils::to_string(gs.frames_elapsed),minimap_frame);
-		
-		//display some status bar text
-		console.write_string(0,0,"Health: 85% Stamina: 100%",lower_bar_frame);
-	}
-	
-	//change color and write out the text-box stuff
-	console.set_fgcolor(Console::Color::White);
-	console.set_bgcolor(Console::Color::Black);
-	console.write_string(0,0,gs.main_text,text_box_frame);
-	
-	//refresh the console to display the changes
-	console.refresh();
-}
+#include "DrawSystem.hpp"
+#include "InputSystem.hpp"
+#include "UpdateSystem.hpp"
 
 void game_loop(Console& console)
 {
 	//set up the console frames
-	int tw = console.get_width()-8;
+	int tw = console.get_width()-10;
 	int text_box_frame = console.add_frame(console.get_height() - 2, tw, 0, 0, false, false, true);
-	int minimap_frame = console.add_frame(8,8,0,tw,false,false,false);
-	int NPC_frame = console.add_frame(8,8,8,tw,false,false,false);
-	int inventory_frame = console.add_frame(console.get_height() - 18, 8, 16, tw, false, false, false);
+	int minimap_frame = console.add_frame(10,10,0,tw,false,false,false);
+	int NPC_frame = console.add_frame(6,10,10,tw,false,false,false);
+	int inventory_frame = console.add_frame(console.get_height() - 18, 10, 16, tw, false, false, false);
 	int lower_bar_frame = console.add_frame(1,-1,console.get_height()-2,0,true,false,false);
 	int echo_frame = console.add_frame(1,-1,console.get_height()-1,0,true,false,false);
 	
@@ -187,17 +35,117 @@ void game_loop(Console& console)
 	//set up the game state
 	GameState gs;
 	gs.menu_index = 0;
-	gs.main_text = "<fg=Red>Welcome! <fg=white>Type your command then press ENTER.\n";
+	gs.main_text = "";
 	gs.main_text_dirty_flag = true;
-	gs.level = new Level(5,5);
+	gs.level = new Level(9,9);
 	gs.frames_elapsed = 0;
 	gs.menu_transition = true;
+	
+	//Debugging, create dummy level
+	{
+		for (int i = 1; i <4; ++i)
+		{
+			for (int j = 1; j < 4; ++j)
+			{
+				ECS::Handle h = gs.level->create_room(i,j);
+				gs.level->get_room(h)->set_short_description("A Small Room");
+				gs.level->get_room(h)->set_minimap_symbol("<fg=yellow><bg=yellow> ");
+			}
+		}
+	
+		gs.level->get_room(1,1)->set_exit(Room::Exit::EAST,true);
+		gs.level->get_room(1,1)->set_exit(Room::Exit::SOUTH,true);
+		gs.level->get_room(1,1)->set_description("<fg=white>Room 1,1.\n<fg=green>Lawful Good!");
+		
+		gs.level->get_room(2,1)->set_exit(Room::Exit::WEST,true);
+		gs.level->get_room(2,1)->set_exit(Room::Exit::SOUTH,true);
+		gs.level->get_room(2,1)->set_description("<fg=white>Room 2,1.\n<fg=green>Lawful Neutral!");
+		
+		gs.level->get_room(3,1)->set_exit(Room::Exit::SOUTH,true);
+		gs.level->get_room(3,1)->set_description("<fg=white>Room 3,1.\n<fg=green>Lawful Evil!");
+		
+		gs.level->get_room(1,2)->set_exit(Room::Exit::NORTH,true);
+		gs.level->get_room(1,2)->set_exit(Room::Exit::SOUTH,true);
+		gs.level->get_room(1,2)->set_description("<fg=white>Room 1,2.\n<fg=yellow>Neutral Good!");
+		
+		gs.level->get_room(2,2)->set_exit(Room::Exit::NORTH,true);
+		gs.level->get_room(2,2)->set_exit(Room::Exit::SOUTH,true);
+		gs.level->get_room(2,2)->set_description("<fg=white>Room 2,2.\n<fg=yellow>True neutral!");
+		
+		gs.level->get_room(3,2)->set_exit(Room::Exit::NORTH,true);
+		gs.level->get_room(3,2)->set_exit(Room::Exit::SOUTH,true);
+		gs.level->get_room(3,2)->set_description("<fg=white>Room 3,2.\n<fg=yellow>Evil neutral!");
+		
+		gs.level->get_room(1,3)->set_exit(Room::Exit::NORTH,true);
+		gs.level->get_room(1,3)->set_description("<fg=white>Room 1,3.\n<fg=red>Chaotic Good!");
+		
+		gs.level->get_room(2,3)->set_exit(Room::Exit::EAST,true);
+		gs.level->get_room(2,3)->set_exit(Room::Exit::NORTH,true);
+		gs.level->get_room(2,3)->set_description("<fg=white>Room 2,3.\n<fg=red>Chaotic Neutral!");
+		
+		gs.level->get_room(3,3)->set_exit(Room::Exit::WEST,true);
+		gs.level->get_room(3,3)->set_exit(Room::Exit::NORTH,true);
+		gs.level->get_room(3,3)->set_exit(Room::Exit::EAST,true);
+		gs.level->get_room(3,3)->set_description("<fg=white>Room 3,3.\n<fg=red>Chaotic Evil!");
+		
+		ECS::Handle h = gs.level->create_room(4,3);
+		Room* r = gs.level->get_room(h);
+		r->set_short_description("A circular entryway");
+		r->set_minimap_symbol("<fg=yellow><bg=white> ");
+		r->set_description("<fg=white>An <fg=purple>odd<fg=white> circular entryway. The walls and floors are cold masonry, and on all sides are stone archways leading to more rooms.");
+		r->set_exit(Room::Exit::WEST,true);
+		r->set_exit(Room::Exit::NORTH,true);
+		r->set_exit(Room::Exit::EAST,true);
+		r->set_exit(Room::Exit::SOUTH,true);
+		
+		h = gs.level->create_room(4,2);
+		r = gs.level->get_room(h);
+		r->set_short_description("A dead end");
+		r->set_minimap_symbol("<fg=yellow><bg=white> ");
+		r->set_description("<fg=white>A small rectangular room with no visible exit but from the way you came in. The walls and floors are cold masonry, but the corners are dark and hard to see.");
+		r->set_exit(Room::Exit::SOUTH,true);
+		
+		h = gs.level->create_room(5,3);
+		r = gs.level->get_room(h);
+		r->set_short_description("A dead end");
+		r->set_minimap_symbol("<fg=yellow><bg=white> ");
+		r->set_description("<fg=white>A small rectangular room with no visible exit but from the way you came in. The walls and floors are cold masonry, but the corners are dark and hard to see.");
+		r->set_exit(Room::Exit::WEST,true);
+		
+		h = gs.level->create_room(4,4);
+		r = gs.level->get_room(h);
+		r->set_short_description("A dead end");
+		r->set_minimap_symbol("<fg=yellow><bg=white> ");
+		r->set_description("<fg=white>A small rectangular room with no visible exit but from the way you came in. The walls and floors are cold masonry, but the corners are dark and hard to see.");
+		r->set_exit(Room::Exit::NORTH,true);
+		
+		gs.playable_character = gs.level->create_object();
+		Object* o = gs.level->get_object(gs.playable_character);
+		o->visible = true;
+		o->friendly = true;
+		o->mobile = true;
+		o->playable = true;
+		o->room_container = gs.level->get_room(2,2)->get_handle();
+		o->object_container = -1;
+		o->hitpoints = 100;
+		o->attack = 10;
+		o->hit_chance = 0.75f;
+		o->name = "You";
+		o->description = "A <fg=red>hideous<fg=white> looking human. Possibly beaten, or possibly just always ugly. Hard to tell.";
+		gs.level->get_room(2,2)->objects().push_back(o->get_handle());
+	}
+	
+	//set up our systems
+	InputSystem input_system;
+	UpdateSystem update_system;
+	DrawSystem draw_system(text_box_frame, lower_bar_frame, minimap_frame, NPC_frame, inventory_frame);
+	
 	
 	//loop until something calls 'break'
 	for(int counter = 0;;++counter)
 	{
 		//check for input from the user
-		handle_input(console,gs);
+		input_system.do_work(console,gs);
 		
 		//if the user quit, then kill the program
 		if (gs.menu_index < 0)
@@ -210,16 +158,19 @@ void game_loop(Console& console)
 			++gs.frames_elapsed;
 			next_frame += frame_period;
 			
-			update_game(console, gs);//pass in the number of ms since the last frame
+			update_system.do_work(console, gs);//pass in the number of ms since the last frame
 		}
 		
 		//if we're ready for another draw, draw it!
 		if (mcount > next_draw)
 		{
 			next_draw += draw_period;
-			draw_screen(console, gs, text_box_frame, lower_bar_frame, minimap_frame, NPC_frame, inventory_frame);
+			draw_system.do_work(console, gs);
 		}
 	}
+	
+	//clean up some stuff
+	delete gs.level;
 }
 
 int main()

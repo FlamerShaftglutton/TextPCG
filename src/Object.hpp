@@ -17,6 +17,7 @@ public:
 	bool visible;
 	bool friendly;
 	bool mobile;
+	bool playable;
 	
 	ECS::Handle object_container;
 	ECS::Handle room_container;
