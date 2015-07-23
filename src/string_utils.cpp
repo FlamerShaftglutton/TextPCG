@@ -35,3 +35,32 @@ std::string StringUtils::trim(std::string input)
 	
 	return input.substr(fpos, 1 + lpos - fpos);
 }
+
+int StringUtils::stoi(std::string input)
+{
+	std::stringstream s(input);
+	int output;
+	s >> output;
+	
+	return output;
+}
+
+float StringUtils::stof(std::string input)
+{
+	std::stringstream s(input);
+	float output;
+	s >> output;
+	
+	return output;
+}
+
+std::vector<std::string> StringUtils::split(std::string input, char delimiter)
+{
+	std::vector<std::string> retval;
+    std::stringstream ss(input);
+    std::string item;
+    while (std::getline(ss, item, delimiter)) {
+        retval.push_back(item);
+    }
+    return retval;
+}

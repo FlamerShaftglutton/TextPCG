@@ -37,8 +37,8 @@ public:
 	Room(ECS::Handle handle, int x_coordinate, int y_coordinate) { my_handle = handle; x = x_coordinate; y = y_coordinate; for(int i=0;i<9;++i){special_exits[i] = -1;} }
 	~Room() { }
 	
-	inline bool get_exit(Exit e) { return ((exits & (1 << static_cast<std::size_t>(e))) != 0); }
-	inline void set_exit(Exit e, bool open) { exits |= ((open ? 1 : 0) << static_cast<std::size_t>(e)); }
+	inline bool get_exit(Exit e) { if (e == Exit::INVALID) { return false; } return ((exits & (1 << static_cast<std::size_t>(e))) != 0); }
+	inline void set_exit(Exit e, bool open) { if (e != Exit::INVALID) { exits |= ((open ? 1 : 0) << static_cast<std::size_t>(e)); } }
 	
 	inline ECS::Handle get_special_exit(Exit e) { return special_exits[static_cast<std::size_t>(e)]; }
 	inline void set_special_exit(Exit e, ECS::Handle h) { special_exits[static_cast<std::size_t>(e)] = h; }
