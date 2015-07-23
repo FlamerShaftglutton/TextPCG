@@ -122,6 +122,7 @@ void game_loop(Console& console)
 		gs.playable_character = gs.level->create_object();
 		Object* o = gs.level->get_object(gs.playable_character);
 		o->visible = true;
+		o->visible_in_short_description = true;
 		o->friendly = true;
 		o->mobile = true;
 		o->playable = true;
@@ -130,9 +131,24 @@ void game_loop(Console& console)
 		o->hitpoints = 100;
 		o->attack = 10;
 		o->hit_chance = 0.75f;
-		o->name = "You";
+		o->name = "Myself";
 		o->description = "A <fg=red>hideous<fg=white> looking human. Possibly beaten, or possibly just always ugly. Hard to tell.";
 		gs.level->get_room(2,2)->objects().push_back(o->get_handle());
+		
+		o = gs.level->get_object(gs.level->create_object());
+		o->visible = true;
+		o->visible_in_short_description = true;
+		o->friendly = true;
+		o->mobile = true;
+		o->playable = false;
+		o->room_container = r->get_handle();
+		o->object_container = -1;
+		o->hitpoints = 12;
+		o->attack = 0;
+		o->hit_chance = 0.0f;
+		o->name = "Mysterious underdweller";
+		o->description = "A somewhat short man in a dark gray cloak. He mutters to himself while eyeing you.";
+		r->objects().push_back(o->get_handle());
 	}
 	
 	//set up our systems

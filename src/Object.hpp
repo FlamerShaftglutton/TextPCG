@@ -15,6 +15,7 @@ public:
 	inline ECS::Handle get_handle() { return handle; }
 
 	bool visible;
+	bool visible_in_short_description;
 	bool friendly;
 	bool mobile;
 	bool playable;

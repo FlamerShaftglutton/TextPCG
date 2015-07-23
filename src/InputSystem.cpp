@@ -8,6 +8,129 @@
 	#include "Log.hpp"
 #endif
 
+void InputSystem::command_look_room(Console& console, GameState& gs, ECS::Handle room, bool short_description)
+{
+	gs.main_text += "\n\n<fg=white>";
+	Room* r = gs.level->get_room(room);
+	if (short_description)
+	{
+		gs.main_text += "You see ";
+		gs.main_text += r->get_short_description();
+		
+	}
+	else
+	{
+		gs.main_text += r->get_description();
+	}
+	
+	bool has_stuff = false;
+	std::string contents = "<fg=white><bg=black>\n";
+	contents += short_description ? "You can also see the following:" : "The room contains:";
+	for (unsigned i = 0; i < r->objects().size(); ++i)
+	{
+		Object* o = gs.level->get_object(r->objects()[i]);
+		if (!o->playable && (!short_description || o->visible_in_short_description))
+		{
+			has_stuff = true;
+			std::string co = "<fg=white><bg=black>";
+			if (o->mobile)
+			{
+				if (o->friendly)
+				{
+					co = "<fg=green><bg=black>";
+				}
+				else
+				{
+					co = "<fg=red><bg=black>";
+				}
+			}
+				
+			contents += co + "\n\t" + o->name;
+		}
+	}
+	if (has_stuff)
+	{
+		gs.main_text += contents;
+	}
+	else if (!short_description)
+	{
+		gs.main_text += contents;
+		gs.main_text += "\n\tNothing";
+	}
+}
+
+void InputSystem::command_look_object(Console& console, GameState& gs, std::string desc, std::string type)
+{
+	//first, we gotta figure out what we're looking at/in
+	Object* obj = nullptr;
+	Object* player = gs.level->get_object(gs.playable_character);
+	Room* current_room = gs.level->get_room(player->room_container);
+	desc = StringUtils::trim(desc);
+	type = StringUtils::trim(type);
+	
+	//look through the inventory
+	for (ECS::Handle oh : player->objects)
+	{
+		Object* o = gs.level->get_object(oh);
+		
+		if (o->name.find(desc) != std::string::npos)
+		{
+			obj = o;
+			break;
+		}
+	}
+	
+	//look through the room
+	if (obj == nullptr)
+	{
+		for (ECS::Handle oh : current_room->objects())
+		{
+			Object* o = gs.level->get_object(oh);
+			
+			if (o->name.find(desc) != std::string::npos)
+			{
+				obj = o;
+				break;
+			}
+		}
+	}
+	
+	//if we couldn't find anything, spit out the error message
+	if (obj == nullptr)
+	{
+		gs.main_text += "<fg=white><bg=black>\n\nYou don't see anything like '" + desc + "' here.";
+	}
+	//if we did find something, then the output will depend on the type: "look in ..." or "look at ..."
+	else
+	{
+		if (type == "at")
+		{
+			gs.main_text += "<fg=white><bg=black>\n\n" + obj->name + "\n<fg=white><bg=black>" + obj->description;
+		}
+		else if (type == "in")
+		{
+			gs.main_text += "<fg=white><bg=black>\n\n" + obj->name + " contains the following:";
+			
+			if (obj->objects.empty())
+			{
+				gs.main_text += "\n\tNothing";
+			}
+			else
+			{
+				for (ECS::Handle oh : obj->objects)
+				{
+					gs.main_text += "<fg=white><bg=black>\n\t" + gs.level->get_object(oh)->name;
+				}
+			}
+		}
+		else
+		{
+			//output an error message I guess? This is probably handled in the do_work function already, but just to be safe...
+			gs.main_text += "<fg=white><bg=black>\n\nLook in or at what?";
+		}
+	}
+}
+
 void InputSystem::do_work(Console& console, GameState& gs)
 {
 	std::string input = StringUtils::trim(console.check_for_input());
@@ -78,17 +201,21 @@ void InputSystem::do_work(Console& console, GameState& gs)
 				if (lower_input.length() < 5)
 				{
 					//get the description of the room
-					gs.main_text += "\n\n";
-					gs.main_text += gs.level->get_room(current_room_handle)->get_description();
+					command_look_room(console,gs,current_room_handle,false);
 				}
 				//if we're looking at something specific...
 				else
 				{
 					std::string rest = StringUtils::trim(lower_input.substr(4));
+					std::string type = StringUtils::trim(rest.substr(0,rest.find_first_of(' ')));
 					//if we're looking at an object
-					if (rest.substr(0,2) == "at")
+					if (type == "at" || type == "in")
 					{
-						//figure out how to find that object!
+						//split the rest into the type ("at" or "in") and the description
+						std::string desc = StringUtils::trim(rest.substr(rest.find_first_of(' ')));
+						
+						//call the function
+						command_look_object(console,gs,desc,type);
 					}
 					//if we're looking in a direction
 					else
@@ -119,7 +246,7 @@ void InputSystem::do_work(Console& console, GameState& gs)
 							//if there is a room that direction...
 							else
 							{
-								gs.main_text += "\n\n<fg=white>You see " + gs.level->get_room(next_room)->get_short_description();
+								command_look_room(console,gs,next_room,true);
 							}
 						}
 					}
@@ -192,63 +319,8 @@ void InputSystem::do_work(Console& console, GameState& gs)
 					gs.level->get_object(gs.playable_character)->room_container = next_room;
 					
 					//get the description of the room
-					gs.main_text += "\n<fg=white>";
-					gs.main_text += gs.level->get_room(next_room)->get_description();
+					command_look_room(console,gs,next_room,false);
 				}
-				/*
-				//can the player move that direction?
-				if(gs.level->get_room(current_room_handle)->get_exit(e))
-				{
-					//if so, remove it from the old room
-					std::vector<ECS::Handle>& cro = gs.level->get_room(current_room_handle)->objects();
-					for (unsigned i = 0; i < cro.size(); ++i)
-					{
-						if (cro[i] == gs.playable_character)
-						{
-							cro[i] = cro.back();
-							cro.pop_back();
-							break;
-						}
-					}
-					
-					//then add it to the new room
-					ECS::Handle next_room = gs.level->get_room(current_room_handle)->get_special_exit(e);
-					if (next_room < 0)
-					{
-						int current_room_x, current_room_y;
-						gs.level->get_room(current_room_handle)->get_xy(current_room_x, current_room_y);
-						
-						int x_modifier = e == Room::Exit::SOUTH || e == Room::Exit::NORTH ? 0 : e == Room::Exit::EAST ? 1 : -1;
-						int y_modifier = e == Room::Exit::EAST || e == Room::Exit::WEST ? 0 : e == Room::Exit::SOUTH ? 1 : -1;
-						
-						next_room = gs.level->get_room(current_room_x + x_modifier, current_room_y + y_modifier)->get_handle();
-						
-					}
-					if (next_room < 0)
-					{
-						//alert the programmer that there is an exit with no valid endpoint
-						#ifdef DEBUG
-							Log::write("\t\tWARNING: the room specified can't be found!");
-						#endif
-						
-						//put the player back into this room for the time being
-						cro.push_back(gs.playable_character);
-					}
-					else
-					{
-						gs.level->get_room(next_room)->objects().push_back(gs.playable_character);
-						gs.level->get_object(gs.playable_character)->room_container = next_room;
-						
-						//get the description of the room
-						gs.main_text += "\n<fg=white>";
-						gs.main_text += gs.level->get_room(next_room)->get_description();
-					}
-				}
-				else
-				{
-					gs.main_text += "\n<fg=white>You can't go that way.";
-				}
-				*/
 			}
 			else
 			{

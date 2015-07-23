@@ -60,6 +60,10 @@ Console::Console()
 	{
 		init_pair(i+1,i&7,i>>3);
 	}
+	
+	#ifdef DEBUG
+		Log::write("COLORS: " + StringUtils::to_string(COLORS) + ", COLOR_PAIRS: " + StringUtils::to_string(COLOR_PAIRS));
+	#endif
 }
 
 Console::~Console()
@@ -159,7 +163,8 @@ std::string Console::get_last_n_lines(std::string input, unsigned n_lines, int f
 	std::string current_line;
 	int frame_width = get_width(frame);
 	int current_width = 0;
-	bool line_wraps = (frame != 0 && private_members->frames[frame].word_wrap);
+	bool line_wraps = (frame != 0 && private_members->frames[frame-1].word_wrap);
+
 	for (unsigned i = 0; i < input.length(); ++i)
 	{
 		//first off, don't count any formatting tags (<fg=color> or <bg=color>)
@@ -180,16 +185,9 @@ std::string Console::get_last_n_lines(std::string input, unsigned n_lines, int f
 		//if it's not a tag or newline character, add it in
 		else
 		{
-			#ifdef DEBUG
-					Log::write(std::string("Here1! ") + (line_wraps ? "Wraps" : "Doesn't wrap") + ", frame_width is " + StringUtils::to_string(frame_width));
-				#endif
-		
 			//skip to the next line if necessary
 			if (line_wraps && current_width >= frame_width)
 			{
-				#ifdef DEBUG
-					Log::write("Here!2");
-				#endif
 				lines.push_back(current_line);
 				current_line = "";
 				current_width = 0;

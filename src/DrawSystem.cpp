@@ -52,105 +52,10 @@ void DrawSystem::do_work(Console& console, GameState& gs)
 		console.write_string(0,0,"<fg=" + color + ">Health: " + StringUtils::to_string(player_health) + "%",lower_bar_frame);
 		
 		//draw the minimap
-		std::string symbols[9][9];
-		for (int i = 0; i < 81; ++i)
-		{
-			symbols[i/9][i%9] = "<bg=black> ";
-		}
-		symbols[4][4] = "<bg=black><fg=red>@";
+		draw_minimap(console,gs);
 		
-		ECS::Handle rooms[5][5] = {{-1,-1,-1,-1,-1},{-1,-1,-1,-1,-1},{-1,-1,-1,-1,-1},{-1,-1,-1,-1,-1},{-1,-1,-1,-1,-1}};
-		rooms[2][2] = gs.level->get_object(gs.playable_character)->room_container;
-		
-		std::vector<std::pair<int,int>> queue;
-		queue.push_back({2,2});
-		
-		//do a flood fill of the minimap
-		while (!queue.empty())
-		{
-			//get the next item
-			auto pos = queue.back();
-			ECS::Handle top = rooms[pos.first][pos.second];
-			queue.pop_back();
-			
-			//check all of the surrounding spaces
-			ECS::Handle n = pos.second == 0 ? -1 : gs.level->get_open_neighbor(top,Room::Exit::NORTH);
-			ECS::Handle e = pos.first == 4 ? -1 : gs.level->get_open_neighbor(top,Room::Exit::EAST);
-			ECS::Handle s = pos.second == 4 ? -1 : gs.level->get_open_neighbor(top,Room::Exit::SOUTH);
-			ECS::Handle w = pos.first == 0 ? -1 : gs.level->get_open_neighbor(top,Room::Exit::WEST);
-			
-			if (n != -1)
-			{
-				//draw a little connector symbol
-				symbols[2 * pos.first][2 * pos.second - 1] = "<fg=white><bg=black>|";
-				
-				//add the next room to the queue if it hasn't already been done
-				if (rooms[pos.first][pos.second - 1] == -1)
-				{
-					symbols[2 * pos.first][2 * pos.second - 2] = gs.level->get_room(n)->get_minimap_symbol();
-					rooms[pos.first][pos.second - 1] = n;
-					queue.push_back(std::make_pair(pos.first,pos.second - 1));
-				}
-			}
-			
-			if (e != -1)
-			{
-				//draw a little connector symbol
-				symbols[2 * pos.first + 1][2 * pos.second] = "<fg=white><bg=black>-";
-				
-				//add the next room to the queue if it hasn't already been done
-				if (rooms[pos.first + 1][pos.second] == -1)
-				{
-					symbols[2 * pos.first + 2][2 * pos.second] = gs.level->get_room(e)->get_minimap_symbol();
-					rooms[pos.first + 1][pos.second] = e;
-					queue.push_back(std::make_pair(pos.first + 1,pos.second));
-				}
-			}
-			if (s != -1)
-			{
-				//draw a little connector symbol
-				symbols[2 * pos.first][2 * pos.second + 1] = "<fg=white><bg=black>|";
-				
-				//add the next room to the queue if it hasn't already been done
-				if (rooms[pos.first][pos.second + 1] == -1)
-				{
-					symbols[2 * pos.first][2 * pos.second + 2] = gs.level->get_room(s)->get_minimap_symbol();
-					rooms[pos.first][pos.second + 1] = s;
-					queue.push_back(std::make_pair(pos.first,pos.second + 1));
-				}
-			}
-			if (w != -1)
-			{
-				//draw a little connector symbol
-				symbols[2 * pos.first - 1][2 * pos.second] = "<fg=white><bg=black>-";
-				
-				//add the next room to the queue if it hasn't already been done
-				if (rooms[pos.first - 1][pos.second] == -1)
-				{
-					symbols[2 * pos.first - 2][2 * pos.second] = gs.level->get_room(w)->get_minimap_symbol();
-					rooms[pos.first - 1][pos.second] = w;
-					queue.push_back(std::make_pair(pos.first - 1,pos.second));
-				}
-			}
-		}
-		
-		//now arrange the data into a drawable string
-		std::string mm = "";
-		for (int i = 0; i < 9; ++i)
-		{
-			for (int j = 0; j < 9; ++j)
-			{
-				mm += symbols[j][i];
-			}
-			
-			if (i < 8)
-			{
-				mm += "\n";
-			}
-		}
-		
-		//finally, draw the minimap
-		console.write_string(0,1,mm,minimap_frame);
+		//draw the NPC frame
+		draw_NPCs(console,gs);
 	}
 	
 	//change color and write out the text-box stuff
@@ -160,6 +65,143 @@ void DrawSystem::do_work(Console& console, GameState& gs)
 	
 	//refresh the console to display the changes
 	console.refresh();
+}
+
+void DrawSystem::draw_minimap(Console& console, GameState& gs)
+{
+	//draw the minimap
+	std::string symbols[9][9];
+	for (int i = 0; i < 81; ++i)
+	{
+		symbols[i/9][i%9] = "<bg=black> ";
+	}
+	symbols[4][4] = "<bg=black><fg=red>@";
+	
+	ECS::Handle rooms[5][5] = {{-1,-1,-1,-1,-1},{-1,-1,-1,-1,-1},{-1,-1,-1,-1,-1},{-1,-1,-1,-1,-1},{-1,-1,-1,-1,-1}};
+	rooms[2][2] = gs.level->get_object(gs.playable_character)->room_container;
+	
+	std::vector<std::pair<int,int>> queue;
+	queue.push_back({2,2});
+	
+	//do a flood fill of the minimap
+	while (!queue.empty())
+	{
+		//get the next item
+		auto pos = queue.back();
+		ECS::Handle top = rooms[pos.first][pos.second];
+		queue.pop_back();
+		
+		//check all of the surrounding spaces
+		ECS::Handle n = pos.second == 0 ? -1 : gs.level->get_open_neighbor(top,Room::Exit::NORTH);
+		ECS::Handle e = pos.first == 4 ? -1 : gs.level->get_open_neighbor(top,Room::Exit::EAST);
+		ECS::Handle s = pos.second == 4 ? -1 : gs.level->get_open_neighbor(top,Room::Exit::SOUTH);
+		ECS::Handle w = pos.first == 0 ? -1 : gs.level->get_open_neighbor(top,Room::Exit::WEST);
+		
+		if (n != -1)
+		{
+			//draw a little connector symbol
+			symbols[2 * pos.first][2 * pos.second - 1] = "<fg=white><bg=black>|";
+			
+			//add the next room to the queue if it hasn't already been done
+			if (rooms[pos.first][pos.second - 1] == -1)
+			{
+				symbols[2 * pos.first][2 * pos.second - 2] = gs.level->get_room(n)->get_minimap_symbol();
+				rooms[pos.first][pos.second - 1] = n;
+				queue.push_back(std::make_pair(pos.first,pos.second - 1));
+			}
+		}
+		
+		if (e != -1)
+		{
+			//draw a little connector symbol
+			symbols[2 * pos.first + 1][2 * pos.second] = "<fg=white><bg=black>-";
+			
+			//add the next room to the queue if it hasn't already been done
+			if (rooms[pos.first + 1][pos.second] == -1)
+			{
+				symbols[2 * pos.first + 2][2 * pos.second] = gs.level->get_room(e)->get_minimap_symbol();
+				rooms[pos.first + 1][pos.second] = e;
+				queue.push_back(std::make_pair(pos.first + 1,pos.second));
+			}
+		}
+		if (s != -1)
+		{
+			//draw a little connector symbol
+			symbols[2 * pos.first][2 * pos.second + 1] = "<fg=white><bg=black>|";
+			
+			//add the next room to the queue if it hasn't already been done
+			if (rooms[pos.first][pos.second + 1] == -1)
+			{
+				symbols[2 * pos.first][2 * pos.second + 2] = gs.level->get_room(s)->get_minimap_symbol();
+				rooms[pos.first][pos.second + 1] = s;
+				queue.push_back(std::make_pair(pos.first,pos.second + 1));
+			}
+		}
+		if (w != -1)
+		{
+			//draw a little connector symbol
+			symbols[2 * pos.first - 1][2 * pos.second] = "<fg=white><bg=black>-";
+			
+			//add the next room to the queue if it hasn't already been done
+			if (rooms[pos.first - 1][pos.second] == -1)
+			{
+				symbols[2 * pos.first - 2][2 * pos.second] = gs.level->get_room(w)->get_minimap_symbol();
+				rooms[pos.first - 1][pos.second] = w;
+				queue.push_back(std::make_pair(pos.first - 1,pos.second));
+			}
+		}
+	}
+	
+	//now arrange the data into a drawable string
+	std::string mm = "";
+	for (int i = 0; i < 9; ++i)
+	{
+		for (int j = 0; j < 9; ++j)
+		{
+			mm += symbols[j][i];
+		}
+		
+		if (i < 8)
+		{
+			mm += "\n";
+		}
+	}
+	
+	//finally, draw the minimap
+	console.write_string(0,1,mm,minimap_frame);
+}
+
+void DrawSystem::draw_NPCs(Console& console, GameState& gs)
+{
+	Room* r = gs.level->get_room(gs.level->get_object(gs.playable_character)->room_container);
+	std::vector<std::string> content;
+	
+	for (unsigned i = 0; i < r->objects().size(); ++i)
+	{
+		Object* o = gs.level->get_object(r->objects()[i]);
+		if (!o->playable && o->mobile)
+		{
+			std::string color = o->friendly ? "<fg=green>" : "<fg=red>";
+			content.push_back("<bg=black>" + color + o->name);
+		}
+	}
+	
+	if ((int)content.size() > console.get_height(NPC_frame) - 1)
+	{
+		int i;
+		for (i = 0; i < console.get_height(NPC_frame) - 2; ++i)
+		{
+			console.write_string(i,1,content[i],NPC_frame);
+		}
+		console.write_string(i, 1, "+ " + StringUtils::to_string(1 + (int)content.size() - i) + " others", NPC_frame);
+	}
+	else
+	{
+		for (unsigned i = 0; i < content.size(); ++i)
+		{
+			console.write_string(i,1,content[i],NPC_frame);
+		}
+	}
 }
 
 void DrawSystem::outline_frame(Console& console, int frame, bool top, bool bottom, bool left, bool right)
