@@ -38,7 +38,6 @@ void DrawSystem::do_work(Console& console, GameState& gs)
 	{
 		//draw the borders only in the game
 		outline_frame(console,minimap_frame,false,true,true,false);
-		outline_frame(console,NPC_frame,false,true,true,false);
 		outline_frame(console,inventory_frame,false,false,true,false);
 		
 		//write the frame count for debugging
@@ -173,6 +172,11 @@ void DrawSystem::draw_minimap(Console& console, GameState& gs)
 
 void DrawSystem::draw_NPCs(Console& console, GameState& gs)
 {
+	//first, clear out the old text
+	console.set_bgcolor(Console::Color::Black);
+	console.clear(NPC_frame);
+
+	//now get the NPCs for the current room (including color tags)
 	Room* r = gs.level->get_room(gs.level->get_object(gs.playable_character)->room_container);
 	std::vector<std::string> content;
 	
@@ -186,6 +190,7 @@ void DrawSystem::draw_NPCs(Console& console, GameState& gs)
 		}
 	}
 	
+	//if there are too many, say "+ X others"
 	if ((int)content.size() > console.get_height(NPC_frame) - 1)
 	{
 		int i;
@@ -195,6 +200,7 @@ void DrawSystem::draw_NPCs(Console& console, GameState& gs)
 		}
 		console.write_string(i, 1, "+ " + StringUtils::to_string(1 + (int)content.size() - i) + " others", NPC_frame);
 	}
+	//if there aren't too many, draw the names!
 	else
 	{
 		for (unsigned i = 0; i < content.size(); ++i)
@@ -202,6 +208,10 @@ void DrawSystem::draw_NPCs(Console& console, GameState& gs)
 			console.write_string(i,1,content[i],NPC_frame);
 		}
 	}
+	
+	//draw the border
+	console.set_bgcolor(Console::Color::Blue);
+	outline_frame(console,NPC_frame,false,true,true,false);
 }
 
 void DrawSystem::outline_frame(Console& console, int frame, bool top, bool bottom, bool left, bool right)

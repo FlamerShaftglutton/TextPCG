@@ -1,4 +1,3 @@
-//#include <ncurses.h>
 #include <string>
 #include <chrono>
 #include "GameState.hpp"
@@ -12,13 +11,13 @@
 void game_loop(Console& console)
 {
 	//set up the console frames
-	int tw = console.get_width()-10;
+	int tw = console.get_width() - 10;
 	int text_box_frame = console.add_frame(console.get_height() - 2, tw, 0, 0, false, false, true);
-	int minimap_frame = console.add_frame(10,10,0,tw,false,false,false);
-	int NPC_frame = console.add_frame(6,10,10,tw,false,false,false);
+	int minimap_frame = console.add_frame(10, 10, 0, tw, false, false, false);
+	int NPC_frame = console.add_frame(6, 10, 10, tw, false, false, false);
 	int inventory_frame = console.add_frame(console.get_height() - 18, 10, 16, tw, false, false, false);
-	int lower_bar_frame = console.add_frame(1,-1,console.get_height()-2,0,true,false,false);
-	int echo_frame = console.add_frame(1,-1,console.get_height()-1,0,true,false,false);
+	int lower_bar_frame = console.add_frame(1, -1, console.get_height() - 2, 0, true, false, false);
+	int echo_frame = console.add_frame(1, -1, console.get_height() - 1, 0, true, false, false);
 	
 	//set up the console echo frame (where the user input is displayed until ENTER is hit)
 	console.set_echo_frame(echo_frame);
@@ -36,7 +35,7 @@ void game_loop(Console& console)
 	//set up the game state
 	GameState gs;
 	
-	Serialize::from_file("savedgame.tsf",gs);
+	Serialize::from_file("newgame.tsf",gs);
 	
 	gs.menu_index = 0;
 	gs.main_text = "";
@@ -155,7 +154,7 @@ void game_loop(Console& console)
 		o->description = "A somewhat short man in a dark gray cloak. He mutters to himself while eyeing you.";
 		r->objects().push_back(o->get_handle());
 		
-		Serialize::to_file("test.tsf",gs);
+		Serialize::to_file("newgame.tsf",gs);
 	}*/
 	
 	//set up our systems

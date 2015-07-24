@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 
-
 class Object
 {
 	ECS::Handle handle;
@@ -32,5 +31,6 @@ public:
 	std::string description;
 	std::string name;
 	
-	std::string on_use;//this will probably become another class called Program or something.
+	Program on_use;
+	Program on_sight;
 };
