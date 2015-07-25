@@ -24,6 +24,15 @@ std::string StringUtils::to_string(int input)
 	return s.str();
 }
 
+std::string StringUtils::to_string(float input)
+{
+	std::stringstream s;
+	
+	s << input;
+	
+	return s.str();
+}
+
 std::string StringUtils::trim(std::string input)
 {
 	std::size_t fpos = input.find_first_not_of(' ');

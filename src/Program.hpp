@@ -19,28 +19,36 @@ public:
 class Value : public Expression
 {
 public:
-	int int_val;
-	float float_val;
+	union
+	{
+		int int_val;
+		float float_val;
+		bool bool_val;
+	};
+	
 	std::string string_val;
 
 	enum class Value_Type
 	{
+		Bool,
 		Float,
 		Int,
-		String
+		String,
+		Error
 	} type;
 	
 	virtual bool construct(std::vector<Expression*> arguments) override;
-	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*> registers) override;
+	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*>* registers) override;
+	std::string to_string();
 };
 
 //now some classes that implement that interface
 class Choose_Expression: public Expression
 {
-	std::vector<Expression*> arguments;
+	std::vector<Expression*> args;
 public:
 	virtual bool construct(std::vector<Expression*> arguments) override;
-	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*> registers) override;
+	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*>* registers) override;
 	~Choose_Expression();
 };
 
@@ -50,27 +58,26 @@ class Random_Expression: public Expression
 	Expression* upper_limit;
 public:
 	virtual bool construct(std::vector<Expression*> arguments) override;
-	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*> registers) override;
+	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*>* registers) override;
 	~Random_Expression();
 };
 
 class Set_Expression: public Expression
 {
-	Value* register_number;
+	int register_number;
 	Expression* argument;
 public:
 	virtual bool construct(std::vector<Expression*> arguments) override;
-	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*> registers) override;
+	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*>* registers) override;
 	~Set_Expression();
 };
 
 class Get_Expression: public Expression
 {
-	Value* register_number;
+	int register_number;
 public:
 	virtual bool construct(std::vector<Expression*> arguments) override;
-	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*> registers) override;
-	~Get_Expression();
+	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*>* registers) override;
 };
 
 class Add_Expression: public Expression
@@ -79,7 +86,7 @@ class Add_Expression: public Expression
 	Expression* rhs;
 public:
 	virtual bool construct(std::vector<Expression*> arguments) override;
-	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*> registers) override;
+	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*>* registers) override;
 	~Add_Expression();
 };
 
@@ -89,7 +96,7 @@ class Subtract_Expression: public Expression
 	Expression* rhs;
 public:
 	virtual bool construct(std::vector<Expression*> arguments) override;
-	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*> registers) override;
+	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*>* registers) override;
 	~Subtract_Expression();
 };
 
@@ -99,7 +106,7 @@ class Multiply_Expression: public Expression
 	Expression* rhs;
 public:
 	virtual bool construct(std::vector<Expression*> arguments) override;
-	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*> registers) override;
+	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*>* registers) override;
 	~Multiply_Expression();
 };
 
@@ -109,7 +116,7 @@ class Divide_Expression: public Expression
 	Expression* rhs;
 public:
 	virtual bool construct(std::vector<Expression*> arguments) override;
-	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*> registers) override;
+	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*>* registers) override;
 	~Divide_Expression();
 };
 
@@ -119,17 +126,56 @@ class Power_Expression: public Expression
 	Expression* rhs;
 public:
 	virtual bool construct(std::vector<Expression*> arguments) override;
-	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*> registers) override;
+	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*>* registers) override;
 	~Power_Expression();
 };
 
-class Program
+class Min_Expression: public Expression
 {
-	std::vector<Value*> registers;
-	std::vector<Expression*> expressions;
-	ECS::Handle handle;
+	std::vector<Expression*> args;
 public:
-	Program();
-	bool construct(std::string s);
+	virtual bool construct(std::vector<Expression*> arguments) override;
+	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*>* registers) override;
+	~Min_Expression();
+};
+
+class Max_Expression: public Expression
+{
+	std::vector<Expression*> args;
+public:
+	virtual bool construct(std::vector<Expression*> arguments) override;
+	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*>* registers) override;
+	~Max_Expression();
+};
+
+//Script stuff
+typedef std::vector<Value*> Register;
+
+class Script
+{
+	Register* registers;
+	std::vector<Expression*> expressions;
+	std::string raw_script;
+public:
+	Script(std::string script, Register* regs);
+	~Script();
 	std::string to_string();
+	void evaluate(ProgramVariables& pv);
+};
+
+class ScriptSet
+{
+	Register* registers;
+	
+	Script* on_creation_script;
+	Script* on_sight_script;
+	Script* on_use_script;
+	
+public:
+	ScriptSet(std::string on_creation, std::string on_sight, std::string on_use);
+	~ScriptSet();
+	void execute_on_creation(ProgramVariables& pv);
+	void execute_on_sight(ProgramVariables& pv);
+	void execute_on_use(ProgramVariables& pv);
+	std::string to_String();
 };
