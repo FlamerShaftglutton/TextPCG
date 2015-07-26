@@ -2,7 +2,7 @@
 #include "Handle.hpp"
 #include <vector>
 #include <string>
-#include "ProgramVariables.hpp"
+#include "ScriptingVariables.hpp"
 
 class Value;
 
@@ -12,7 +12,7 @@ class Expression
 public:
 	virtual ~Expression() = default;
 	virtual bool construct(std::vector<Expression*> arguments) = 0;
-	virtual Value* evaluate(ProgramVariables& pv) = 0;
+	virtual Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) = 0;
 };
 
 //a value class
@@ -37,8 +37,8 @@ public:
 		Error
 	} type;
 	
-	virtual bool construct(std::vector<Expression*> arguments) override;
-	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*>* registers) override;
+	bool construct(std::vector<Expression*> arguments) override;
+	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
 	std::string to_string();
 };
 
@@ -47,8 +47,8 @@ class Choose_Expression: public Expression
 {
 	std::vector<Expression*> args;
 public:
-	virtual bool construct(std::vector<Expression*> arguments) override;
-	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*>* registers) override;
+	bool construct(std::vector<Expression*> arguments) override;
+	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
 	~Choose_Expression();
 };
 
@@ -57,8 +57,8 @@ class Random_Expression: public Expression
 	Expression* lower_limit;
 	Expression* upper_limit;
 public:
-	virtual bool construct(std::vector<Expression*> arguments) override;
-	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*>* registers) override;
+	bool construct(std::vector<Expression*> arguments) override;
+	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
 	~Random_Expression();
 };
 
@@ -67,8 +67,9 @@ class Set_Expression: public Expression
 	int register_number;
 	Expression* argument;
 public:
-	virtual bool construct(std::vector<Expression*> arguments) override;
-	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*>* registers) override;
+	Set_Expression(int rn, Expression* arg);
+	bool construct(std::vector<Expression*> arguments) override;
+	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
 	~Set_Expression();
 };
 
@@ -76,8 +77,9 @@ class Get_Expression: public Expression
 {
 	int register_number;
 public:
-	virtual bool construct(std::vector<Expression*> arguments) override;
-	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*>* registers) override;
+	Get_Expression(int rn);
+	bool construct(std::vector<Expression*> arguments) override;
+	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
 };
 
 class Add_Expression: public Expression
@@ -85,8 +87,8 @@ class Add_Expression: public Expression
 	Expression* lhs;
 	Expression* rhs;
 public:
-	virtual bool construct(std::vector<Expression*> arguments) override;
-	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*>* registers) override;
+	bool construct(std::vector<Expression*> arguments) override;
+	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
 	~Add_Expression();
 };
 
@@ -95,8 +97,8 @@ class Subtract_Expression: public Expression
 	Expression* lhs;
 	Expression* rhs;
 public:
-	virtual bool construct(std::vector<Expression*> arguments) override;
-	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*>* registers) override;
+	bool construct(std::vector<Expression*> arguments) override;
+	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
 	~Subtract_Expression();
 };
 
@@ -105,8 +107,8 @@ class Multiply_Expression: public Expression
 	Expression* lhs;
 	Expression* rhs;
 public:
-	virtual bool construct(std::vector<Expression*> arguments) override;
-	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*>* registers) override;
+	bool construct(std::vector<Expression*> arguments) override;
+	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
 	~Multiply_Expression();
 };
 
@@ -115,8 +117,8 @@ class Divide_Expression: public Expression
 	Expression* lhs;
 	Expression* rhs;
 public:
-	virtual bool construct(std::vector<Expression*> arguments) override;
-	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*>* registers) override;
+	bool construct(std::vector<Expression*> arguments) override;
+	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
 	~Divide_Expression();
 };
 
@@ -125,8 +127,8 @@ class Power_Expression: public Expression
 	Expression* lhs;
 	Expression* rhs;
 public:
-	virtual bool construct(std::vector<Expression*> arguments) override;
-	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*>* registers) override;
+	bool construct(std::vector<Expression*> arguments) override;
+	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
 	~Power_Expression();
 };
 
@@ -134,8 +136,8 @@ class Min_Expression: public Expression
 {
 	std::vector<Expression*> args;
 public:
-	virtual bool construct(std::vector<Expression*> arguments) override;
-	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*>* registers) override;
+	bool construct(std::vector<Expression*> arguments) override;
+	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
 	~Min_Expression();
 };
 
@@ -143,8 +145,8 @@ class Max_Expression: public Expression
 {
 	std::vector<Expression*> args;
 public:
-	virtual bool construct(std::vector<Expression*> arguments) override;
-	virtual Value* evaluate(ProgramVariables& pv, std::vector<Value*>* registers) override;
+	bool construct(std::vector<Expression*> arguments) override;
+	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
 	~Max_Expression();
 };
 
@@ -161,7 +163,7 @@ public:
 	Script(std::string script, Register* regs);
 	~Script();
 	std::string to_string();
-	void evaluate(ProgramVariables& pv);
+	void evaluate(ScriptingVariables& pv);
 };
 
 class ScriptSet
@@ -173,10 +175,12 @@ class ScriptSet
 	Script* on_use_script;
 	
 public:
-	ScriptSet(std::string on_creation, std::string on_sight, std::string on_use);
+	ScriptSet();
 	~ScriptSet();
-	void execute_on_creation(ProgramVariables& pv);
-	void execute_on_sight(ProgramVariables& pv);
-	void execute_on_use(ProgramVariables& pv);
-	std::string to_String();
+	void construct(std::string on_creation, std::string on_sight, std::string on_use);
+	
+	void execute_on_creation(ScriptingVariables& pv);
+	void execute_on_sight(ScriptingVariables& pv);
+	void execute_on_use(ScriptingVariables& pv);
+	std::string to_string();
 };

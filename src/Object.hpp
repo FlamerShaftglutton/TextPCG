@@ -3,6 +3,7 @@
 #include "Handle.hpp"
 #include <string>
 #include <vector>
+#include "Scripting.hpp"
 
 class Object
 {
@@ -31,6 +32,5 @@ public:
 	std::string description;
 	std::string name;
 	
-	Program on_use;
-	Program on_sight;
+	ScriptSet scripts;
 };

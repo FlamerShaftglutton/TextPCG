@@ -35,7 +35,7 @@ void game_loop(Console& console)
 	//set up the game state
 	GameState gs;
 	
-	Serialize::from_file("newgame.tsf",gs);
+	Serialize::from_file("savedgame.tsf",gs);
 	
 	gs.menu_index = 0;
 	gs.main_text = "";
@@ -152,14 +152,16 @@ void game_loop(Console& console)
 		o->hit_chance = 0.0f;
 		o->name = "Mysterious underdweller";
 		o->description = "A somewhat short man in a dark gray cloak. He mutters to himself while eyeing you.";
+		o->scripts.construct("(set 0 0);","(choose (get 0) \"Hello stranger.\" \"You again?\");(set 0 1)","");
 		r->objects().push_back(o->get_handle());
 		
 		Serialize::to_file("newgame.tsf",gs);
-	}*/
+	}
+	//*/
 	
 	//set up our systems
 	InputSystem input_system;
-	UpdateSystem update_system;
+	UpdateSystem update_system(gs);
 	DrawSystem draw_system(text_box_frame, lower_bar_frame, minimap_frame, NPC_frame, inventory_frame);
 	
 	//loop until something calls 'break'

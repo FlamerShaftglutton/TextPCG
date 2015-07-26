@@ -101,8 +101,10 @@ void Serialize::from_file(std::string fname, GameState& gs)
 			o->hit_chance = get_float();
 			o->description = get_string();
 			o->name = get_string();
-			o->on_use = get_string();
-			o->on_sight = get_string();
+			std::string on_creation = get_string(),
+						on_sight = get_string(),
+						on_use = get_string();
+			o->scripts.construct(on_creation, on_sight, on_use);
 			
 			std::vector<std::string> objs = StringUtils::split(get_string(),' ');
 			for (unsigned j = 0; j < objs.size(); ++j)
@@ -138,13 +140,11 @@ void Serialize::to_file(std::string fname, GameState& gs)
 	//now output the level details
 	unsigned num_rooms   = gs.level->get_num_rooms();
 	unsigned num_objects = gs.level->get_num_objects();
-	unsigned num_programs = gs.level->get_num_programs();
 	
 	outfile << gs.level->get_width() << ESC;
 	outfile << gs.level->get_height() << ESC;
 	outfile << num_rooms << ESC;
 	outfile << num_objects << ESC;
-	outfile << num_programs << ESC;
 	
 	//now output the rooms
 	for (unsigned i = 0; i < num_rooms; ++i)
@@ -214,8 +214,7 @@ void Serialize::to_file(std::string fname, GameState& gs)
 			outfile << o->hit_chance << ESC;
 			outfile << o->description << ESC;
 			outfile << o->name << ESC;
-			outfile << o->on_use.to_string() << ESC;
-			outfile << o->on_sight.to_string() << ESC;
+			outfile << o->scripts.to_string() << ESC;
 			
 			for (unsigned j = 0; j < o->objects.size(); ++j)
 			{

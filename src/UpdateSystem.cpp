@@ -2,6 +2,18 @@
 #include "Console.hpp"
 #include "GameState.hpp"
 #include <string>
+#include "ScriptingVariables.hpp"
+
+UpdateSystem::UpdateSystem(GameState& gs)
+{
+	current_room = -1;
+	ScriptingVariables sv;
+	
+	for (ECS::Handle i = 0; i < (ECS::Handle)gs.level->get_num_objects(); ++i)
+	{
+		gs.level->get_object(i)->scripts.execute_on_creation(sv);
+	}
+}
 
 void UpdateSystem::do_work(Console& console, GameState& gs)
 {
@@ -39,6 +51,26 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 			gs.menu_transition = false;
 			console.clear();
 			gs.main_text = "<fg=Red>Welcome! <fg=white>Type your command then press ENTER.\n";
+		}
+		else
+		{
+			//if we're transitioning to a new room...
+			ECS::Handle new_current_room = gs.level->get_object(gs.playable_character)->room_container;
+			if (new_current_room != current_room)
+			{
+				//update the current room variable
+				current_room = new_current_room;
+				
+				//create a ScriptingVariables object to pass in
+				ScriptingVariables sv;
+				sv.main_text = &(gs.main_text);
+				
+				auto &os = gs.level->get_room(current_room)->objects();
+				for (unsigned i = 0; i < os.size(); ++i)
+				{
+					gs.level->get_object(os[i])->scripts.execute_on_sight(sv);
+				}
+			}
 		}
 	}
 }
