@@ -526,6 +526,147 @@ Value* Max_Expression::evaluate(ProgramVariables& pv, std::vector<Value*>* regis
 
 
 
+Expression* Script::recursively_resolve(std::vector<std::string>& tokens, std::vector<int>& token_types)
+{
+	//first, check if it's a value
+	if (tokens.size() == 1)
+	{
+		Value* v = new Value;
+		
+		//if it's a number
+		if (token_types[0] == 3)
+		{
+			if (tokens[0].find('.') != std::string::npos)
+			{
+				v->type = Value::Value_Type::Float;
+				v->float_val = StringUtils::stof(tokens[0]);
+			}
+			else
+			{
+				v->type = Value::Value_Type::Int;
+				v->int_val = StringUtils::stoi(tokens[0]);
+			}
+		}
+		//if it's a quoted string
+		else if (token_types[0] == 4)
+		{
+			v->type = Value::Value_Type::String;
+			v->string_val = tokens[0];
+		}
+		//if it's a non-quoted string, then it should be a boolean
+		else if (token_types[0] == 5 && (StringUtils::to_lowercase(tokens[0]) == "true" || StringUtils::to_lowercase(tokens[0]) == "false"))
+		{
+			v->type = Value::Value_Type::Bool;
+			v->bool_val = StringUtils::to_lowercase(tokens[0]) == "true";
+		}
+		//if it's something else, then there's an issue
+		else
+		{
+			#ifdef DEBUG
+				Log::write("ERROR: invalid value");
+			#endif
+			
+			v->type = Value::Value_Type::Error;
+		}
+		
+		//return the value			
+		return v;
+	}
+	//if it's not a value, it must be a function
+	else if (tokens.size() > 1)
+	{
+		//the first thing should be a non-quoted string, which will be the function name
+		if (token_types[0] == 5)
+		{
+			//first off, recursively create a list of arguments
+			
+			
+			//then, grab the right constructor based on the string
+			std::string s = StringUtils::to_lowercase(tokens[0]);
+			bool it_worked = false;
+			
+			if (s == "choose")
+			{
+				
+			}
+			else if (s == "random")
+			{
+				
+			}
+			else if (s == "set")
+			{
+				//this has to be manually created
+			}
+			else if (s == "get")
+			{
+				//this has to be manually created
+			}
+			else if (s == "+")
+			{
+				
+			}
+			else if (s == "-")
+			{
+				
+			}
+			else if (s == "*")
+			{
+				
+			}
+			else if (s == "/")
+			{
+				
+			}
+			else if (s == "^")
+			{
+				
+			}
+			else if (s == "min")
+			{
+				
+			}
+			else if (s == "max")
+			{
+				
+			}
+			#ifdef DEBUG
+			else
+			{
+				Log::write("ERROR: invalid function name");
+			}
+			#endif
+			
+			if (!it_worked)
+			{
+				Value v = new Value;
+				v->type = Value::Value_Type::Error;
+				return v;
+			}
+		}
+		else
+		{
+			#ifdef DEBUG
+				Log::write("ERROR: invalid function call");
+			#endif
+			
+			Value v = new Value;
+			v->type = Value::Value_Type::Error;
+			return v;
+		}
+	}
+	//if it's neither, something's wrong
+	else
+	{
+		#ifdef DEBUG
+			Log::write("ERROR: Unable to parse expression.");
+		#endif
+		
+		Value v = new Value;
+		v->type = Value::Value_Type::Error;
+		return v;
+	}
+}
+
 Script::Script(std::string script, Register* regs)
 {
 	registers = regs;
@@ -533,7 +674,7 @@ Script::Script(std::string script, Register* regs)
 	
 	//interpret the string into a program, manually creating registers and values
 	std::vector<std::string> tokens;
-	std::string special_characters = "();.-+/*^";
+	std::vector<int> token_types; //0: opening paren, 1: closing paren, 2: semicolon, 3: number, 4: quoted string, 5: quoteless string
 	for (std::size_t i = 0; i < script.length(); ++i)
 	{
 		//skip whitespace
@@ -543,9 +684,10 @@ Script::Script(std::string script, Register* regs)
 		}
 		
 		//grab lonely special characters
-		if (special_characters.find_first_of(script[i]) != std::string::npos)
+		if (script[i] == '(' || script[i] == ')' || script[i] == ';')
 		{
 			tokens.push_back(script.substr(i,1));
+			token_types.push_back(script[i] == '(' ? 0 : script[i] == ')' ? 1 : 2);
 			continue;
 		}
 		
@@ -569,36 +711,143 @@ Script::Script(std::string script, Register* regs)
 			#endif
 			tokens.push_back(script.substr(i + 1, e - i - 1));
 			i = e;
+			token_types.push_back(4);
 			continue;
 		}
 		
 		//grab numbers
-		if (script[i] >= '0' && script[i] script <= '9')
+		if ((script[i] >= '0' && script[i] script <= '9') || ((script[i] == "-" || script[i] == "+") && (i+1) < script.size() && script[i+1] >= '0' && script[i+1] <= '9'))
 		{
 			std::size_t e = i;
+			//grab the first chunk of numerals
 			for(++e; e < script.length() && script[e] >= '0' && script[e] <= '9'; ++e);
 			
+			//the next character could be a period
+			if (script[e] == '.')
+			{
+				#ifdef DEBUG
+					if ((e+1) >= script.size() || script[e+1] < '0' || script[e+1] > '9')
+					{
+						Log::write("\tERROR: malformed numeric literal has no numerals after period character.");
+					}
+				#endif
+				
+				//grab some more numerals after this
+				for (++e; e < script.length() && script[e] >= '0' && script[e] <= '9'; ++e);
+			}
+			
+			//the next charcter can be an e or E
+			if (script[e] == 'e' || script[e] == 'E')
+			{
+				//there can be a sign symbol in front of the numerals
+				#ifdef DEBUG
+					if ((e+1) >= script.size())
+					{
+						Log::write("\tERROR: malformed numeric literal has nothing after E character.");
+					}
+				#endif
+				if (script[e+1] == "-" || script[e+1] == "+")
+				{
+					++e;
+				}
+				
+				//there can be numerals after that, and that's it
+				#ifdef DEBUG
+					if ((e+1) >= script.size() || script[e+1] < '0' || script[e+1] > '9')
+					{
+						Log::write("\tERROR: malformed numeric literal has no numerals after E character.");
+					}
+				#endif
+				
+				for (++e; e < script.length() && script[e] >= '0' && script[e] <= '9'; ++e);
+			}
+			
 			tokens.push_back(script.substr(i, e - i));
+			token_types.push_back(3);
 			i = e - 1;
+			
+			#ifdef DEBUG
+				if (e < script.length() && script[e] != ' ' && script[e] != ')' && script[e] != '\t' && script[e] != '\n')
+				{
+					Log::write("\tWarning: numeric literal directly followed by non-separater. Proceeding as if a space existed.");
+				}
+			#endif
+			
 			continue;
 		}
+		
+		//grab strings that are not in quotations
+		std::size_t e;
+		for (e = i + 1; e < script.length() && script[e] != ' ' && script[e] != ')' && script[e] != '\t' && script[e] != '\n'; ++e);
+		tokens.push_back(script.substr(i, e - i);
+		token_types.push_back(5);
 	}
 	
 	//now that the string is tokenized, interpret those tokens
-	std::vector<unsigned> unresolved_tokens;
 	for (unsigned i = 0; i < tokens.size(); ++i)
 	{
-		//the first token in every chunk will be a parenthesis
-		bool has_opening_brace = token[i] == "(";
+		bool seems_valid = true;
+		seems_valid &= tokens_types[i] == 0;
+		seems_valid &= tokens.size() >= 3 && tokens_types[i+1] == 5;
 		
-		#ifdef DEBUG
-			if (!has_opening_brace)
-				Log::write("\tWarning: Missing opening paren in expression. Continuing without.");
-		#endif
+		//if it seems valid so far, push a little further to find out
+		unsigned j;
+		unsigned lefts = 1;
+		unsigned rights = 0;
+		for (j = i + 2; j < tokens.size() && lefts != rights; ++j)
+		{
+			if (token_types[j] == 0)
+			{
+				++lefts;
+			}
+			else if (token_typesj] == 1)
+			{
+				++rights;
+			}
+		}
 		
-		++i;
+		seems_valid &= j < tokens.size();
 		
-		if (i > tokens.size())
+		//if it all checks out then recursively create the expression
+		if (seems_valid)
+		{
+			std::vector<std::string> tokens_subset(tokens.begin() + i + 1, tokens.begin() + j - 1);
+			std::vector<int> token_types_subset(token_types.begin() + i + 1, token_types.begin() + j - 1);
+			
+			Expression* ex = recursively_resolve(tokens_subset, token_types_subset);
+			expressions.push_back(ex);
+		
+			//finally, check if there's a semicolon afterwards
+			if ((j+1) < tokens.size() && tokens_types[j+1] == 2)
+			{
+				//consume it, but don't do anything with it
+				++j;
+				
+			}
+			//send out a warning, but otherwise don't do anything
+			#ifdef DEBUG
+				else
+				{
+					Log::write("Warning: No semicolon after expression. Continuing anyway.");
+				}
+			#endif
+			
+			i = j;
+		}
+		//if it doesn't check out, then something went wrong
+		else
+		{
+			#ifdef DEBUG
+				Log::write("Function parens or operator malformed");
+			#endif
+			
+			Value* v = new Value;
+			v->type = Value::Value_Type::Error;
+			expressions.push_back(v);
+			
+			//skip ahead to the next expression
+			for (;i < token_types.size() && tokens_types[i] != 2; ++i);
+		}
 	}
 }
 

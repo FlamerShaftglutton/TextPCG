@@ -156,6 +156,7 @@ class Script
 	Register* registers;
 	std::vector<Expression*> expressions;
 	std::string raw_script;
+	Expression* recursively_resolve(std::vector<std::string>& tokens, std::vector<int>& token_types);
 public:
 	Script(std::string script, Register* regs);
 	~Script();
