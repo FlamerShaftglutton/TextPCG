@@ -33,6 +33,7 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 			gs.main_text += "2. Continue Game\n";
 			gs.main_text += "3. Restart Game\n";
 			gs.main_text += "4. Quit\n";
+			gs.main_text_dirty_flag = true;
 		}
 	}
 	else if (gs.menu_index == 1)//Game creation screen
@@ -51,11 +52,13 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 			gs.menu_transition = false;
 			console.clear();
 			gs.main_text = "<fg=Red>Welcome! <fg=white>Type your command then press ENTER.\n";
+			gs.main_text_dirty_flag = true;
 		}
 		else
 		{
 			//if we're transitioning to a new room...
-			ECS::Handle new_current_room = gs.level->get_object(gs.playable_character)->room_container;
+			Object* player = gs.level->get_object(gs.playable_character);
+			ECS::Handle new_current_room = player->room_container;
 			if (new_current_room != current_room)
 			{
 				//update the current room variable
@@ -64,13 +67,41 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 				//create a ScriptingVariables object to pass in
 				ScriptingVariables sv;
 				sv.main_text = &(gs.main_text);
+				fill_ObjectMap(player,sv.player);
+				std::string old_main_text = gs.main_text;
 				
+				//call the on_sight function for every object in the room
 				auto &os = gs.level->get_room(current_room)->objects();
 				for (unsigned i = 0; i < os.size(); ++i)
 				{
-					gs.level->get_object(os[i])->scripts.execute_on_sight(sv);
+					//get the object
+					Object* o = gs.level->get_object(os[i]);
+				
+					//fill in the 'caller' variable
+					fill_ObjectMap(o,sv.caller);
+					
+					//call the on_sight script of this object
+					o->scripts.execute_on_sight(sv);
+				}
+				
+				//mark the dirty flag if anything changed the main_text variable
+				if (old_main_text != gs.main_text)
+				{
+					gs.main_text_dirty_flag = true;
 				}
 			}
 		}
 	}
+}
+
+void UpdateSystem::fill_ObjectMap(Object* o, ObjectMap& om)
+{
+	om.visible = &(o->visible);
+	om.visible_in_short_description = &(o->visible_in_short_description);
+	om.friendly = &(o->friendly);
+	om.mobile = &(o->mobile);
+	om.hitpoints = &(o->hitpoints);
+	om.hit_chance = &(o->hit_chance);
+	om.description = &(o->description);
+	om.name = &(o->name);
 }

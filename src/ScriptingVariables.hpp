@@ -29,5 +29,7 @@ struct RoomMap
 struct ScriptingVariables
 {
 	RoomMap current_room;
+	ObjectMap caller;
+	ObjectMap player;
 	std::string* main_text;
 };
