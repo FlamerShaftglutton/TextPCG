@@ -156,3 +156,121 @@ public:
 	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
 	~Say_Expression();
 };
+
+class If_Expression : public Expression
+{
+	Expression* condition;
+	Expression* if_true;
+	Expression* if_false;
+public:
+	bool construct(std::vector<Expression*> arguments) override;
+	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
+	~If_Expression();
+};
+
+class And_Expression : public Expression
+{
+	std::vector<Expression*> args;
+public:
+	bool construct(std::vector<Expression*> arguments) override;
+	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
+	~And_Expression();
+};
+
+class Not_Expression : public Expression
+{
+ 	Expression* arg;
+public:
+ 	bool construct(std::vector<Expression*> arguments) override;
+ 	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
+ 	~Not_Expression(); 
+};
+class Or_Expression : public Expression
+{
+ 	std::vector<Expression*> args;
+public:
+ 	bool construct(std::vector<Expression*> arguments) override;
+ 	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
+ 	~Or_Expression(); 
+};
+class Xor_Expression : public Expression
+{
+ 	Expression* lhs;
+	Expression* rhs;
+public:
+ 	bool construct(std::vector<Expression*> arguments) override;
+ 	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
+ 	~Xor_Expression(); 
+};
+class LessThan_Expression : public Expression
+{
+ 	Expression* lhs;
+	Expression* rhs;
+public:
+ 	bool construct(std::vector<Expression*> arguments) override;
+ 	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
+ 	~LessThan_Expression(); 
+};
+class GreaterThan_Expression : public Expression
+{
+ 	Expression* lhs;
+	Expression* rhs;
+public:
+ 	bool construct(std::vector<Expression*> arguments) override;
+ 	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
+ 	~GreaterThan_Expression(); 
+};
+class LessThanEqual_Expression : public Expression
+{
+ 	Expression* lhs;
+	Expression* rhs;
+public:
+ 	bool construct(std::vector<Expression*> arguments) override;
+ 	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
+ 	~LessThanEqual_Expression(); 
+};
+class GreaterThanEqual_Expression : public Expression
+{
+ 	Expression* lhs;
+	Expression* rhs;
+public:
+ 	bool construct(std::vector<Expression*> arguments) override;
+ 	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
+ 	~GreaterThanEqual_Expression(); 
+};
+class Equal_Expression : public Expression
+{
+ 	Expression* lhs;
+	Expression* rhs;
+public:
+ 	bool construct(std::vector<Expression*> arguments) override;
+ 	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
+ 	~Equal_Expression(); 
+};
+class NotEqual_Expression : public Expression
+{
+ 	Expression* lhs;
+	Expression* rhs;
+public:
+ 	bool construct(std::vector<Expression*> arguments) override;
+ 	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
+ 	~NotEqual_Expression(); 
+};
+class Between_Expression : public Expression
+{
+ 	Expression* val;
+	Expression* lower_limit;
+	Expression* upper_limit;
+public:
+ 	bool construct(std::vector<Expression*> arguments) override;
+ 	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
+ 	~Between_Expression(); 
+};
+class FEOIR_Expression : public Expression
+{
+ 	Expression* expr;
+public:
+ 	bool construct(std::vector<Expression*> arguments) override;
+ 	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
+ 	~FEOIR_Expression(); 
+};

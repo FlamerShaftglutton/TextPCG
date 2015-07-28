@@ -1,5 +1,4 @@
 #include "Expression.hpp"
-#include "Handle.hpp"
 #include <vector>
 #include <string>
 #include "ScriptingVariables.hpp"
@@ -265,52 +264,46 @@ Value* Add_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* reg
 {
 	Value* l = args[0]->evaluate(pv,registers);
 	
-	if (l->type == Value::Value_Type::Int)
+	if (l->type == Value::Value_Type::Int || l->type == Value::Value_Type::Float)
 	{
 		for (std::size_t i = 1; i < args.size(); ++i)
 		{
 			Value* r = args[i]->evaluate(pv,registers);
 			
-			if (r->type == Value::Value_Type::Int)
+			if (l->type == Value::Value_Type::Int)
 			{
-				l->int_val += r->int_val;
+				if (r->type == Value::Value_Type::Int)
+				{
+					l->int_val += r->int_val;
+				}
+				else if (r->type == Value::Value_Type::Float)
+				{
+					l->type = Value::Value_Type::Float;
+					l->float_val = (float)l->int_val + r->float_val;
+				}
+				else
+				{
+					l->type = Value::Value_Type::Error;
+					delete r;
+					break;
+				}
 			}
-			else if (r->type == Value::Value_Type::Float)
+			else if (l->type == Value::Value_Type::Float)
 			{
-				l->type = Value::Value_Type::Float;
-				l->float_val = (float)l->int_val + r->float_val;
-			}
-			else
-			{
-				l->type = Value::Value_Type::Error;
-				delete r;
-				break;
-			}
-			
-			delete r;
-		}
-		
-		return l;
-	}
-	else if (l->type == Value::Value_Type::Float)
-	{
-		for (std::size_t i = 1; i < args.size(); ++i)
-		{
-			Value* r = args[i]->evaluate(pv,registers);
-			
-			if (r->type == Value::Value_Type::Int)
-			{
-				l->float_val += (float)r->int_val;
-			}
-			else if (r->type == Value::Value_Type::Float)
-			{
-				l->float_val += r->float_val;
-			}
-			else
-			{
-				l->type = Value::Value_Type::Error;
-				delete r;
-				break;
+				if (r->type == Value::Value_Type::Int)
+				{
+					l->float_val += (float)r->int_val;
+				}
+				else if (r->type == Value::Value_Type::Float)
+				{
+					l->float_val += r->float_val;
+				}
+				else
+				{
+					l->type = Value::Value_Type::Error;
+					delete r;
+					break;
+				}
 			}
 			
 			delete r;
@@ -335,6 +328,10 @@ Value* Add_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* reg
 			else if (r->type == Value::Value_Type::String)
 			{
 				l->string_val += r->string_val;
+			}
+			else if (r->type == Value::Value_Type::Bool)
+			{
+				l->string_val += r->bool_val ? "true" : "false";
 			}
 			else
 			{
@@ -601,21 +598,32 @@ Value* Min_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* reg
 {
 	Value* retval = args[0]->evaluate(pv,registers);
 	
-	for (unsigned i = 1; i < args.size(); ++i)
+	if (retval->type == Value::Value_Type::Int || retval->type == Value::Value_Type::Float)
 	{
-		Value* a = args[i]->evaluate(pv,registers);
-		
-		if ((retval->type == Value::Value_Type::Int && a->type == Value::Value_Type::Int && a->int_val < retval->int_val) ||
-			(retval->type == Value::Value_Type::Int && a->type == Value::Value_Type::Float && a->float_val < (float)retval->int_val) ||
-			(retval->type == Value::Value_Type::Float && a->type == Value::Value_Type::Int && (float)a->int_val < retval->int_val) ||
-			(retval->type == Value::Value_Type::Float && a->type == Value::Value_Type::Float && a->float_val < retval->float_val))
+		for (unsigned i = 1; i < args.size(); ++i)
 		{
-			delete retval;
-			retval = a;
-		}
-		else
-		{
-			delete a;
+			Value* a = args[i]->evaluate(pv,registers);
+			
+			if (a->type != Value::Value_Type::Int && a->type != Value::Value_Type::Float)
+			{
+				delete a;
+				
+				retval->type = Value::Value_Type::Error;
+				break;
+			}
+			
+			if ((retval->type == Value::Value_Type::Int && a->type == Value::Value_Type::Int && a->int_val < retval->int_val) ||
+				(retval->type == Value::Value_Type::Int && a->type == Value::Value_Type::Float && a->float_val < (float)retval->int_val) ||
+				(retval->type == Value::Value_Type::Float && a->type == Value::Value_Type::Int && (float)a->int_val < retval->int_val) ||
+				(retval->type == Value::Value_Type::Float && a->type == Value::Value_Type::Float && a->float_val < retval->float_val))
+			{
+				delete retval;
+				retval = a;
+			}
+			else
+			{
+				delete a;
+			}
 		}
 	}
 	
@@ -648,24 +656,39 @@ Value* Max_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* reg
 {
 	Value* retval = args[0]->evaluate(pv,registers);
 	
-	for (unsigned i = 1; i < args.size(); ++i)
+	if (retval->type == Value::Value_Type::Int || retval->type == Value::Value_Type::Float)
 	{
-		Value* a = args[i]->evaluate(pv,registers);
-		
-		if ((retval->type == Value::Value_Type::Int && a->type == Value::Value_Type::Int && a->int_val > retval->int_val) ||
-			(retval->type == Value::Value_Type::Int && a->type == Value::Value_Type::Float && a->float_val > (float)retval->int_val) ||
-			(retval->type == Value::Value_Type::Float && a->type == Value::Value_Type::Int && (float)a->int_val > retval->int_val) ||
-			(retval->type == Value::Value_Type::Float && a->type == Value::Value_Type::Float && a->float_val > retval->float_val))
+		for (unsigned i = 1; i < args.size(); ++i)
 		{
-			delete retval;
-			retval = a;
-		}
-		else
-		{
-			delete a;
+			Value* a = args[i]->evaluate(pv,registers);
+			
+			if (a->type != Value::Value_Type::Int && a->type != Value::Value_Type::Float)
+			{
+				delete a;
+				
+				retval->type = Value::Value_Type::Error;
+				break;
+			}
+			
+			if ((retval->type == Value::Value_Type::Int && a->type == Value::Value_Type::Int && a->int_val > retval->int_val) ||
+				(retval->type == Value::Value_Type::Int && a->type == Value::Value_Type::Float && a->float_val > (float)retval->int_val) ||
+				(retval->type == Value::Value_Type::Float && a->type == Value::Value_Type::Int && (float)a->int_val > retval->int_val) ||
+				(retval->type == Value::Value_Type::Float && a->type == Value::Value_Type::Float && a->float_val > retval->float_val))
+			{
+				delete retval;
+				retval = a;
+			}
+			else
+			{
+				delete a;
+			}
 		}
 	}
-	
+	else
+	{
+		retval->type = Value::Value_Type::Error;
+	}
+
 	return retval;
 }
 
@@ -719,3 +742,827 @@ Value* Say_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* reg
 
 	return v;
 }
+
+
+
+bool If_Expression::construct(std::vector<Expression*> arguments)
+{
+	if (arguments.size() != 3 && arguments.size() != 2)
+	{
+		return false;
+	}
+
+	condition = arguments[0];
+	if_true = arguments[1];
+	
+	if (arguments.size() == 2)
+		if_false = nullptr;
+	else
+		if_false = arguments[2];
+	
+	return true;
+}
+
+If_Expression::~If_Expression()
+{
+	delete condition;
+	delete if_true;
+	if (if_false != nullptr)
+		delete if_false;
+}
+
+Value* If_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+{
+	Value* c = condition->evaluate(pv,registers);
+	
+	if (c->type != Value::Value_Type::Bool)
+	{
+		c->type = Value::Value_Type::Error;
+		return c;
+	}
+	
+	if (c->bool_val)
+	{
+		delete c;
+		return if_true->evaluate(pv,registers);
+	}
+	else if (if_false != nullptr)
+	{
+		delete c;
+		return if_false->evaluate(pv,registers);
+	}
+	
+	c->type = Value::Value_Type::Bool;
+	c->bool_val = true;
+	return c;
+}
+
+
+
+bool And_Expression::construct(std::vector<Expression*> arguments)
+{
+	if (arguments.size() < 2)
+	{
+		return false;
+	}
+
+	args = arguments;
+	return true;
+}
+
+And_Expression::~And_Expression()
+{
+	for (unsigned i = 0; i < args.size(); ++i)
+	{
+		delete args[i];
+		args[i] = nullptr;
+	}
+}
+
+Value* And_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+{
+	for (unsigned i = 0; i < args.size(); ++i)
+	{
+		Value* v = args[i]->evaluate(pv,registers);
+		
+		if (v->type != Value::Value_Type::Bool)
+		{
+			v->type = Value::Value_Type::Error;
+			return v;
+		}
+		
+		if (v->bool_val == false)
+		{
+			return v;
+		}
+		
+		delete v;
+	}
+	
+	Value* v = new Value;
+	v->type = Value::Value_Type::Bool;
+	v->bool_val = true;
+	return v;
+}
+
+
+
+bool Not_Expression::construct(std::vector<Expression*> arguments)
+{
+	if (arguments.size() != 1)
+	{
+		return false;
+	}
+
+	arg = arguments[0];
+	return true;
+}
+
+Not_Expression::~Not_Expression()
+{
+	delete arg;
+}
+
+Value* Not_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+{
+	Value* v = arg->evaluate(pv,registers);
+	
+	if (v->type != Value::Value_Type::Bool)
+	{
+		v->type = Value::Value_Type::Error;
+	}
+	else
+	{
+		v->bool_val = !(v->bool_val);
+	}
+	
+	return v;
+}
+
+
+
+bool Or_Expression::construct(std::vector<Expression*> arguments)
+{
+	if (arguments.size() < 2)
+	{
+		return false;
+	}
+
+	args = arguments;
+	return true;
+}
+
+Or_Expression::~Or_Expression()
+{
+	for (unsigned i = 0; i < args.size(); ++i)
+	{
+		delete args[i];
+		args[i] = nullptr;
+	}
+}
+
+Value* Or_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+{
+	for (unsigned i = 0; i < args.size(); ++i)
+	{
+		Value* v = args[i]->evaluate(pv,registers);
+		
+		if (v->type != Value::Value_Type::Bool)
+		{
+			v->type = Value::Value_Type::Error;
+			return v;
+		}
+		
+		if (v->bool_val == true)
+		{
+			return v;
+		}
+		
+		delete v;
+	}
+	
+	Value* v = new Value;
+	v->type = Value::Value_Type::Bool;
+	v->bool_val = false;
+	return v;
+}
+
+
+
+bool Xor_Expression::construct(std::vector<Expression*> arguments)
+{
+	if (arguments.size() != 2)
+	{
+		return false;
+	}
+
+	lhs = arguments[0];
+	rhs = arguments[1];
+	
+	return true;
+}
+
+Xor_Expression::~Xor_Expression()
+{
+	delete lhs;
+	delete rhs;
+	lhs = nullptr;
+	rhs = nullptr;
+}
+
+Value* Xor_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+{
+	Value* l = lhs->evaluate(pv,registers);
+	Value* r = rhs->evaluate(pv,registers);
+	
+	if (l->type != r->type || l->type != Value::Value_Type::Bool)
+	{
+		delete r;
+		l->type = Value::Value_Type::Error;
+		return l;
+	}
+	
+	bool retval = l->bool_val != r->bool_val;
+	delete r;
+	l->bool_val = retval;
+	return l;
+}
+
+
+
+
+bool LessThan_Expression::construct(std::vector<Expression*> arguments)
+{
+	if (arguments.size() != 2)
+	{
+		return false;
+	}
+
+	lhs = arguments[0];
+	rhs = arguments[1];
+	return true;
+}
+
+LessThan_Expression::~LessThan_Expression()
+{
+	delete lhs;
+	delete rhs;
+	lhs = nullptr;
+	rhs = nullptr;
+}
+
+Value* LessThan_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+{
+	Value* l = lhs->evaluate(pv,registers);
+	Value* r = rhs->evaluate(pv,registers);
+	
+	if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Int)
+	{
+		bool retval = l->int_val < r->int_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	else if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Float)
+	{
+		bool retval = (float)l->int_val < r->float_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	else if (l->type == Value::Value_Type::Float && r->type == Value::Value_Type::Int)
+	{
+		bool retval = l->float_val < (float)r->int_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	else if (l->type == Value::Value_Type::Float && r->type == Value::Value_Type::Float)
+	{
+		bool retval = l->float_val < r->float_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	
+	delete r;
+	l->type = Value::Value_Type::Error;
+	return l;
+}
+
+
+
+
+bool GreaterThan_Expression::construct(std::vector<Expression*> arguments)
+{
+	if (arguments.size() != 2)
+	{
+		return false;
+	}
+
+	lhs = arguments[0];
+	rhs = arguments[1];
+	return true;
+}
+
+GreaterThan_Expression::~GreaterThan_Expression()
+{
+	delete lhs;
+	delete rhs;
+	lhs = nullptr;
+	rhs = nullptr;
+}
+
+Value* GreaterThan_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+{
+	Value* l = lhs->evaluate(pv,registers);
+	Value* r = rhs->evaluate(pv,registers);
+	
+	if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Int)
+	{
+		bool retval = l->int_val > r->int_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	else if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Float)
+	{
+		bool retval = (float)l->int_val > r->float_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	else if (l->type == Value::Value_Type::Float && r->type == Value::Value_Type::Int)
+	{
+		bool retval = l->float_val > (float)r->int_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	else if (l->type == Value::Value_Type::Float && r->type == Value::Value_Type::Float)
+	{
+		bool retval = l->float_val > r->float_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	
+	delete r;
+	l->type = Value::Value_Type::Error;
+	return l;
+}
+
+
+
+
+bool LessThanEqual_Expression::construct(std::vector<Expression*> arguments)
+{
+	if (arguments.size() != 2)
+	{
+		return false;
+	}
+
+	lhs = arguments[0];
+	rhs = arguments[1];
+	return true;
+}
+
+LessThanEqual_Expression::~LessThanEqual_Expression()
+{
+	delete lhs;
+	delete rhs;
+	lhs = nullptr;
+	rhs = nullptr;
+}
+
+Value* LessThanEqual_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+{
+	Value* l = lhs->evaluate(pv,registers);
+	Value* r = rhs->evaluate(pv,registers);
+	
+	if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Int)
+	{
+		bool retval = l->int_val <= r->int_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	else if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Float)
+	{
+		bool retval = (float)l->int_val <= r->float_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	else if (l->type == Value::Value_Type::Float && r->type == Value::Value_Type::Int)
+	{
+		bool retval = l->float_val <= (float)r->int_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	else if (l->type == Value::Value_Type::Float && r->type == Value::Value_Type::Float)
+	{
+		bool retval = l->float_val <= r->float_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	
+	delete r;
+	l->type = Value::Value_Type::Error;
+	return l;
+}
+
+
+
+
+bool GreaterThanEqual_Expression::construct(std::vector<Expression*> arguments)
+{
+	if (arguments.size() != 2)
+	{
+		return false;
+	}
+
+	lhs = arguments[0];
+	rhs = arguments[1];
+	return true;
+}
+
+GreaterThanEqual_Expression::~GreaterThanEqual_Expression()
+{
+	delete lhs;
+	delete rhs;
+	lhs = nullptr;
+	rhs = nullptr;
+}
+
+Value* GreaterThanEqual_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+{
+	Value* l = lhs->evaluate(pv,registers);
+	Value* r = rhs->evaluate(pv,registers);
+	
+	if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Int)
+	{
+		bool retval = l->int_val >= r->int_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	else if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Float)
+	{
+		bool retval = (float)l->int_val >= r->float_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	else if (l->type == Value::Value_Type::Float && r->type == Value::Value_Type::Int)
+	{
+		bool retval = l->float_val >= (float)r->int_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	else if (l->type == Value::Value_Type::Float && r->type == Value::Value_Type::Float)
+	{
+		bool retval = l->float_val >= r->float_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	
+	delete r;
+	l->type = Value::Value_Type::Error;
+	return l;
+}
+
+
+
+
+bool Equal_Expression::construct(std::vector<Expression*> arguments)
+{
+	if (arguments.size() != 2)
+	{
+		return false;
+	}
+
+	lhs = arguments[0];
+	rhs = arguments[1];
+	return true;
+}
+
+Equal_Expression::~Equal_Expression()
+{
+	delete lhs;
+	delete rhs;
+	lhs = nullptr;
+	rhs = nullptr;
+}
+
+Value* Equal_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+{
+	Value* l = lhs->evaluate(pv,registers);
+	Value* r = rhs->evaluate(pv,registers);
+	
+	if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Int)
+	{
+		bool retval = l->int_val == r->int_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	else if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Float)
+	{
+		bool retval = (float)l->int_val == r->float_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	else if (l->type == Value::Value_Type::Float && r->type == Value::Value_Type::Int)
+	{
+		bool retval = l->float_val == (float)r->int_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	else if (l->type == Value::Value_Type::Float && r->type == Value::Value_Type::Float)
+	{
+		bool retval = l->float_val == r->float_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	else if (l->type == r->type && l->type == Value::Value_Type::String)
+	{
+		bool retval = l->string_val == r->string_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	else if (l->type == r->type && l->type == Value::Value_Type::Bool)
+	{
+		bool retval = l->bool_val == r->bool_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	
+	delete r;
+	l->type = Value::Value_Type::Error;
+	return l;
+}
+
+
+
+
+bool NotEqual_Expression::construct(std::vector<Expression*> arguments)
+{
+	if (arguments.size() != 2)
+	{
+		return false;
+	}
+
+	lhs = arguments[0];
+	rhs = arguments[1];
+	return true;
+}
+
+NotEqual_Expression::~NotEqual_Expression()
+{
+	delete lhs;
+	delete rhs;
+	lhs = nullptr;
+	rhs = nullptr;
+}
+
+Value* NotEqual_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+{
+	Value* l = lhs->evaluate(pv,registers);
+	Value* r = rhs->evaluate(pv,registers);
+	
+	if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Int)
+	{
+		bool retval = l->int_val != r->int_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	else if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Float)
+	{
+		bool retval = (float)l->int_val != r->float_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	else if (l->type == Value::Value_Type::Float && r->type == Value::Value_Type::Int)
+	{
+		bool retval = l->float_val != (float)r->int_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	else if (l->type == Value::Value_Type::Float && r->type == Value::Value_Type::Float)
+	{
+		bool retval = l->float_val != r->float_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	else if (l->type == r->type && l->type == Value::Value_Type::String)
+	{
+		bool retval = l->string_val != r->string_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	else if (l->type == r->type && l->type == Value::Value_Type::Bool)
+	{
+		bool retval = l->bool_val != r->bool_val;
+		
+		delete r;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	
+	delete r;
+	l->type = Value::Value_Type::Error;
+	return l;
+}
+
+
+
+
+bool Between_Expression::construct(std::vector<Expression*> arguments)
+{
+	if (arguments.size() != 3)
+	{
+		return false;
+	}
+
+	val = arguments[0];
+	lower_limit = arguments[1];
+	upper_limit = arguments[2];
+	
+	return true;
+}
+
+Between_Expression::~Between_Expression()
+{
+	delete val;
+	delete lower_limit;
+	delete upper_limit;
+	
+	val = nullptr;
+	lower_limit = nullptr;
+	upper_limit = nullptr;
+}
+
+Value* Between_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+{
+	Value* v = val->evaluate(pv,registers);
+	Value* l = lower_limit->evaluate(pv,registers);
+	Value* r = upper_limit->evaluate(pv,registers);
+	
+	if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Int && v->type == Value::Value_Type::Int)
+	{
+		bool retval = v->int_val >= l->int_val && v->int_val <= r->int_val;
+		
+		delete r;
+		delete v;
+		l->type = Value::Value_Type::Bool;
+		l->bool_val = retval;
+		return l;
+	}
+	
+	float vf, lf, rf;
+	
+	if (v->type == Value::Value_Type::Int)
+	{
+		vf = (float)v->int_val;
+	}
+	else if (v->type == Value::Value_Type::Float)
+	{
+		vf = v->float_val;
+	}
+	else
+	{
+		delete l;
+		delete r;
+		v->type = Value::Value_Type::Error;
+		
+		return v;
+	}
+	
+	if (l->type == Value::Value_Type::Int)
+	{
+		lf = (float)l->int_val;
+	}
+	else if (l->type == Value::Value_Type::Float)
+	{
+		lf = l->float_val;
+	}
+	else
+	{
+		delete l;
+		delete r;
+		v->type = Value::Value_Type::Error;
+		
+		return v;
+	}
+	
+	if (r->type == Value::Value_Type::Int)
+	{
+		rf = (float)r->int_val;
+	}
+	else if (r->type == Value::Value_Type::Float)
+	{
+		rf = r->float_val;
+	}
+	else
+	{
+		delete l;
+		delete r;
+		v->type = Value::Value_Type::Error;
+		
+		return v;
+	}
+	
+	delete l;
+	delete r;
+	v->type = Value::Value_Type::Bool;
+	v->bool_val = vf >= lf && vf <= rf;
+	return v;
+}
+
+
+
+
+bool FEOIR_Expression::construct(std::vector<Expression*> arguments)
+{
+	if (arguments.size() != 1)
+	{
+		return false;
+	}
+
+	expr = arguments[0];
+	return true;
+}
+
+FEOIR_Expression::~FEOIR_Expression()
+{
+	delete expr;
+	expr = nullptr;
+}
+
+Value* FEOIR_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+{
+	Value* v;
+	for (unsigned i = 0; i < pv.current_room.objects.size(); ++i)
+	{
+		//TODO: set the object_iterator register stuff to point to pv.current_room.objects[i]
+		
+		v = expr->evaluate(pv,registers);
+	}
+	
+	v->type = Value::Value_Type::Bool;
+	v->bool_val = true;
+	return v;
+}
+
+
+

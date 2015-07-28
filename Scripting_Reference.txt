@@ -1,0 +1,251 @@
+Syntax:
+The scripting language uses a Polish prefix parenthesis-enclosed syntax, similar to LISP. This makes it easy to parse while still being easy to read. 
+The language also requires a semicolon after each top-level expression for easier readability. However, since the boundaries between expressions are easy for the interpreter to find you'll just get a warning.
+Function names and variable names are case-independent, so "random" is exactly the same as "rAnDOm"
+The basic syntax for functions is below, with '...' meaning 0 or more Expressions
+(function_name Expression ...);
+
+Example:
+(choose (get 0) (say "Hello, I am Thom.") (say "You again?")); (set 0 1);
+This uses the value in register 0 to determine what to print on the screen, then the second expression sets the value in register 0, ensuring that the second "say" command will be picked from now on.
+
+
+Function quick reference (Expression:<value_type> means that Expression must evaluate to the given data type):
+Choose: (choose Expression:int Expression Expression ...); 
+Random: (random Expression:int Expression:int);
+Set: (set integer Expression); or (set unquoted_string Expression);
+Get: (get integer); or (get unquoted_string);
+Add: (+ Expression Expression ...);
+Subtract: (- Expression Expression);
+Multiply: (* Expression Expression);
+Divide: (/ Expression Expression);
+Power: (^ Expression Expression);
+Min: (min Expression Expression ...);
+Max: (max Expression Expression ...);
+Say: (say Expression:string);
+If: (if Expression:bool Expression [Expression]); 
+And: (and Expression Expression ...); or (& Expression Expression ...);
+Not: (not Expression:bool); or (! Expression:bool);
+Or: (or Expression Expression ...); or (| Expression Expression ...);
+Xor: (xor Expression:bool Expression:bool);
+LessThan: (< Expression Expression);
+GreaterThan: (> Expression Expression);
+LessThanEqual: (<= Expression Expression);
+GreaterThanEqual: (>= Expression Expression);
+Equal:(= Expression Expression);
+NotEqual: (!= Expression Expression);
+Between: (between Expression:value Expression:lower_limit Expression:upper_limit);
+FEOIR: (feoir Expression);
+
+
+Function full reference (Expression:<name> means that the name of that particular argument may be referenced in the description):
+Choose: (choose Expression:n Expression:arg0 Expression:arg1 ...); 
+	Errors on construction: if the list of arguments (including n) is less than length 2
+	Errors on evaluation: if n does not evaluate to an integer, if n < 0 or if n >= the number of expressions after it
+	Use: evaluates the first Expression 'n', then uses that to evaluate and return the 0-based nth Expression after the first. So if the first Expression returns 0, the second expression will be evaluated. If the first Expression evaluates to 3, the fifth expression will be evaluated.
+	Example: (choose (get 0) "Register 0 = 0" "Register 0 = 1" "Register 0 = 2" "Register 0 = 3"); //will return one of the values based off of whatever is in register 0
+
+Random: (random Expression:lower_limit Expression:upper_limit);
+	Errors on construction: if the list of arguments is not exactly length 2
+	Errors on evaluation: if one or both of the arguments evaluates to something besides an integer
+	Use: returns a random integer inclusively between [lower_limit, upper_limit]. No floating point Random exists, although it can easily be created with (/ (random 0 1000) 1000.0) or something similar.
+	Example: (random 0 25); //will return some value between 0 and 25 (including 0 and 25)
+	
+Set: (set integer:register_number Expression:val) or (set unquoted_string:variable_name Expression:val)
+	Errors on construction: if the first argument is not specifically written as an integer or unquoted string, or if the unquoted string does not name a valid variable, or if the argument list is less than length 2. Note that negative register numbers are allowed, and are used internally as references to specific variables, but should not be written by hand; instead use the variable names.
+	Errors on evaluation: none
+	Use: sets the value of a register given by the integer or the value of the variable given by an unquoted string. The value stored is found by evaluating the second argument. This value is also returned, allowing one to chain set statements together.
+	Example: (set 0 "derp"); //will assign the value "derp" to register 0, then return "derp"
+	
+Get: (get integer:register_number) or (get unquoted_string:variable_name)
+	Errors on construction: if the argument is not specifically written as an integer or unquoted string, or if the unquoted string does not name a valid variable, or if no argument is provided.
+	Errors on evaluation: none
+	Use: returns the value of the register given by the integer or the value of the variable given by the unquoted string.
+	Example: (get 1); //will return whatever is stored in register 1
+	Example 2: (get player
+
+Add: (+ Expression Expression ...)
+	Errors on construction: if the number of arguments is less than length 2.
+	Errors on evaluation: if any argument evaluates to type Error, or if any of the expressions evaluate to a boolean type, or if the first expression evaluates to an integer or floating point type but a later argument evaluates to a string type.
+	Use: returns a value that is the summation (or concatenation) of all of the arguments. The first Expression is evaluated and the type returned is used to determine the logic. If it is an integer and all remaining arguments are integers then an integer summation is returned. If it is an integer or floating point type or any other arguments are floating point types then a floating point summation is returned. If it is a string type then a concatenation of all the arguments is returned, converting integers and floating point values to string as needed.
+	Example: (+ 7 (get 0) (* 2 5)); //will return 17 + whatever is in register 0
+	Example 2: (+ "Hello there " (get player.name) ". You've only got " (get player.hit_points) " hitpoints!");//might return "Hello there FlamerShaftglutton. You've only got 47.0 hit_points!"
+	
+Subtract: (- Expression Expression)
+	Errors on construction: if the argument list is not exactly length 2
+	Errors on evaluation: if either argument evaluates to a type other than integer or floating point
+	Use: evaluates both expressions and returns the first minus the second. The return value is floating point if either argument evaluates to a floating point value, otherwise it returns an integer value.
+	Example: (- 7 2.0); //will return 5.0
+	
+Multiply: (* Expression Expression)
+	Errors on construction: if the argument list is not exactly length 2
+	Errors on evaluation: if either argument evaluates to a type other than integer or floating point
+	Use: evaluates both expressions and returns the first times the second. The return value is floating point if either argument evaluates to a floating point value, otherwise it returns an integer value.
+	Example: (* 7 2); //will return 14
+	
+Divide: (/ Expression Expression)
+	Errors on construction: if the argument list is not exactly length 2
+	Errors on evaluation: if either argument evaluates to a type other than integer or floating point, or if the second argument evaluates to 0 or 0.0
+	Use: evaluates both expressions and returns the first divided by the second. The return value is floating point if either argument evaluates to a floating point value, otherwise it returns an integer value.
+	Example: (/ 4.0 2); //will return 2.0
+	
+Power: (^ Expression Expression)
+	Errors on construction: if the argument list is not exactly length 2
+	Errors on evaluation: if either argument evaluates to a type other than integer or floating point
+	Use: evaluates both expressions and returns the first to the power of the second. The return value is floating point if either argument evaluates to a floating point value, otherwise it returns an integer value.
+	Example: (^ 2 3); //will return 8
+	
+Min: (min Expression Expression ...)
+	Errors on construction: if the argument list is less than 2
+	Errors on evaluation: if any argument evaluates to a type other than integer or floating point
+	Use: Evaluates every expression, and returns the smallest.
+	Example: (min 17.0 (* 2 8) (get caller.hit_points)); //will return 16 or the calling object's hit_points, whichever is smaller
+
+Max: (max Expression Expression ...)
+	Errors on construction: if the argument list is less than 2
+	Errors on evaluation: if any argument evaluates to a type other than integer or floating point
+	Use: Evaluates every expression, and returns the largest
+	Example: (max 17.0 (* 2 8)); //will return 17.0
+
+Say: (say Expression)
+	Errors on construction: if no argument is provided
+	Errors on evaluation: if the argument does not evaluate to type string
+	Use: prints the text given by Expression to the main screen, formatting with two line breaks before, quotation marks around the text, and narrative afterwards. The narrative uses the name of the object speaking, the friendly attribute of the object, and the last character of the evaluated argument. If the object is marked as friendly then the name of the object has green font, otherwise it uses red font. If the last character of the evaluated argument is a bang (!) then the narrative uses the word "exclaims", if it ends with a question mark (?) it uses the word "asks", otherwise it uses the words "says". It also returns the evaluated argument.
+	Example: (say "Hello stranger!"); //might show on the main screen (formatted) \n\n<fg=white>"Hello stranger!" exclaims <fg=green>Mysterious Underdweller.
+	
+If: (if Expression:condition Expression:on_true [Expression:on_false])
+	Errors on construction: if the argument list is not exactly length 2 or 3
+	Errors on evaluation: if condition does not evaluate to type boolean
+	Use: evaluates the condition Expression and returns the evaluated on_true Expression if the condition is true, or it returns the evaluated on_false Expression if the condition is false and the on_false Expression was provided.
+	Example: (if (= 10 (get 1)) "Register 1 equals 10" "Register 1 does not equal 10"); //might return "Register 1 equals 10"
+	
+And: (and Expression Expression ...); or (& Expression Expression ...)
+	Errors on construction: if the argument list has length less than 2
+	Errors on evaluation: if any argument evaluates to a type other than boolean
+	Use: evaluates each argument in turn and returns false as soon as any argument evaluates to false, then returns true if every argument was true.
+	Example: (& (= 10 (get 1)) true false (6 < 7));//this will return false without ever evaluating the last argument
+
+Not: (not Expression:bool); or (! Expression:bool);
+	Errors on construction: if the argument is not provided
+	Errors on evaluation: if the argument does not evaluate to type boolean
+	Use: returns the inverse of the argument, so true if false, false if true.
+	Example (! (= 10 (get 1)));//will return true if register 1 does not hold value 10. This is just an example, since this could be done easier with the != operator
+
+Or: (or Expression Expression ...); or (| Expression Expression ...);
+	Errors on construction: if the argument list has length less than 2
+	Errors on evaluation: if any argument evaluates to a type other than boolean
+	Use: evaluates each argument in turn and returns true as soon as an argument evaluates to true, then returns false if every argument was false.
+	Example: (or (> 10 1) false);//would return true after the first argument, without evaluating the rest.
+
+Xor: (xor Expression:bool Expression:bool);
+	Errors on construction: if the argument list is not exactly length 2
+	Errors on evaluation: if either argument evaluates to a type other than boolean
+	Use: evaluates both arguments and returns the exclusive-or value of the two.
+	Example: (xor true false);//would return true
+	Example 2: (xor true true);//would return false
+
+LessThan: (< Expression Expression);
+	Errors on construction: if the argument list is not exactly length 2
+	Errors on evaluation: if either argument evaluates to a type other than integer or floating point
+	Use: evaluates both arguments and returns true if the first argument is smaller than the second
+	Example: (< 20 1); //would return true
+
+GreaterThan: (> Expression Expression);
+	Errors on construction: if the argument list is not exactly length 2
+	Errors on evaluation: if either argument evaluates to a type other than integer or floating point
+	Use: evaluates both arguments and returns true if the first argument is larger than the second
+	Example: (> 20 1); //would return false
+
+LessThanEqual: (<= Expression Expression);
+	Errors on construction: if the argument list is not exactly length 2
+	Errors on evaluation: if either argument evaluates to a type other than integer or floating point
+	Use: evaluates both arguments and returns true if the first argument is smaller than or equal to the second
+	Example: (<= 20 21); //would return false
+
+GreaterThanEqual: (>= Expression Expression);
+	Errors on construction: if the argument list is not exactly length 2
+	Errors on evaluation: if either argument evaluates to a type other than integer or floating point
+	Use: evaluates both arguments and returns true if the first argument is larger than or equal to the second
+	Example: (>= 20 20); //would return true
+
+Equal:(= Expression Expression);
+	Errors on construction: if the argument list is not exactly length 2
+	Errors on evaluation: if either argument evaluates to a boolean or string type and the other argument type does not match
+	Use: evaluates both arguments and returns true if the first argument the same as the second.
+	Example: (= 20 1); //would return false
+	Example 2: (= "FlamerShaftglutton" (get player.name)); //would return true if the player's name is FlamerShaftglutton
+
+NotEqual: (!= Expression Expression);
+	Errors on construction: if the argument list is not exactly length 2
+	Errors on evaluation: if either argument evaluates to a boolean or string type and the other argument type does not match
+	Use: evaluates both arguments and returns true if the first argument is not the same as the second
+	Example: (!= 20 1); //would return true
+
+Between: (between Expression:value Expression:lower_limit Expression:upper_limit);
+	Errors on construction: if the argument list is not exactly length 3
+	Errors on evaluation: if any argument evaluates to a type other than integer or floating point
+	Use: evalutes all three arguments, and returns true if the value falls between (or on) lower_limit and upper_limit. If the upper_limit value is smaller than the lower_limit value then false will always be returned.
+	Example: (between (get player.attack) 10 15); //returns true if the player's attack is 10, 15, or anywhere inbetween.
+	
+FEOIR: (feoir Expression);
+	Errors on construction: if the argument is not provided
+	Errors on evaluation: none
+	Use: evaluates Expression once for each object in the current room, updating the variable 'object_iterator' before each evaluation. This also returns true for no reason.
+	Example: (feoir (set object_iterator.hit_points (- (get object_iterator.hit_points) 1)));//this would lower the health of each object in the current room by 1.
+
+
+Variable quick reference:
+Global:
+	current_room : room
+	player : object
+	caller : object
+	main_text : string
+	object_iterator : object
+Room:
+	description : string
+	short_description : string
+	minimap_symbol : string
+Object:
+	visible : bool
+	visible_in_short_description : bool
+	friendly : bool
+	mobile : bool
+	
+	hitpoints : int
+	attack : int
+	hit_chance : float
+	
+	description : string
+	name : string
+
+
+Variable full reference for global variables:
+Name: current_room
+Scope: global
+Type: room
+Use: returns the room that the player is currently in, so that room-specific variables can be accessed
+Notes: This is the only room variable available at the moment, so it's a bit of extra typing for no reason.
+
+Name: player
+Scope: global
+Type: object
+Use: returns the player object, so that object-specific variables can be accessed
+Notes: none
+
+Name: caller
+Scope: global
+Type: object
+Use: returns an object reference for the object that owns the script
+Notes: none
+
+Name: main_text
+Scope: global
+Type: string
+Use: use this to alter the text in the main frame, either by using 'get', 'set', or a combination of the two
+Notes: the value is only the text visible on the screen. Use the 'say' command whenever possible to avoid mucking with the main_text variable directly.
+
+Name: object_iterator
+Scope: global
+Type: object
+Use: combined with the 'feoir' command this allows for iteration over all the objects in the current room. The 'feoir' command fills in this variable with the next object in the room before each iteration.
+Notes: this will return an Error value if called outside of a 'feoir' command. Also note that this will iterate over both 'caller' and 'player' at some point, so find a way to exclude those if needed.

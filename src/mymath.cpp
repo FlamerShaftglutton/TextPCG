@@ -1,6 +1,8 @@
 #include "mymath.hpp"
 //#include <random>
 
+//TODO: Fix the random number generation stuff
+
 //std::mt19937* rng;
 
 void MyMath::start_rng()

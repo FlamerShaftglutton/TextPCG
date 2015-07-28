@@ -8,6 +8,7 @@ struct ObjectMap
 	bool* visible_in_short_description;
 	bool* friendly;
 	bool* mobile;
+	bool* playable;
 	
 	int* hitpoints;
 	int* attack;

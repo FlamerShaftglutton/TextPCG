@@ -251,6 +251,58 @@ Expression* Script::recursively_resolve(std::vector<std::string>& tokens, std::v
 				{
 					retval = new Say_Expression;
 				}
+				else if (s == "if")
+				{
+					retval = new If_Expression;
+				}
+				else if (s == "and" || s == "&")
+				{
+					retval = new And_Expression;
+				}
+				else if (s == "not" || s == "!")
+				{
+					retval = new Not_Expression;
+				}
+				else if (s == "or" || s == "|")
+				{
+					retval = new Or_Expression;
+				}
+				else if (s == "xor")
+				{
+					retval = new Xor_Expression;
+				}
+				else if (s == "<")
+				{
+					retval = new LessThan_Expression;
+				}
+				else if (s == ">")
+				{
+					retval = new GreaterThan_Expression;
+				}
+				else if (s == "<=")
+				{
+					retval = new LessThanEqual_Expression;
+				}
+				else if (s == ">=")
+				{
+					retval = new GreaterThanEqual_Expression;
+				}
+				else if (s == "=")
+				{
+					retval = new Equal_Expression;
+				}
+				else if (s == "!=")
+				{
+					retval = new NotEqual_Expression;
+				}
+				else if (s == "between")
+				{
+					retval = new Between_Expression;
+				}
+				else if (s == "feoir")
+				{
+					retval = new FEOIR_Expression;
+				}
 				#ifdef DEBUG
 				else
 				{
@@ -338,7 +390,18 @@ Script::Script(std::string script, Register* regs)
 				Log::write("\tWarning: End of script reached without finding closing quotation mark.");
 			}
 			#endif
-			tokens.push_back(script.substr(i + 1, e - i - 1));
+			
+			//handle an empty string
+			if (e - i == 1)
+			{
+				tokens.push_back("");
+			}
+			//handle a normal string
+			else
+			{
+				tokens.push_back(script.substr(i + 1, e - i - 1));
+			}
+			
 			i = e;
 			token_types.push_back(4);
 			continue;
