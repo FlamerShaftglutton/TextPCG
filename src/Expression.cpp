@@ -703,8 +703,9 @@ Value* Say_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* reg
 			s = "asks";
 		}
 		
-		std::string name = pv.caller->name;
-		std::string c = pv.caller->friendly ? "<fg=green" : "<fg=red>";
+		std::string name = *(pv.caller.name);
+		std::string c = *(pv.caller.friendly) ? "<fg=green>" : "<fg=red>";
+		
 		(*(pv.main_text)) += "\n\n<fg=white>\"" + v->string_val + "\" " + s + " " + c + name + "<fg=white>.";
 	}
 	else
