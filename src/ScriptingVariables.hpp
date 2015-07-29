@@ -32,5 +32,6 @@ struct ScriptingVariables
 	RoomMap current_room;
 	ObjectMap caller;
 	ObjectMap player;
+	ObjectMap object_iterator;
 	std::string* main_text;
 };

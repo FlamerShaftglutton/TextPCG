@@ -126,53 +126,27 @@ Value* Random_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* 
 
 
 
-Set_Expression::Set_Expression(int rn, Expression* arg)
+Set_Register_Expression::Set_Expression(unsigned rn, Expression* arg)
 {
 	register_number = rn;
 	argument = arg;
 }
 
-bool Set_Expression::construct(std::vector<Expression*> arguments)
+bool Set_Register_Expression::construct(std::vector<Expression*> arguments)
 {
 	return true;
 }
 
-Set_Expression::~Set_Expression()
+Set_Register_Expression::~Set_Expression()
 {
 	delete argument;
 }
 
-Value* Set_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* Set_Register_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
 {
 	Value* v = argument->evaluate(pv,registers);
 	
-	if (register_number < 0)
-	{
-		if (register_number == -1)
-		{
-			if (v->type == Value::Value_Type::String)
-			{
-				(*(pv.main_text)) += "\n\n\"" + v->string_val + "\"";
-			}
-			else
-			{
-				#ifdef DEBUG
-					Log::write("ERROR:Invalid type for setting variable main_text. Value not changed.");
-				#endif
-				
-				v->type = Value::Value_Type::Error;
-			}
-		}
-		else
-		{
-			#ifdef DEBUG
-				Log::write("ERROR:Invalid variable name in Set call. No values changed.");
-			#endif
-			
-			v->type = Value::Value_Type::Error;
-		}
-	}
-	else if (register_number < (int)registers->size())
+	if (register_number < registers->size())
 	{
 		delete ((*registers)[register_number]);
 		(*registers)[register_number] = copy_value(v);
@@ -191,40 +165,20 @@ Value* Set_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* reg
 
 
 
-Get_Expression::Get_Expression(int rn)
+Get_Register_Expression::Get_Expression(unsigned rn)
 {
 	register_number = rn;
 }
 
-bool Get_Expression::construct(std::vector<Expression*> arguments)
+bool Get_Register_Expression::construct(std::vector<Expression*> arguments)
 {
 	return true;
 }
 
-Value* Get_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* Get_Register_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
 {
 	//add in the ability to select game variables as well
-	if (register_number < 0)
-	{
-		if (register_number == -1)
-		{
-			Value* v = new Value;
-			v->type = Value::Value_Type::String;
-			v->string_val = (*pv.main_text);
-			return v;
-		}
-		else
-		{
-			#ifdef DEBUG
-				Log::write("ERROR:Invalid variable name in Get call.");
-			#endif
-			
-			Value* v = new Value;
-			v->type = Value::Value_Type::Error;
-			return v;
-		}
-	}
-	else if (register_number < (int)registers->size())
+	if (register_number < registers->size())
 	{
 		return copy_value((*registers)[register_number]);
 	}
@@ -235,6 +189,251 @@ Value* Get_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* reg
 	
 	Value* v = new Value;
 	v->type = Value::Value_Type::Error;
+	return v;
+}
+
+
+
+Set_Variable_Expression::Set_Expression(Expression_Variable_Global gv, Expression_Variable_Room rv, Expression_Variable_Object ov, Expression* arg)
+{
+	global_variable = gv;
+	room_variable = rv;
+	object_variable = ov;
+	argument = arg;
+}
+
+bool Set_Variable_Expression::construct(std::vector<Expression*> arguments)
+{
+	return true;
+}
+
+Set_Variable_Expression::~Set_Expression()
+{
+	delete argument;
+}
+
+Value* Set_Variable_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+{
+	Value* v = argument->evaluate(pv,registers);
+	bool correct_type = false;
+	
+	//if it's the global text...
+	if (global_variable == Expression_Variable_Global::main_text)
+	{
+		if (v->type == Value::Value_Type::String)
+		{
+			*(pv.main_text) = v->string_val;
+			correct_type = true;
+		}
+	}
+	//if it's a room variable for the current_room
+	else if (global_variable == Expression_Variable_Global::current_room)
+	{
+		if (v->type == Value::Value_Type::String)
+		{
+			correct_type = true;
+			
+			switch (room_variable)
+			{
+				case Expression_Variable_Room::description: 
+					*(pv.current_room.description) = v->string_val;
+					break;
+				case Expression_Variable_Room::short_description:
+					*(pv.current_room.short_description) = v->string_val;
+					break;
+				case Expression_Variable_Room::minimap_symbol:
+					*(pv.current_room.minimap_symbol) = v->string_val;
+			}
+		}
+	}
+	//if it's an object variable
+	else
+	{
+		//which object?
+		ObjectMap& om = global_variable == Expression_Variable_Global::caller ? pv.caller : global_variable == Expression_Variable_Global::player ? pv.player : pv.object_iterator;
+		
+		//which field?
+		switch (object_variable)
+		{
+			case Expression_Variable_Object::visible:
+				if (v->type == Value::Value_Type::Bool)
+				{
+					correct_type = true;
+					*(om.visible) = v->bool_val;
+				}
+				break;
+			case Expression_Variable_Object::visible_in_short_description:
+				if (v->type == Value::Value_Type::Bool)
+				{
+					correct_type = true;
+					*(om.visible_in_short_description) = v->bool_val;
+				}
+				break;
+			case Expression_Variable_Object::friendly:
+				if (v->type == Value::Value_Type::Bool)
+				{
+					correct_type = true;
+					*(om.friendly) = v->bool_val;
+				}
+				break;
+			case Expression_Variable_Object::mobile:
+				if (v->type == Value::Value_Type::Bool)
+				{
+					correct_type = true;
+					*(om.mobile) = v->bool_val;
+				}
+				break;
+			case Expression_Variable_Object::playable:
+				if (v->type == Value::Value_Type::Bool)
+				{
+					correct_type = true;
+					*(om.playable) = v->bool_val;
+				}
+				break;
+			case Expression_Variable_Object::hitpoints:
+				if (v->type == Value::Value_Type::Int)
+				{
+					correct_type = true;
+					*(om.hitpoints) = v->int_val;
+				}
+				break;
+			case Expression_Variable_Object::attack:
+				if (v->type == Value::Value_Type::Int)
+				{
+					correct_type = true;
+					*(om.attack) = v->int_val;
+				}
+				break;
+			case Expression_Variable_Object::hit_chance:
+				if (v->type == Value::Value_Type::Float)
+				{
+					correct_type = true;
+					*(om.hit_chance) = v->float_val;
+				}
+				break;
+			case Expression_Variable_Object::description:
+				if (v->type == Value::Value_Type::String)
+				{
+					correct_type = true;
+					*(om.description) = v->string_val;
+				}
+				break;
+			case Expression_Variable_Object::name:
+				if (v->type == Value::Value_Type::String)
+				{
+					correct_type = true;
+					*(om.name) = v->string_val;
+				}
+				break;
+		}
+	}
+	
+	if (!correct_type)
+	{
+		#ifdef DEBUG
+			Log::write("ERROR:Invalid type for variable in Set call. Value not changed.");
+		#endif
+		
+		v->type = Value::Value_Type::Error;
+	}
+	
+	return v;
+}
+
+
+
+Get_Variable_Expression::Get_Expression(Expression_Variable_Global gv, Expression_Variable_Room rv, Expression_Variable_Object ov)
+{
+	global_variable = gv;
+	room_variable = rv;
+	object_variable = ov;
+}
+
+bool Get_Variable_Expression::construct(std::vector<Expression*> arguments)
+{
+	return true;
+}
+
+Value* Get_Variable_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+{
+	Value* v = new Value;
+	v->type = Value::Value_Type::Error;//this function should never reach the end before setting the value, but just in case...
+	
+	//if it's the global text...
+	if (global_variable == Expression_Variable_Global::main_text)
+	{
+		v->type = Value::Value_Type::String;
+		v->string_val = *(pv.main_text);
+	}
+	//if it's a room variable for the current_room
+	else if (global_variable == Expression_Variable_Global::current_room)
+	{
+		v->type =Value::Value_Type::String;
+
+		switch (room_variable)
+		{
+			case Expression_Variable_Room::description:
+				v->string_val = *(pv.current_room.description);
+				break;
+			case Expression_Variable_Room::short_description:
+				v->string_val = *(pv.current_room.short_description);
+				break;
+			case Expression_Variable_Room::minimap_symbol:
+				v->string_val = *(pv.current_room.minimap_symbol);
+		}
+	}
+	//if it's an object variable
+	else
+	{
+		//which object?
+		ObjectMap& om = global_variable == Expression_Variable_Global::caller ? pv.caller : global_variable == Expression_Variable_Global::player ? pv.player : pv.object_iterator;
+		
+		//which field?
+		switch (object_variable)
+		{
+			case Expression_Variable_Object::visible:
+				v->type == Value::Value_Type::Bool;
+				v->bool_val = *(om.visible);
+				break;
+			case Expression_Variable_Object::visible_in_short_description:
+				v->type == Value::Value_Type::Bool;
+				v->bool_val = *(om.visible_in_short_description);
+				break;
+			case Expression_Variable_Object::friendly:
+				v->type == Value::Value_Type::Bool;
+				v->bool_val = *(om.friendly) ;
+				break;
+			case Expression_Variable_Object::mobile:
+				v->type == Value::Value_Type::Bool;
+				v->bool_val = *(om.mobile);
+				break;
+			case Expression_Variable_Object::playable:
+				v->type == Value::Value_Type::Bool;
+				v->bool_val = *(om.playable);
+				break;
+			case Expression_Variable_Object::hitpoints:
+				v->type == Value::Value_Type::Int;
+				v->int_val = *(om.hitpoints);
+				break;
+			case Expression_Variable_Object::attack:
+				v->type == Value::Value_Type::Int;
+				v->int_val = *(om.attack);
+				break;
+			case Expression_Variable_Object::hit_chance:
+				v->type == Value::Value_Type::Float;
+				v->float_val = *(om.hit_chance);
+				break;
+			case Expression_Variable_Object::description:
+				v->type == Value::Value_Type::String;
+				v->string_val = *(om.description);
+				break;
+			case Expression_Variable_Object::name:
+				v->type == Value::Value_Type::String;
+				v->string_val = *(om.name);
+				break;
+		}
+	}
+	
 	return v;
 }
 

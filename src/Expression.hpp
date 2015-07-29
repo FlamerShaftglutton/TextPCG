@@ -61,22 +61,77 @@ public:
 	~Random_Expression();
 };
 
-class Set_Expression: public Expression
+class Set_Register_Expression: public Expression
 {
-	int register_number;
+	unsigned register_number;
 	Expression* argument;
 public:
-	Set_Expression(int rn, Expression* arg);
+	Set_Expression(unsigned rn, Expression* arg);
 	bool construct(std::vector<Expression*> arguments) override;
 	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
 	~Set_Expression();
 };
 
-class Get_Expression: public Expression
+class Get_Register_Expression: public Expression
 {
-	int register_number;
+	unsigned register_number;
 public:
-	Get_Expression(int rn);
+	Get_Expression(unsigned rn);
+	bool construct(std::vector<Expression*> arguments) override;
+	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
+};
+
+enum class Expression_Variable_Global
+{
+	main_text,
+	current_room,
+	caller,
+	player,
+	object_iterator
+};
+
+enum class Expression_Variable_Room
+{
+	description,
+	short_description,
+	minimap_symbol
+};
+
+enum class Expression_Variable_Object
+{
+	visible,
+	visible_in_short_description,
+	friendly,
+	mobile,
+	playable,
+	hitpoints,
+	attack,
+	hit_chance,
+	description,
+	name
+};
+
+class Set_Variable_Expression: public Expression
+{
+	Expression_Variable_Global global_variable;
+	Expression_Variable_Room room_variable;
+	Expression_Variable_Object object_variable;
+	
+	Expression* argument;
+public:
+	Set_Expression(Expression_Variable_Global gv, Expression_Variable_Room rv, Expression_Variable_Object ov, Expression* arg);
+	bool construct(std::vector<Expression*> arguments) override;
+	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
+	~Set_Expression();
+};
+
+class Get_Variable_Expression: public Expression
+{
+	Expression_Variable_Global global_variable;
+	Expression_Variable_Room room_variable;
+	Expression_Variable_Object object_variable;
+public:
+	Get_Expression(Expression_Variable_Global gv, Expression_Variable_Room rv, Expression_Variable_Object ov);
 	bool construct(std::vector<Expression*> arguments) override;
 	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
 };

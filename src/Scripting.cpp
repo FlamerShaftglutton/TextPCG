@@ -81,18 +81,82 @@ Expression* Script::recursively_resolve(std::vector<std::string>& tokens, std::v
 						v->int_val = 0;
 						registers->push_back(v);
 					}
+					
+					//if it's a 'get', then we're done
+					if (s == "get")
+					{
+						Get_Expression* e = new Get_Expression(rn);
+						return e;
+					}
+					//if it's a set, then we have to get another argument
+					else
+					{
+						if (tokens.size() < 3)
+						{
+							#ifdef DEBUG
+								Log::write("ERROR: argument list too short for Set function.");
+							#endif
+							
+							Value* v = new Value;
+							v->type = Value::Value_Type::Error;
+							return v;
+						}
+						
+						Expression* e;
+						std::vector<std::string> ts;
+						std::vector<int> tts;
+						
+						//if it's a value then this is easy
+						if (tokens.size() == 3)
+						{
+							ts.push_back(tokens[2]);
+							tts.push_back(token_types[2]);
+						}
+						//if it's enclosed in parentheses, we have to remove those first
+						else if (token_types[2] == 0 && token_types.back() == 1)
+						{
+							ts.insert(ts.begin(),tokens.begin() + 3, tokens.end()-1);
+							tts.insert(tts.begin(),token_types.begin() + 3, token_types.end()-1);
+						}
+						//if it's neither, something's wrong
+						else
+						{
+							#ifdef DEBUG
+								Log::write("ERROR: second argument for set function unrecognizable.");
+							#endif
+							
+							Value* v = new Value;
+							v->type = Value::Value_Type::Error;
+							return v;
+						}
+						
+						//now actually resolve it and create the Set expression node
+						e = recursively_resolve(ts,tts);
+						Set_Expression* se = new Set_Expression(rn,e);
+						return se;
+					}
 				}
 				else if (token_types[1] == 5)
 				{
-					//start looking through the variable namespace
-					//std::vector<std::string> program_variables = {"current_room","main_text"};
-					//std::vector<std::string> room_variables = {"description","short_description","minimap_symbol"};
-					//std::vector<std::string> object_variables = {"visible","visible_in_short_description","friendly","mobile","hitpoints", 
-					if (tokens[1] == "main_text")
+					//first off, if the scope is global, just strip that off_type
+					std::vector<std::string> chunks = StringUtils::split(tokens[1],'.');
+					if (chunks.size() > 0 && chunks[0] == "global")
 					{
-						rn = -1;
+						chunks.erase(chunks.begin());
 					}
-					else
+					
+					//start looking through the variable names
+					Expression_Variable_Global gv = Expression_Variable_Global::main_text;
+					Expression_Variable_Room rv = Expression_Variable_Room::description;
+					Expression_Variable_Object ov = Expression_Variable_Object::visible;
+					bool is_well_formed = false;
+					if (chunks[0] == "main_text")
+					{
+						is_well_formed = chunks.
+					
+						gv = Expression_Variable_Global::main_text;
+					}
+					else if (
 					{
 						#ifdef DEBUG
 							Log::write("ERROR: unable to resolve variable name or number in get or set function");
@@ -113,60 +177,6 @@ Expression* Script::recursively_resolve(std::vector<std::string>& tokens, std::v
 					Value* v = new Value;
 					v->type = Value::Value_Type::Error;
 					return v;
-				}
-				
-				//if it's a 'get', then we're done
-				if (s == "get")
-				{
-					Get_Expression* e = new Get_Expression(rn);
-					return e;
-				}
-				//if it's a set, then we have to get another argument
-				else
-				{
-					if (tokens.size() < 3)
-					{
-						#ifdef DEBUG
-							Log::write("ERROR: argument list too short for Set function.");
-						#endif
-						
-						Value* v = new Value;
-						v->type = Value::Value_Type::Error;
-						return v;
-					}
-					
-					Expression* e;
-					std::vector<std::string> ts;
-					std::vector<int> tts;
-					
-					//if it's a value then this is easy
-					if (tokens.size() == 3)
-					{
-						ts.push_back(tokens[2]);
-						tts.push_back(token_types[2]);
-					}
-					//if it's enclosed in parentheses, we have to remove those first
-					else if (token_types[2] == 0 && token_types.back() == 1)
-					{
-						ts.insert(ts.begin(),tokens.begin() + 3, tokens.end()-1);
-						tts.insert(tts.begin(),token_types.begin() + 3, token_types.end()-1);
-					}
-					//if it's neither, something's wrong
-					else
-					{
-						#ifdef DEBUG
-							Log::write("ERROR: second argument for set function unrecognizable.");
-						#endif
-						
-						Value* v = new Value;
-						v->type = Value::Value_Type::Error;
-						return v;
-					}
-					
-					//now actually resolve it and create the Set expression node
-					e = recursively_resolve(ts,tts);
-					Set_Expression* se = new Set_Expression(rn,e);
-					return se;
 				}
 			}
 			else
