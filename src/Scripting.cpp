@@ -115,6 +115,7 @@ Expression* Script::recursively_resolve(std::vector<std::string>& tokens, std::v
 				
 				//either the next thing is a number or it's a non-quoted string
 				int rn;
+				//if it's a number...
 				if (token_types[1] == 3)
 				{
 					rn = StringUtils::stoi(tokens[1]);
@@ -141,10 +142,11 @@ Expression* Script::recursively_resolve(std::vector<std::string>& tokens, std::v
 					}
 					
 				}
+				//if it's a variable name...
 				else if (token_types[1] == 5)
 				{
 					//first off, if the scope is global, just strip that off
-					std::vector<std::string> chunks = StringUtils::split(tokens[1],'.');
+					std::vector<std::string> chunks = StringUtils::split(StringUtils::to_lowercase(tokens[1]),'.');
 					if (chunks.size() > 0 && chunks[0] == "global")
 					{
 						chunks.erase(chunks.begin());

@@ -1,2 +1,2 @@
-(set 0 (if (between (- 16 0) 0 15.0) "Yep" "Nope"));
-(say (+ "" (get 0)));
+(say (+ "" (choose (random 0 2) (min 0 50) (max 0 50) (and (between 0 0 15) (= "derp" "derp")))));
+(set global.main_text "");

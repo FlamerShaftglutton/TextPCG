@@ -105,6 +105,8 @@ Random_Expression::~Random_Expression()
 {
 	delete lower_limit;
 	delete upper_limit;
+	lower_limit = nullptr;
+	upper_limit = nullptr;
 }
 
 Value* Random_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
@@ -140,6 +142,7 @@ bool Set_Register_Expression::construct(std::vector<Expression*> arguments)
 Set_Register_Expression::~Set_Register_Expression()
 {
 	delete argument;
+	argument = nullptr;
 }
 
 Value* Set_Register_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
@@ -209,6 +212,7 @@ bool Set_Variable_Expression::construct(std::vector<Expression*> arguments)
 Set_Variable_Expression::~Set_Variable_Expression()
 {
 	delete argument;
+	argument = nullptr;
 }
 
 Value* Set_Variable_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
@@ -283,11 +287,9 @@ Value* Set_Variable_Expression::evaluate(ScriptingVariables& pv, std::vector<Val
 				}
 				break;
 			case Expression_Variable_Object::playable:
-				if (v->type == Value::Value_Type::Bool)
-				{
-					correct_type = true;
-					*(om.playable) = v->bool_val;
-				}
+				#ifdef DEBUG
+					Log::write("ERROR: Set function tried to set the <object>.playable field, which is read-only. Nothing changed.");
+				#endif
 				break;
 			case Expression_Variable_Object::hitpoints:
 				if (v->type == Value::Value_Type::Int)
@@ -391,43 +393,43 @@ Value* Get_Variable_Expression::evaluate(ScriptingVariables& pv, std::vector<Val
 		switch (object_variable)
 		{
 			case Expression_Variable_Object::visible:
-				v->type == Value::Value_Type::Bool;
+				v->type = Value::Value_Type::Bool;
 				v->bool_val = *(om.visible);
 				break;
 			case Expression_Variable_Object::visible_in_short_description:
-				v->type == Value::Value_Type::Bool;
+				v->type = Value::Value_Type::Bool;
 				v->bool_val = *(om.visible_in_short_description);
 				break;
 			case Expression_Variable_Object::friendly:
-				v->type == Value::Value_Type::Bool;
+				v->type = Value::Value_Type::Bool;
 				v->bool_val = *(om.friendly) ;
 				break;
 			case Expression_Variable_Object::mobile:
-				v->type == Value::Value_Type::Bool;
+				v->type = Value::Value_Type::Bool;
 				v->bool_val = *(om.mobile);
 				break;
 			case Expression_Variable_Object::playable:
-				v->type == Value::Value_Type::Bool;
+				v->type = Value::Value_Type::Bool;
 				v->bool_val = *(om.playable);
 				break;
 			case Expression_Variable_Object::hitpoints:
-				v->type == Value::Value_Type::Int;
+				v->type = Value::Value_Type::Int;
 				v->int_val = *(om.hitpoints);
 				break;
 			case Expression_Variable_Object::attack:
-				v->type == Value::Value_Type::Int;
+				v->type = Value::Value_Type::Int;
 				v->int_val = *(om.attack);
 				break;
 			case Expression_Variable_Object::hit_chance:
-				v->type == Value::Value_Type::Float;
+				v->type = Value::Value_Type::Float;
 				v->float_val = *(om.hit_chance);
 				break;
 			case Expression_Variable_Object::description:
-				v->type == Value::Value_Type::String;
+				v->type = Value::Value_Type::String;
 				v->string_val = *(om.description);
 				break;
 			case Expression_Variable_Object::name:
-				v->type == Value::Value_Type::String;
+				v->type = Value::Value_Type::String;
 				v->string_val = *(om.name);
 				break;
 		}
@@ -566,6 +568,8 @@ Subtract_Expression::~Subtract_Expression()
 {
 	delete lhs;
 	delete rhs;
+	lhs = nullptr;
+	rhs = nullptr;
 }
 
 Value* Subtract_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
@@ -621,6 +625,8 @@ Multiply_Expression::~Multiply_Expression()
 {
 	delete lhs;
 	delete rhs;
+	lhs = nullptr;
+	rhs = nullptr;
 }
 
 Value* Multiply_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
@@ -676,6 +682,8 @@ Divide_Expression::~Divide_Expression()
 {
 	delete lhs;
 	delete rhs;
+	lhs = nullptr;
+	rhs = nullptr;
 }
 
 Value* Divide_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
@@ -731,6 +739,8 @@ Power_Expression::~Power_Expression()
 {
 	delete lhs;
 	delete rhs;
+	lhs = nullptr;
+	rhs = nullptr;
 }
 
 Value* Power_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
@@ -906,6 +916,7 @@ bool Say_Expression::construct(std::vector<Expression*> arguments)
 Say_Expression::~Say_Expression()
 {
 	delete arg;
+	arg = nullptr;
 }
 
 Value* Say_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
@@ -966,7 +977,13 @@ If_Expression::~If_Expression()
 	delete condition;
 	delete if_true;
 	if (if_false != nullptr)
+	{
 		delete if_false;
+		if_false = nullptr;
+	}
+	
+	condition = nullptr;
+	if_true = nullptr;
 }
 
 Value* If_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
@@ -1059,6 +1076,7 @@ bool Not_Expression::construct(std::vector<Expression*> arguments)
 Not_Expression::~Not_Expression()
 {
 	delete arg;
+	arg = nullptr;
 }
 
 Value* Not_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
@@ -1732,19 +1750,22 @@ Value* Between_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>*
 
 bool FEOIR_Expression::construct(std::vector<Expression*> arguments)
 {
-	if (arguments.size() != 1)
+	if (arguments.size() < 1)
 	{
 		return false;
 	}
 
-	expr = arguments[0];
+	args = arguments;
 	return true;
 }
 
 FEOIR_Expression::~FEOIR_Expression()
 {
-	delete expr;
-	expr = nullptr;
+	for (unsigned i = 0; i < args.size(); ++i)
+	{
+		delete args[i];
+		args[i] = nullptr;
+	}
 }
 
 Value* FEOIR_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
@@ -1752,9 +1773,12 @@ Value* FEOIR_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* r
 	Value* v;
 	for (unsigned i = 0; i < pv.current_room.objects.size(); ++i)
 	{
-		//TODO: set the object_iterator register stuff to point to pv.current_room.objects[i]
+		pv.object_iterator = pv.current_room.objects[i];
 		
-		v = expr->evaluate(pv,registers);
+		for (unsigned j = 0; j < args.size(); ++j)
+		{
+			v = args[j]->evaluate(pv,registers);
+		}
 	}
 	
 	v->type = Value::Value_Type::Bool;

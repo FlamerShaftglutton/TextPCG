@@ -70,15 +70,29 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 				fill_ObjectMap(player,sv.player);
 				std::string old_main_text = gs.main_text;
 				
-				//call the on_sight function for every object in the room
+				//fill in the list of objects in the room
 				auto &os = gs.level->get_room(current_room)->objects();
 				for (unsigned i = 0; i < os.size(); ++i)
 				{
 					//get the object
 					Object* o = gs.level->get_object(os[i]);
+					ObjectMap om;
 				
-					//fill in the 'caller' variable
-					fill_ObjectMap(o,sv.caller);
+					//fill in the object map
+					fill_ObjectMap(o,om);
+					
+					//put this object map into the list
+					sv.current_room.objects.push_back(om);
+				}
+				
+				//call the on_sight function for every object in the room
+				for (unsigned i = 0; i < os.size(); ++i)
+				{
+					//get the object
+					Object* o = gs.level->get_object(os[i]);
+					
+					//fill in the caller variable
+					sv.caller = sv.current_room.objects[i];
 					
 					//call the on_sight script of this object
 					o->scripts.execute_on_sight(sv);

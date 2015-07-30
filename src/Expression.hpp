@@ -323,7 +323,7 @@ public:
 };
 class FEOIR_Expression : public Expression
 {
- 	Expression* expr;
+ 	std::vector<Expression*> args;
 public:
  	bool construct(std::vector<Expression*> arguments) override;
  	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;

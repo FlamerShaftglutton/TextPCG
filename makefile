@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-c -Wall -std=c++11 -DDEBUG -g
+CFLAGS=-c -Wall -std=c++14 -DDEBUG -g
 #add -DDEBUG to CFLAGS for debugging messages
 LDFLAGS=-lncurses -g
 SUBFOLDERS=src

@@ -35,7 +35,7 @@ GreaterThanEqual: (>= Expression Expression);
 Equal:(= Expression Expression);
 NotEqual: (!= Expression Expression);
 Between: (between Expression:value Expression:lower_limit Expression:upper_limit);
-FEOIR: (feoir Expression);
+FEOIR: (feoir Expression ...);
 
 
 Function full reference (Expression:<name> means that the name of that particular argument may be referenced in the description):
@@ -56,20 +56,20 @@ Set: (set integer:register_number Expression:val) or (set unquoted_string:variab
 	Errors on evaluation: none
 	Use: sets the value of a register given by the integer or the value of the variable given by an unquoted string. The value stored is found by evaluating the second argument. This value is also returned, allowing one to chain set statements together.
 	Example: (set 0 "derp"); //will assign the value "derp" to register 0, then return "derp"
-	
+
 Get: (get integer:register_number) or (get unquoted_string:variable_name)
 	Errors on construction: if the argument is not specifically written as an integer or unquoted string, or if the unquoted string does not name a valid variable, or if no argument is provided.
 	Errors on evaluation: none
 	Use: returns the value of the register given by the integer or the value of the variable given by the unquoted string.
 	Example: (get 1); //will return whatever is stored in register 1
-	Example 2: (get player
+	Example 2: (get player.name); //will return whatever the player's name is
 
 Add: (+ Expression Expression ...)
 	Errors on construction: if the number of arguments is less than length 2.
 	Errors on evaluation: if any argument evaluates to type Error, or if any of the expressions evaluate to a boolean type, or if the first expression evaluates to an integer or floating point type but a later argument evaluates to a string type.
 	Use: returns a value that is the summation (or concatenation) of all of the arguments. The first Expression is evaluated and the type returned is used to determine the logic. If it is an integer and all remaining arguments are integers then an integer summation is returned. If it is an integer or floating point type or any other arguments are floating point types then a floating point summation is returned. If it is a string type then a concatenation of all the arguments is returned, converting integers and floating point values to string as needed.
 	Example: (+ 7 (get 0) (* 2 5)); //will return 17 + whatever is in register 0
-	Example 2: (+ "Hello there " (get player.name) ". You've only got " (get player.hit_points) " hitpoints!");//might return "Hello there FlamerShaftglutton. You've only got 47.0 hit_points!"
+	Example 2: (+ "Hello there " (get player.name) ". You've only got " (get player.hitpoints) " hitpoints!");//might return "Hello there FlamerShaftglutton. You've only got 47.0 hitpoints!"
 	
 Subtract: (- Expression Expression)
 	Errors on construction: if the argument list is not exactly length 2
@@ -99,7 +99,7 @@ Min: (min Expression Expression ...)
 	Errors on construction: if the argument list is less than 2
 	Errors on evaluation: if any argument evaluates to a type other than integer or floating point
 	Use: Evaluates every expression, and returns the smallest.
-	Example: (min 17.0 (* 2 8) (get caller.hit_points)); //will return 16 or the calling object's hit_points, whichever is smaller
+	Example: (min 17.0 (* 2 8) (get caller.hitpoints)); //will return 16 or the calling object's hitpoints, whichever is smaller
 
 Max: (max Expression Expression ...)
 	Errors on construction: if the argument list is less than 2
@@ -187,11 +187,11 @@ Between: (between Expression:value Expression:lower_limit Expression:upper_limit
 	Use: evalutes all three arguments, and returns true if the value falls between (or on) lower_limit and upper_limit. If the upper_limit value is smaller than the lower_limit value then false will always be returned.
 	Example: (between (get player.attack) 10 15); //returns true if the player's attack is 10, 15, or anywhere inbetween.
 	
-FEOIR: (feoir Expression);
-	Errors on construction: if the argument is not provided
+FEOIR: (feoir Expression ...);
+	Errors on construction: if no arguments are provided
 	Errors on evaluation: none
-	Use: evaluates Expression once for each object in the current room, updating the variable 'object_iterator' before each evaluation. This also returns true for no reason.
-	Example: (feoir (set object_iterator.hit_points (- (get object_iterator.hit_points) 1)));//this would lower the health of each object in the current room by 1.
+	Use: evaluates each Expression once (in the order provided, left to right) for each object in the current room, updating the variable 'object_iterator' before each evaluation. When finished this function returns true for no reason.
+	Example: (feoir (set object_iterator.hitpoints (- (get object_iterator.hitpoints) 1)));//this would lower the health of each object in the current room by 1.
 
 
 Variable quick reference:
