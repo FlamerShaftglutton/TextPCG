@@ -67,13 +67,59 @@ Expression* Script::recursively_resolve(std::vector<std::string>& tokens, std::v
 			//if this is a Get or Set call, then this has to be set up a little different
 			if (s == "get" || s == "set")
 			{
+				//if this is a set function, grab the next argument
+				Expression* e;
+				if (s == "set")
+				{
+					if (tokens.size() < 3)
+					{
+						#ifdef DEBUG
+							Log::write("ERROR: argument list too short for Set function.");
+						#endif
+						
+						Value* v = new Value;
+						v->type = Value::Value_Type::Error;
+						return v;
+					}
+					
+					std::vector<std::string> ts;
+					std::vector<int> tts;
+					
+					//if it's a value then this is easy
+					if (tokens.size() == 3)
+					{
+						ts.push_back(tokens[2]);
+						tts.push_back(token_types[2]);
+					}
+					//if it's enclosed in parentheses, we have to remove those first
+					else if (token_types[2] == 0 && token_types.back() == 1)
+					{
+						ts.insert(ts.begin(),tokens.begin() + 3, tokens.end()-1);
+						tts.insert(tts.begin(),token_types.begin() + 3, token_types.end()-1);
+					}
+					//if it's neither, something's wrong
+					else
+					{
+						#ifdef DEBUG
+							Log::write("ERROR: second argument for set function unrecognizable.");
+						#endif
+						
+						Value* v = new Value;
+						v->type = Value::Value_Type::Error;
+						return v;
+					}
+					
+					//now actually resolve it and create the Set expression node
+					e = recursively_resolve(ts,tts);
+				}
+				
 				//either the next thing is a number or it's a non-quoted string
 				int rn;
 				if (token_types[1] == 3)
 				{
 					rn = StringUtils::stoi(tokens[1]);
 					
-					//set up the registers if necessary
+					//set up the register if necessary
 					if (rn >= (int)registers->size())
 					{
 						Value* v = new Value;
@@ -82,67 +128,37 @@ Expression* Script::recursively_resolve(std::vector<std::string>& tokens, std::v
 						registers->push_back(v);
 					}
 					
-					//if it's a 'get', then we're done
+					//finally, make the node
 					if (s == "get")
 					{
-						Get_Expression* e = new Get_Expression(rn);
+						Get_Register_Expression* e = new Get_Register_Expression(rn);
 						return e;
 					}
-					//if it's a set, then we have to get another argument
 					else
 					{
-						if (tokens.size() < 3)
-						{
-							#ifdef DEBUG
-								Log::write("ERROR: argument list too short for Set function.");
-							#endif
-							
-							Value* v = new Value;
-							v->type = Value::Value_Type::Error;
-							return v;
-						}
-						
-						Expression* e;
-						std::vector<std::string> ts;
-						std::vector<int> tts;
-						
-						//if it's a value then this is easy
-						if (tokens.size() == 3)
-						{
-							ts.push_back(tokens[2]);
-							tts.push_back(token_types[2]);
-						}
-						//if it's enclosed in parentheses, we have to remove those first
-						else if (token_types[2] == 0 && token_types.back() == 1)
-						{
-							ts.insert(ts.begin(),tokens.begin() + 3, tokens.end()-1);
-							tts.insert(tts.begin(),token_types.begin() + 3, token_types.end()-1);
-						}
-						//if it's neither, something's wrong
-						else
-						{
-							#ifdef DEBUG
-								Log::write("ERROR: second argument for set function unrecognizable.");
-							#endif
-							
-							Value* v = new Value;
-							v->type = Value::Value_Type::Error;
-							return v;
-						}
-						
-						//now actually resolve it and create the Set expression node
-						e = recursively_resolve(ts,tts);
-						Set_Expression* se = new Set_Expression(rn,e);
+						Set_Register_Expression* se = new Set_Register_Expression(rn,e);
 						return se;
 					}
+					
 				}
 				else if (token_types[1] == 5)
 				{
-					//first off, if the scope is global, just strip that off_type
+					//first off, if the scope is global, just strip that off
 					std::vector<std::string> chunks = StringUtils::split(tokens[1],'.');
 					if (chunks.size() > 0 && chunks[0] == "global")
 					{
 						chunks.erase(chunks.begin());
+					}
+					
+					if (chunks.size() == 0)
+					{
+						#ifdef DEBUG
+							Log::write("ERROR: invalid variable name.");
+						#endif
+						
+						Value* v = new Value;
+						v->type = Value::Value_Type::Error;
+						return v;
 					}
 					
 					//start looking through the variable names
@@ -152,11 +168,102 @@ Expression* Script::recursively_resolve(std::vector<std::string>& tokens, std::v
 					bool is_well_formed = false;
 					if (chunks[0] == "main_text")
 					{
-						is_well_formed = chunks.
+						is_well_formed = chunks.size() == 1;
 					
 						gv = Expression_Variable_Global::main_text;
 					}
-					else if (
+					else if (chunks.size() == 2)
+					{
+						std::string& c1 = chunks[1];
+						
+						if (chunks[0] == "current_room")
+						{
+							gv = Expression_Variable_Global::current_room;
+							is_well_formed = true;
+							
+							if (c1 == "description")
+							{
+								rv = Expression_Variable_Room::description;
+							}
+							else if (c1 == "short_description")
+							{
+								rv = Expression_Variable_Room::short_description;
+							}
+							else if (c1 == "minimap_symbol")
+							{
+								rv = Expression_Variable_Room::minimap_symbol;
+							}
+							else
+							{
+								is_well_formed = false;
+							}
+						}
+						else if (chunks[0] == "player" || chunks[0] == "caller" || chunks[0] == "object_iterator")
+						{
+							if (chunks[0] == "player")
+							{
+								gv = Expression_Variable_Global::player;
+							}
+							else if (chunks[0] == "caller")
+							{
+								gv = Expression_Variable_Global::caller;
+							}
+							else
+							{
+								gv = Expression_Variable_Global::object_iterator;
+							}
+							
+							is_well_formed = true;
+							
+							if (c1 == "visible")
+							{
+								ov = Expression_Variable_Object::visible;
+							}
+							else if (c1 == "visible_in_short_description")
+							{
+								ov = Expression_Variable_Object::visible_in_short_description;
+							}
+							else if (c1 == "friendly")
+							{
+								ov = Expression_Variable_Object::friendly;
+							}
+							else if (c1 == "mobile")
+							{
+								ov = Expression_Variable_Object::mobile;
+							}
+							else if (c1 == "playable")
+							{
+								ov = Expression_Variable_Object::playable;
+							}
+							else if (c1 == "hitpoints")
+							{
+								ov = Expression_Variable_Object::hitpoints;
+							}
+							else if (c1 == "attack")
+							{
+								ov = Expression_Variable_Object::attack;
+							}
+							else if (c1 == "hit_chance")
+							{
+								ov = Expression_Variable_Object::hit_chance;
+							}
+							else if (c1 == "description")
+							{
+								ov = Expression_Variable_Object::description;
+							}
+							else if (c1 == "name")
+							{
+								ov = Expression_Variable_Object::name;
+							}
+							else
+							{
+								is_well_formed = false;
+							}
+						}
+					}
+					
+					
+					if (!is_well_formed)
 					{
 						#ifdef DEBUG
 							Log::write("ERROR: unable to resolve variable name or number in get or set function");
@@ -165,6 +272,18 @@ Expression* Script::recursively_resolve(std::vector<std::string>& tokens, std::v
 						Value* v = new Value;
 						v->type = Value::Value_Type::Error;
 						return v;
+					}
+					
+					//create the node
+					if (s == "get")
+					{
+						Get_Variable_Expression* retval = new Get_Variable_Expression(gv,rv,ov);
+						return retval;
+					}
+					else
+					{
+						Set_Variable_Expression* retval = new Set_Variable_Expression(gv,rv,ov,e);
+						return retval;
 					}
 				}
 				//if it's neither, then there's a problem
@@ -345,17 +464,15 @@ Expression* Script::recursively_resolve(std::vector<std::string>& tokens, std::v
 			return v;
 		}
 	}
+	
 	//if it's neither, something's wrong
-	else
-	{
-		#ifdef DEBUG
-			Log::write("ERROR: Unable to parse expression.");
-		#endif
-		
-		Value* v = new Value;
-		v->type = Value::Value_Type::Error;
-		return v;
-	}
+	#ifdef DEBUG
+		Log::write("ERROR: Unable to parse expression.");
+	#endif
+	
+	Value* v = new Value;
+	v->type = Value::Value_Type::Error;
+	return v;
 }
 
 Script::Script(std::string script, Register* regs)

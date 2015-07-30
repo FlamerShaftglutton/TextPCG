@@ -1,2 +1,2 @@
-(set 0 (if (< 17 (max 17 18 1 10.0)) "Derp" 1));
+(set 0 (if (between (- 16 0) 0 15.0) "Yep" "Nope"));
 (say (+ "" (get 0)));

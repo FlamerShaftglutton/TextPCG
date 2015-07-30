@@ -126,7 +126,7 @@ Value* Random_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* 
 
 
 
-Set_Register_Expression::Set_Expression(unsigned rn, Expression* arg)
+Set_Register_Expression::Set_Register_Expression(unsigned rn, Expression* arg)
 {
 	register_number = rn;
 	argument = arg;
@@ -137,7 +137,7 @@ bool Set_Register_Expression::construct(std::vector<Expression*> arguments)
 	return true;
 }
 
-Set_Register_Expression::~Set_Expression()
+Set_Register_Expression::~Set_Register_Expression()
 {
 	delete argument;
 }
@@ -165,7 +165,7 @@ Value* Set_Register_Expression::evaluate(ScriptingVariables& pv, std::vector<Val
 
 
 
-Get_Register_Expression::Get_Expression(unsigned rn)
+Get_Register_Expression::Get_Register_Expression(unsigned rn)
 {
 	register_number = rn;
 }
@@ -194,7 +194,7 @@ Value* Get_Register_Expression::evaluate(ScriptingVariables& pv, std::vector<Val
 
 
 
-Set_Variable_Expression::Set_Expression(Expression_Variable_Global gv, Expression_Variable_Room rv, Expression_Variable_Object ov, Expression* arg)
+Set_Variable_Expression::Set_Variable_Expression(Expression_Variable_Global gv, Expression_Variable_Room rv, Expression_Variable_Object ov, Expression* arg)
 {
 	global_variable = gv;
 	room_variable = rv;
@@ -206,8 +206,7 @@ bool Set_Variable_Expression::construct(std::vector<Expression*> arguments)
 {
 	return true;
 }
-
-Set_Variable_Expression::~Set_Expression()
+Set_Variable_Expression::~Set_Variable_Expression()
 {
 	delete argument;
 }
@@ -342,7 +341,7 @@ Value* Set_Variable_Expression::evaluate(ScriptingVariables& pv, std::vector<Val
 
 
 
-Get_Variable_Expression::Get_Expression(Expression_Variable_Global gv, Expression_Variable_Room rv, Expression_Variable_Object ov)
+Get_Variable_Expression::Get_Variable_Expression(Expression_Variable_Global gv, Expression_Variable_Room rv, Expression_Variable_Object ov)
 {
 	global_variable = gv;
 	room_variable = rv;

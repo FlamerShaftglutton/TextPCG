@@ -66,17 +66,17 @@ class Set_Register_Expression: public Expression
 	unsigned register_number;
 	Expression* argument;
 public:
-	Set_Expression(unsigned rn, Expression* arg);
+	Set_Register_Expression(unsigned rn, Expression* arg);
 	bool construct(std::vector<Expression*> arguments) override;
 	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
-	~Set_Expression();
+	~Set_Register_Expression();
 };
 
 class Get_Register_Expression: public Expression
 {
 	unsigned register_number;
 public:
-	Get_Expression(unsigned rn);
+	Get_Register_Expression(unsigned rn);
 	bool construct(std::vector<Expression*> arguments) override;
 	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
 };
@@ -119,10 +119,10 @@ class Set_Variable_Expression: public Expression
 	
 	Expression* argument;
 public:
-	Set_Expression(Expression_Variable_Global gv, Expression_Variable_Room rv, Expression_Variable_Object ov, Expression* arg);
+	Set_Variable_Expression(Expression_Variable_Global gv, Expression_Variable_Room rv, Expression_Variable_Object ov, Expression* arg);
 	bool construct(std::vector<Expression*> arguments) override;
 	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
-	~Set_Expression();
+	~Set_Variable_Expression();
 };
 
 class Get_Variable_Expression: public Expression
@@ -131,7 +131,7 @@ class Get_Variable_Expression: public Expression
 	Expression_Variable_Room room_variable;
 	Expression_Variable_Object object_variable;
 public:
-	Get_Expression(Expression_Variable_Global gv, Expression_Variable_Room rv, Expression_Variable_Object ov);
+	Get_Variable_Expression(Expression_Variable_Global gv, Expression_Variable_Room rv, Expression_Variable_Object ov);
 	bool construct(std::vector<Expression*> arguments) override;
 	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
 };
