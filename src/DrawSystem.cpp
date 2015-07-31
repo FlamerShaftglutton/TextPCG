@@ -89,7 +89,7 @@ void DrawSystem::draw_minimap(Console& console, GameState& gs)
 		auto pos = queue.back();
 		ECS::Handle top = rooms[pos.first][pos.second];
 		queue.pop_back();
-		
+
 		//check all of the surrounding spaces
 		ECS::Handle n = pos.second == 0 ? -1 : gs.level->get_open_neighbor(top,Room::Exit::NORTH);
 		ECS::Handle e = pos.first == 4 ? -1 : gs.level->get_open_neighbor(top,Room::Exit::EAST);
@@ -102,7 +102,7 @@ void DrawSystem::draw_minimap(Console& console, GameState& gs)
 			symbols[2 * pos.first][2 * pos.second - 1] = "<fg=white><bg=black>|";
 			
 			//add the next room to the queue if it hasn't already been done
-			if (rooms[pos.first][pos.second - 1] == -1)
+			if (rooms[pos.first][pos.second - 1] == -1 && gs.level->get_room(n)->get_visited())
 			{
 				symbols[2 * pos.first][2 * pos.second - 2] = gs.level->get_room(n)->get_minimap_symbol();
 				rooms[pos.first][pos.second - 1] = n;
@@ -116,7 +116,7 @@ void DrawSystem::draw_minimap(Console& console, GameState& gs)
 			symbols[2 * pos.first + 1][2 * pos.second] = "<fg=white><bg=black>-";
 			
 			//add the next room to the queue if it hasn't already been done
-			if (rooms[pos.first + 1][pos.second] == -1)
+			if (rooms[pos.first + 1][pos.second] == -1 && gs.level->get_room(e)->get_visited())
 			{
 				symbols[2 * pos.first + 2][2 * pos.second] = gs.level->get_room(e)->get_minimap_symbol();
 				rooms[pos.first + 1][pos.second] = e;
@@ -129,7 +129,7 @@ void DrawSystem::draw_minimap(Console& console, GameState& gs)
 			symbols[2 * pos.first][2 * pos.second + 1] = "<fg=white><bg=black>|";
 			
 			//add the next room to the queue if it hasn't already been done
-			if (rooms[pos.first][pos.second + 1] == -1)
+			if (rooms[pos.first][pos.second + 1] == -1 && gs.level->get_room(s)->get_visited())
 			{
 				symbols[2 * pos.first][2 * pos.second + 2] = gs.level->get_room(s)->get_minimap_symbol();
 				rooms[pos.first][pos.second + 1] = s;
@@ -142,7 +142,7 @@ void DrawSystem::draw_minimap(Console& console, GameState& gs)
 			symbols[2 * pos.first - 1][2 * pos.second] = "<fg=white><bg=black>-";
 			
 			//add the next room to the queue if it hasn't already been done
-			if (rooms[pos.first - 1][pos.second] == -1)
+			if (rooms[pos.first - 1][pos.second] == -1 && gs.level->get_room(w)->get_visited())
 			{
 				symbols[2 * pos.first - 2][2 * pos.second] = gs.level->get_room(w)->get_minimap_symbol();
 				rooms[pos.first - 1][pos.second] = w;

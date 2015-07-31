@@ -197,17 +197,84 @@ Value* Get_Register_Expression::evaluate(ScriptingVariables& pv, std::vector<Val
 
 
 
-Set_Variable_Expression::Set_Variable_Expression(Expression_Variable_Global gv, Expression_Variable_Room rv, Expression_Variable_Object ov, Expression* arg)
+Variable_Expression::Variable_Expression(std::string vname)
 {
-	global_variable = gv;
-	room_variable = rv;
-	object_variable = ov;
+	//first off, if the scope is global, just strip that off
+	std::vector<std::string> chunks = StringUtils::split(StringUtils::to_lowercase(vname),'.');
+	if (chunks.size() > 0 && chunks[0] == "global")
+	{
+		chunks.erase(chunks.begin());
+	}
+	
+	//start looking through the variable names
+	well_formed = false;
+	if (chunks.size() > 0)
+	{
+		if (chunks[0] == "main_text")
+		{
+			well_formed = chunks.size() == 1;
+		
+			global_variable = Expression_Variable_Global::main_text;
+		}
+		else if (chunks.size() == 2)
+		{
+			std::string& c1 = chunks[1];
+			
+			if (chunks[0] == "current_room")
+			{
+				std::string names[] = {"description","short_description","minimap_symbol","visited","open_n","open_e","open_s","open_w"};
+				Expression_Variable_Room values[] = {Expression_Variable_Room::description,Expression_Variable_Room::short_description,Expression_Variable_Room::minimap_symbol,Expression_Variable_Room::visited,Expression_Variable_Room::open_n,Expression_Variable_Room::open_e,Expression_Variable_Room::open_s,Expression_Variable_Room::open_w};
+				global_variable = Expression_Variable_Global::current_room;
+				
+				for (unsigned i = 0; i < 8; ++i)
+				{
+					if (c1 == names[i])
+					{
+						well_formed = true;
+						room_variable = values[i];
+					}
+				}
+			}
+			else if (chunks[0] == "player" || chunks[0] == "caller" || chunks[0] == "object_iterator")
+			{
+				if (chunks[0] == "player")
+				{
+					global_variable = Expression_Variable_Global::player;
+				}
+				else if (chunks[0] == "caller")
+				{
+					global_variable = Expression_Variable_Global::caller;
+				}
+				else
+				{
+					global_variable = Expression_Variable_Global::object_iterator;
+				}
+				
+				std::string names[] = {"visible","visible_in_short_description","friendly","mobile","playable","hitpoints","attack","hit_chance","description","name"};
+				Expression_Variable_Object values[] = {Expression_Variable_Object::visible,Expression_Variable_Object::visible_in_short_description,Expression_Variable_Object::friendly,Expression_Variable_Object::mobile,Expression_Variable_Object::playable,Expression_Variable_Object::hitpoints,Expression_Variable_Object::attack,Expression_Variable_Object::hit_chance,Expression_Variable_Object::description,Expression_Variable_Object::name};
+				for (unsigned i = 0; i < 10; ++i)
+				{
+					if (c1 == names[i])
+					{
+						well_formed = true;
+						object_variable = values[i];
+					}
+				}
+			}
+		}
+	}
+}
+
+
+
+Set_Variable_Expression::Set_Variable_Expression(std::string vname, Expression* arg) : Variable_Expression(vname)
+{
 	argument = arg;
 }
 
 bool Set_Variable_Expression::construct(std::vector<Expression*> arguments)
 {
-	return true;
+	return well_formed;
 }
 Set_Variable_Expression::~Set_Variable_Expression()
 {
@@ -232,21 +299,65 @@ Value* Set_Variable_Expression::evaluate(ScriptingVariables& pv, std::vector<Val
 	//if it's a room variable for the current_room
 	else if (global_variable == Expression_Variable_Global::current_room)
 	{
-		if (v->type == Value::Value_Type::String)
+		switch (room_variable)
 		{
-			correct_type = true;
-			
-			switch (room_variable)
-			{
-				case Expression_Variable_Room::description: 
+			case Expression_Variable_Room::description: 
+				if (v->type == Value::Value_Type::String)
+				{
 					*(pv.current_room.description) = v->string_val;
-					break;
-				case Expression_Variable_Room::short_description:
+					correct_type = true;
+				}
+				break;
+			case Expression_Variable_Room::short_description:
+				if (v->type == Value::Value_Type::String)
+				{
 					*(pv.current_room.short_description) = v->string_val;
-					break;
-				case Expression_Variable_Room::minimap_symbol:
+					correct_type = true;
+				}
+				break;
+			case Expression_Variable_Room::minimap_symbol:
+				if (v->type == Value::Value_Type::String)
+				{
 					*(pv.current_room.minimap_symbol) = v->string_val;
-			}
+					correct_type = true;
+				}
+				break;
+			case Expression_Variable_Room::visited:
+				break;
+				if (v->type == Value::Value_Type::Bool)
+				{
+					*(pv.current_room.visited) = v->bool_val;
+					correct_type = true;
+				}
+				break;
+			case Expression_Variable_Room::open_n:
+				if (v->type == Value::Value_Type::Bool)
+				{
+					*(pv.current_room.open_n) = v->bool_val;
+					correct_type = true;
+				}
+				break;
+			case Expression_Variable_Room::open_e:
+				if (v->type == Value::Value_Type::Bool)
+				{
+					*(pv.current_room.open_e) = v->bool_val;
+					correct_type = true;
+				}
+				break;
+			case Expression_Variable_Room::open_s:
+				if (v->type == Value::Value_Type::Bool)
+				{
+					*(pv.current_room.open_s) = v->bool_val;
+					correct_type = true;
+				}
+				break;
+			case Expression_Variable_Room::open_w:
+				if (v->type == Value::Value_Type::Bool)
+				{
+					*(pv.current_room.open_w) = v->bool_val;
+					correct_type = true;
+				}
+				break;
 		}
 	}
 	//if it's an object variable
@@ -343,16 +454,14 @@ Value* Set_Variable_Expression::evaluate(ScriptingVariables& pv, std::vector<Val
 
 
 
-Get_Variable_Expression::Get_Variable_Expression(Expression_Variable_Global gv, Expression_Variable_Room rv, Expression_Variable_Object ov)
+Get_Variable_Expression::Get_Variable_Expression(std::string vname) : Variable_Expression(vname)
 {
-	global_variable = gv;
-	room_variable = rv;
-	object_variable = ov;
+	//the base class takes care of everything!
 }
 
 bool Get_Variable_Expression::construct(std::vector<Expression*> arguments)
 {
-	return true;
+	return well_formed;
 }
 
 Value* Get_Variable_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
@@ -369,18 +478,40 @@ Value* Get_Variable_Expression::evaluate(ScriptingVariables& pv, std::vector<Val
 	//if it's a room variable for the current_room
 	else if (global_variable == Expression_Variable_Global::current_room)
 	{
-		v->type =Value::Value_Type::String;
-
 		switch (room_variable)
 		{
 			case Expression_Variable_Room::description:
+				v->type = Value::Value_Type::String;
 				v->string_val = *(pv.current_room.description);
 				break;
 			case Expression_Variable_Room::short_description:
+				v->type = Value::Value_Type::String;
 				v->string_val = *(pv.current_room.short_description);
 				break;
 			case Expression_Variable_Room::minimap_symbol:
+				v->type = Value::Value_Type::String;
 				v->string_val = *(pv.current_room.minimap_symbol);
+				break;
+			case Expression_Variable_Room::visited:
+				v->type = Value::Value_Type::Bool;
+				v->bool_val = *(pv.current_room.visited);
+				break;
+			case Expression_Variable_Room::open_n:
+				v->type = Value::Value_Type::Bool;
+				v->bool_val = *(pv.current_room.open_n);
+				break;
+			case Expression_Variable_Room::open_e:
+				v->type = Value::Value_Type::Bool;
+				v->bool_val = *(pv.current_room.open_e);
+				break;
+			case Expression_Variable_Room::open_s:
+				v->type = Value::Value_Type::Bool;
+				v->bool_val = *(pv.current_room.open_s);
+				break;
+			case Expression_Variable_Room::open_w:
+				v->type = Value::Value_Type::Bool;
+				v->bool_val = *(pv.current_room.open_w);
+				break;
 		}
 	}
 	//if it's an object variable

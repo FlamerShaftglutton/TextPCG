@@ -65,6 +65,9 @@ void Serialize::from_file(std::string fname, GameState& gs)
 			r->set_description(get_string());
 			r->set_minimap_symbol(get_string());
 			
+			//then get the visited flag
+			r->set_visited(get_bool());
+			
 			split_stuff = StringUtils::split(get_string(),' ');
 			for (unsigned j = 0; j < split_stuff.size(); ++j)
 			{
@@ -177,6 +180,9 @@ void Serialize::to_file(std::string fname, GameState& gs)
 			outfile << r->get_short_description() << ESC;
 			outfile << r->get_description() << ESC;
 			outfile << r->get_minimap_symbol() << ESC;
+			
+			//then the visited flags
+			outfile << (int)r->get_visited() << ESC;
 			
 			//then the object handles the room contains
 			for (unsigned j = 0; j < r->objects().size(); ++j)

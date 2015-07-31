@@ -25,6 +25,14 @@ public:
         Cyan,
         White
 	};
+	
+	enum class Special_Keys
+	{
+		Up_Arrow,
+		Down_Arrow,
+		Left_Arrow,
+		Right_Arrow
+	};
 
 	Console();
 	~Console();

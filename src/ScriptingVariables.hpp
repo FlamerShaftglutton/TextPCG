@@ -25,6 +25,13 @@ struct RoomMap
 	std::string* description;
 	std::string* short_description;
 	std::string* minimap_symbol;
+	
+	bool* open_n;
+	bool* open_e;
+	bool* open_s;
+	bool* open_w;
+	
+	bool* visited;
 };
 
 struct ScriptingVariables

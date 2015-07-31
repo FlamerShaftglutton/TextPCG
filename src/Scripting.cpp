@@ -145,147 +145,42 @@ Expression* Script::recursively_resolve(std::vector<std::string>& tokens, std::v
 				//if it's a variable name...
 				else if (token_types[1] == 5)
 				{
-					//first off, if the scope is global, just strip that off
-					std::vector<std::string> chunks = StringUtils::split(StringUtils::to_lowercase(tokens[1]),'.');
-					if (chunks.size() > 0 && chunks[0] == "global")
+					//if it's a keyword...
+					std::string lower_token_1 = StringUtils::to_lowercase(tokens[1]);
+					if (tokens[1].find('.') != std::string::npos || lower_token_1 == "main_text")
 					{
-						chunks.erase(chunks.begin());
-					}
-					
-					if (chunks.size() == 0)
-					{
-						#ifdef DEBUG
-							Log::write("ERROR: invalid variable name.");
-						#endif
+						Expression* retval = nullptr;
 						
-						Value* v = new Value;
-						v->type = Value::Value_Type::Error;
-						return v;
-					}
-					
-					//start looking through the variable names
-					Expression_Variable_Global gv = Expression_Variable_Global::main_text;
-					Expression_Variable_Room rv = Expression_Variable_Room::description;
-					Expression_Variable_Object ov = Expression_Variable_Object::visible;
-					bool is_well_formed = false;
-					if (chunks[0] == "main_text")
-					{
-						is_well_formed = chunks.size() == 1;
-					
-						gv = Expression_Variable_Global::main_text;
-					}
-					else if (chunks.size() == 2)
-					{
-						std::string& c1 = chunks[1];
-						
-						if (chunks[0] == "current_room")
+						if (s == "get")
 						{
-							gv = Expression_Variable_Global::current_room;
-							is_well_formed = true;
-							
-							if (c1 == "description")
-							{
-								rv = Expression_Variable_Room::description;
-							}
-							else if (c1 == "short_description")
-							{
-								rv = Expression_Variable_Room::short_description;
-							}
-							else if (c1 == "minimap_symbol")
-							{
-								rv = Expression_Variable_Room::minimap_symbol;
-							}
-							else
-							{
-								is_well_formed = false;
-							}
+							retval = new Get_Variable_Expression(lower_token_1);
 						}
-						else if (chunks[0] == "player" || chunks[0] == "caller" || chunks[0] == "object_iterator")
+						else
 						{
-							if (chunks[0] == "player")
-							{
-								gv = Expression_Variable_Global::player;
-							}
-							else if (chunks[0] == "caller")
-							{
-								gv = Expression_Variable_Global::caller;
-							}
-							else
-							{
-								gv = Expression_Variable_Global::object_iterator;
-							}
-							
-							is_well_formed = true;
-							
-							if (c1 == "visible")
-							{
-								ov = Expression_Variable_Object::visible;
-							}
-							else if (c1 == "visible_in_short_description")
-							{
-								ov = Expression_Variable_Object::visible_in_short_description;
-							}
-							else if (c1 == "friendly")
-							{
-								ov = Expression_Variable_Object::friendly;
-							}
-							else if (c1 == "mobile")
-							{
-								ov = Expression_Variable_Object::mobile;
-							}
-							else if (c1 == "playable")
-							{
-								ov = Expression_Variable_Object::playable;
-							}
-							else if (c1 == "hitpoints")
-							{
-								ov = Expression_Variable_Object::hitpoints;
-							}
-							else if (c1 == "attack")
-							{
-								ov = Expression_Variable_Object::attack;
-							}
-							else if (c1 == "hit_chance")
-							{
-								ov = Expression_Variable_Object::hit_chance;
-							}
-							else if (c1 == "description")
-							{
-								ov = Expression_Variable_Object::description;
-							}
-							else if (c1 == "name")
-							{
-								ov = Expression_Variable_Object::name;
-							}
-							else
-							{
-								is_well_formed = false;
-							}
+							retval = new Set_Variable_Expression(lower_token_1, e);
 						}
-					}
-					
-					
-					if (!is_well_formed)
-					{
-						#ifdef DEBUG
-							Log::write("ERROR: unable to resolve variable name or number in get or set function");
-						#endif
 						
-						Value* v = new Value;
-						v->type = Value::Value_Type::Error;
-						return v;
-					}
-					
-					//create the node
-					if (s == "get")
-					{
-						Get_Variable_Expression* retval = new Get_Variable_Expression(gv,rv,ov);
+						std::vector<Expression*> arg_list;
+						
+						if (!retval->construct(arg_list))
+						{
+							#ifdef DEBUG
+								Log::write("ERROR: unable to resolve variable name or number in get or set function");
+							#endif
+							
+							delete retval;
+							Value* v = new Value;
+							v->type = Value::Value_Type::Error;
+							return v;
+						}
+						
+						//if it's well formed, return it!
 						return retval;
 					}
+					//if it's not a keyword, then make it into a register
 					else
 					{
-						Set_Variable_Expression* retval = new Set_Variable_Expression(gv,rv,ov,e);
-						return retval;
+						//someday...
 					}
 				}
 				//if it's neither, then there's a problem

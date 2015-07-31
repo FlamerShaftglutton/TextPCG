@@ -42,6 +42,11 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 		{
 			gs.menu_transition = false;
 			console.clear();
+			gs.main_text = "";
+			for (int i = -127; i < 128; ++i)
+			{
+				console.write_character(1 + i / 79, i % 79, char(i));
+			}
 			//put some text into gs.main_text
 		}
 	}
@@ -64,14 +69,35 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 				//update the current room variable
 				current_room = new_current_room;
 				
-				//create a ScriptingVariables object to pass in
+				//update the 'visited' flag on the room
+				Room* cr = gs.level->get_room(current_room);
+				cr->set_visited(true);
+				
+				//create a ScriptingVariables object to pass into the objects
 				ScriptingVariables sv;
 				sv.main_text = &(gs.main_text);
+				std::string desc = cr->get_description();
+				sv.current_room.description = &desc;
+				std::string short_desc = cr->get_short_description();
+				sv.current_room.short_description = &short_desc;
+				std::string mms = cr->get_minimap_symbol();
+				sv.current_room.minimap_symbol = &mms;
+				bool visited = cr->get_visited();
+				sv.current_room.visited = &visited;
+				bool open_n = cr->get_exit(Room::Exit::NORTH);
+				bool open_e = cr->get_exit(Room::Exit::EAST);
+				bool open_s = cr->get_exit(Room::Exit::SOUTH);
+				bool open_w = cr->get_exit(Room::Exit::WEST);
+				sv.current_room.open_n = &open_n;
+				sv.current_room.open_e = &open_e;
+				sv.current_room.open_s = &open_s;
+				sv.current_room.open_w = &open_w;
+				
 				fill_ObjectMap(player,sv.player);
 				std::string old_main_text = gs.main_text;
 				
 				//fill in the list of objects in the room
-				auto &os = gs.level->get_room(current_room)->objects();
+				auto &os = cr->objects();
 				for (unsigned i = 0; i < os.size(); ++i)
 				{
 					//get the object
@@ -103,6 +129,16 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 				{
 					gs.main_text_dirty_flag = true;
 				}
+				
+				cr->set_description(desc);
+				cr->set_short_description(short_desc);
+				cr->set_minimap_symbol(mms);
+				cr->set_visited(visited);
+				
+				cr->set_exit(Room::Exit::NORTH,open_n);
+				cr->set_exit(Room::Exit::EAST,open_e);
+				cr->set_exit(Room::Exit::SOUTH,open_s);
+				cr->set_exit(Room::Exit::WEST,open_w);
 			}
 		}
 	}

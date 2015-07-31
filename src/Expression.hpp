@@ -94,7 +94,12 @@ enum class Expression_Variable_Room
 {
 	description,
 	short_description,
-	minimap_symbol
+	minimap_symbol,
+	visited,
+	open_n,
+	open_e,
+	open_s,
+	open_w
 };
 
 enum class Expression_Variable_Object
@@ -111,27 +116,33 @@ enum class Expression_Variable_Object
 	name
 };
 
-class Set_Variable_Expression: public Expression
+class Variable_Expression: public Expression
 {
+protected:
 	Expression_Variable_Global global_variable;
 	Expression_Variable_Room room_variable;
 	Expression_Variable_Object object_variable;
-	
+	bool well_formed;
+public:
+	Variable_Expression(std::string vname);
+	bool construct(std::vector<Expression*> arguments) = 0;
+	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) = 0;
+};
+
+class Set_Variable_Expression: public Variable_Expression
+{
 	Expression* argument;
 public:
-	Set_Variable_Expression(Expression_Variable_Global gv, Expression_Variable_Room rv, Expression_Variable_Object ov, Expression* arg);
+	Set_Variable_Expression(std::string vname, Expression* arg);
 	bool construct(std::vector<Expression*> arguments) override;
 	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
 	~Set_Variable_Expression();
 };
 
-class Get_Variable_Expression: public Expression
+class Get_Variable_Expression: public Variable_Expression
 {
-	Expression_Variable_Global global_variable;
-	Expression_Variable_Room room_variable;
-	Expression_Variable_Object object_variable;
 public:
-	Get_Variable_Expression(Expression_Variable_Global gv, Expression_Variable_Room rv, Expression_Variable_Object ov);
+	Get_Variable_Expression(std::string vname);
 	bool construct(std::vector<Expression*> arguments) override;
 	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
 };

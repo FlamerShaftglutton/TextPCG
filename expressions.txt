@@ -1,2 +1,1 @@
-(say (+ "" (choose (random 0 2) (min 0 50) (max 0 50) (and (between 0 0 15) (= "derp" "derp")))));
-(set global.main_text "");
+(feoir (say (+ "Hello there " (get object_iterator.name))));
