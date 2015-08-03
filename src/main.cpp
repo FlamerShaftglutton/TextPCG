@@ -7,6 +7,11 @@
 #include "InputSystem.hpp"
 #include "UpdateSystem.hpp"
 #include "Serialize.hpp"
+#include "string_utils.hpp"
+
+#ifdef DEBUG
+	#include "Log.hpp"
+#endif
 
 void game_loop(Console& console)
 {
@@ -35,14 +40,14 @@ void game_loop(Console& console)
 	//set up the game state
 	GameState gs;
 	
-	Serialize::from_file("savedgame.tsf",gs);
+	//Serialize::from_file("savedgame.tsf",gs);
 	
 	gs.menu_index = 0;
 	gs.main_text = "";
 	gs.main_text_dirty_flag = true;
 	gs.frames_elapsed = 0;
 	gs.menu_transition = true;
-	/*
+	//*
 	gs.level = new Level(9,9);
 	
 	//Debugging, create dummy level
@@ -54,6 +59,7 @@ void game_loop(Console& console)
 				ECS::Handle h = gs.level->create_room(i,j);
 				gs.level->get_room(h)->set_short_description("A Small Room");
 				gs.level->get_room(h)->set_minimap_symbol("<fg=yellow><bg=yellow> ");
+				gs.level->get_room(h)->set_visited(false);
 			}
 		}
 	
@@ -89,8 +95,10 @@ void game_loop(Console& console)
 		
 		gs.level->get_room(3,3)->set_exit(Room::Exit::WEST,true);
 		gs.level->get_room(3,3)->set_exit(Room::Exit::NORTH,true);
-		gs.level->get_room(3,3)->set_exit(Room::Exit::EAST,true);
-		gs.level->get_room(3,3)->set_description("<fg=white>Room 3,3.\n<fg=red>Chaotic Evil!");
+		gs.level->get_room(3,3)->set_exit(Room::Exit::EAST,false);
+		gs.level->get_room(3,3)->set_description("<fg=white>Room 3,3.\n<fg=red>A small, cramped room. On the eastern wall is a locked door.");
+		
+		
 		
 		ECS::Handle h = gs.level->create_room(4,3);
 		Room* r = gs.level->get_room(h);
@@ -130,6 +138,8 @@ void game_loop(Console& console)
 		o->friendly = true;
 		o->mobile = true;
 		o->playable = true;
+		o->open = true;
+		o->holdable = false;
 		o->room_container = gs.level->get_room(2,2)->get_handle();
 		o->object_container = -1;
 		o->hitpoints = 100;
@@ -145,6 +155,8 @@ void game_loop(Console& console)
 		o->friendly = true;
 		o->mobile = true;
 		o->playable = false;
+		o->open = false;
+		o->holdable = false;
 		o->room_container = r->get_handle();
 		o->object_container = -1;
 		o->hitpoints = 12;
@@ -152,7 +164,31 @@ void game_loop(Console& console)
 		o->hit_chance = 0.0f;
 		o->name = "Mysterious underdweller";
 		o->description = "A somewhat short man in a dark gray cloak. He mutters to himself while eyeing you.";
-		o->scripts.construct("(set 0 0);","(choose (get 0) \"Hello stranger.\" \"You again?\");(set 0 1)","");
+		o->scripts.construct("(set 0 0);","(choose (get 0) \"Hello stranger.\" \"You again?\");(set 0 1)","(say \"You wanna what now?\");");
+		r->objects().push_back(o->get_handle());
+		
+		r = gs.level->get_room(1,3);
+		o = gs.level->get_object(gs.level->create_object());
+		o->visible = true;
+		o->visible_in_short_description = false;
+		o->friendly = true;
+		o->mobile = false;
+		o->playable = false;
+		o->open = false;
+		o->holdable = true;
+		o->room_container = r->get_handle();
+		o->object_container = -1;
+		o->hitpoints = -1;
+		o->attack = 0;
+		o->hit_chance = 0.0f;
+		o->name = "A key";
+		o->description = "A small iron skeleton key. It is covered in small bumps, yet the texture feels smooth.";
+		std::string use_script = "(if (= (get current_room.handle) " + StringUtils::to_string(gs.level->get_room(3,3)->get_handle()) + ") (+ (set global.main_text (+ (get global.main_text) \"\n\nThe key opens a door to the east.\")) (set current_room.open_e true)) (set global.main_text (+ (get global.main_text) \"<fg=white><bg=black>\n\nIt does nothing\")));";
+		o->scripts.construct("","",use_script);
+		#ifdef DEBUG
+			Log::write(use_script);
+		#endif
+		
 		r->objects().push_back(o->get_handle());
 		
 		Serialize::to_file("newgame.tsf",gs);

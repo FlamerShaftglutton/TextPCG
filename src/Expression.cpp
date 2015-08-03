@@ -222,8 +222,8 @@ Variable_Expression::Variable_Expression(std::string vname)
 			
 			if (chunks[0] == "current_room")
 			{
-				std::string names[] = {"description","short_description","minimap_symbol","visited","open_n","open_e","open_s","open_w"};
-				Expression_Variable_Room values[] = {Expression_Variable_Room::description,Expression_Variable_Room::short_description,Expression_Variable_Room::minimap_symbol,Expression_Variable_Room::visited,Expression_Variable_Room::open_n,Expression_Variable_Room::open_e,Expression_Variable_Room::open_s,Expression_Variable_Room::open_w};
+				std::string names[] = {"handle","description","short_description","minimap_symbol","visited","open_n","open_e","open_s","open_w"};
+				Expression_Variable_Room values[] = {Expression_Variable_Room::handle,Expression_Variable_Room::description,Expression_Variable_Room::short_description,Expression_Variable_Room::minimap_symbol,Expression_Variable_Room::visited,Expression_Variable_Room::open_n,Expression_Variable_Room::open_e,Expression_Variable_Room::open_s,Expression_Variable_Room::open_w};
 				global_variable = Expression_Variable_Global::current_room;
 				
 				for (unsigned i = 0; i < 8; ++i)
@@ -250,9 +250,9 @@ Variable_Expression::Variable_Expression(std::string vname)
 					global_variable = Expression_Variable_Global::object_iterator;
 				}
 				
-				std::string names[] = {"visible","visible_in_short_description","friendly","mobile","playable","hitpoints","attack","hit_chance","description","name"};
-				Expression_Variable_Object values[] = {Expression_Variable_Object::visible,Expression_Variable_Object::visible_in_short_description,Expression_Variable_Object::friendly,Expression_Variable_Object::mobile,Expression_Variable_Object::playable,Expression_Variable_Object::hitpoints,Expression_Variable_Object::attack,Expression_Variable_Object::hit_chance,Expression_Variable_Object::description,Expression_Variable_Object::name};
-				for (unsigned i = 0; i < 10; ++i)
+				std::string names[] = {"handle","visible","visible_in_short_description","friendly","mobile","playable","open","holdable","hitpoints","attack","hit_chance","description","name"};
+				Expression_Variable_Object values[] = {Expression_Variable_Object::handle,Expression_Variable_Object::visible,Expression_Variable_Object::visible_in_short_description,Expression_Variable_Object::friendly,Expression_Variable_Object::mobile,Expression_Variable_Object::playable,Expression_Variable_Object::open,Expression_Variable_Object::holdable,Expression_Variable_Object::hitpoints,Expression_Variable_Object::attack,Expression_Variable_Object::hit_chance,Expression_Variable_Object::description,Expression_Variable_Object::name};
+				for (unsigned i = 0; i < 11; ++i)
 				{
 					if (c1 == names[i])
 					{
@@ -301,6 +301,11 @@ Value* Set_Variable_Expression::evaluate(ScriptingVariables& pv, std::vector<Val
 	{
 		switch (room_variable)
 		{
+			case Expression_Variable_Room::handle:
+				#ifdef DEBUG
+					Log::write("ERROR: Set function tried to set the <room>. field, which is read-only. Nothing changed.");
+				#endif
+				break;
 			case Expression_Variable_Room::description: 
 				if (v->type == Value::Value_Type::String)
 				{
@@ -369,6 +374,11 @@ Value* Set_Variable_Expression::evaluate(ScriptingVariables& pv, std::vector<Val
 		//which field?
 		switch (object_variable)
 		{
+			case Expression_Variable_Object::handle:
+				#ifdef DEBUG
+					Log::write("ERROR: Set function tried to set the <object>.hanlde field, which is read-only. Nothing changed.");
+				#endif
+				break;
 			case Expression_Variable_Object::visible:
 				if (v->type == Value::Value_Type::Bool)
 				{
@@ -401,6 +411,20 @@ Value* Set_Variable_Expression::evaluate(ScriptingVariables& pv, std::vector<Val
 				#ifdef DEBUG
 					Log::write("ERROR: Set function tried to set the <object>.playable field, which is read-only. Nothing changed.");
 				#endif
+				break;
+			case Expression_Variable_Object::open:
+				if (v->type == Value::Value_Type::Bool)
+				{
+					correct_type = true;
+					*(om.open) = v->bool_val;
+				}
+				break;
+			case Expression_Variable_Object::holdable:
+				if (v->type == Value::Value_Type::Bool)
+				{
+					correct_type = true;
+					*(om.holdable) = v->bool_val;
+				}
 				break;
 			case Expression_Variable_Object::hitpoints:
 				if (v->type == Value::Value_Type::Int)
@@ -480,6 +504,10 @@ Value* Get_Variable_Expression::evaluate(ScriptingVariables& pv, std::vector<Val
 	{
 		switch (room_variable)
 		{
+			case Expression_Variable_Room::handle:
+				v->type = Value::Value_Type::Int;
+				v->int_val = pv.current_room.handle;
+				break;
 			case Expression_Variable_Room::description:
 				v->type = Value::Value_Type::String;
 				v->string_val = *(pv.current_room.description);
@@ -523,6 +551,10 @@ Value* Get_Variable_Expression::evaluate(ScriptingVariables& pv, std::vector<Val
 		//which field?
 		switch (object_variable)
 		{
+			case Expression_Variable_Object::handle:
+				v->type = Value::Value_Type::Int;
+				v->int_val = om.handle;
+				break;
 			case Expression_Variable_Object::visible:
 				v->type = Value::Value_Type::Bool;
 				v->bool_val = *(om.visible);
@@ -542,6 +574,14 @@ Value* Get_Variable_Expression::evaluate(ScriptingVariables& pv, std::vector<Val
 			case Expression_Variable_Object::playable:
 				v->type = Value::Value_Type::Bool;
 				v->bool_val = *(om.playable);
+				break;
+			case Expression_Variable_Object::open:
+				v->type = Value::Value_Type::Bool;
+				v->bool_val = *(om.open);
+				break;
+			case Expression_Variable_Object::holdable:
+				v->type = Value::Value_Type::Bool;
+				v->bool_val = *(om.holdable);
 				break;
 			case Expression_Variable_Object::hitpoints:
 				v->type = Value::Value_Type::Int;

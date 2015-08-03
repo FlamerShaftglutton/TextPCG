@@ -95,6 +95,8 @@ void Serialize::from_file(std::string fname, GameState& gs)
 			o->friendly = get_bool();
 			o->mobile = get_bool();
 			o->playable = get_bool();
+			o->open = get_bool();
+			o->holdable = get_bool();
 			
 			o->object_container = (ECS::Handle)get_int();
 			o->room_container = (ECS::Handle)get_int();
@@ -211,6 +213,8 @@ void Serialize::to_file(std::string fname, GameState& gs)
 			outfile << (int)o->friendly << ESC;
 			outfile << (int)o->mobile << ESC;
 			outfile << (int)o->playable << ESC;
+			outfile << (int)o->open << ESC;
+			outfile << (int)o->holdable << ESC;
 			
 			outfile << (int)o->object_container << ESC;
 			outfile << (int)o->room_container << ESC;

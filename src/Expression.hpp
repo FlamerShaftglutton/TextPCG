@@ -92,6 +92,7 @@ enum class Expression_Variable_Global
 
 enum class Expression_Variable_Room
 {
+	handle,
 	description,
 	short_description,
 	minimap_symbol,
@@ -104,11 +105,14 @@ enum class Expression_Variable_Room
 
 enum class Expression_Variable_Object
 {
+	handle,
 	visible,
 	visible_in_short_description,
 	friendly,
 	mobile,
 	playable,
+	open,
+	holdable,
 	hitpoints,
 	attack,
 	hit_chance,

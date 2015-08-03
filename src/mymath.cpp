@@ -33,5 +33,5 @@ float MyMath::random_float(float minimum, float maximum)
 	//std::uniform_real_distribution<float> dist(minimum, maximum);
 	//return dist(*rng);
 	
-	return (float)MyMath::random_int(0,8'388'607) / 8'388'607.0f;
+	return (float)MyMath::random_int(0,8388607) / 8388607.0f;
 }

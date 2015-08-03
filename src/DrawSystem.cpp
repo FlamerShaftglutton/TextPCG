@@ -36,10 +36,6 @@ void DrawSystem::do_work(Console& console, GameState& gs)
 	
 	if (gs.menu_index == 2)
 	{
-		//draw the borders only in the game
-		outline_frame(console,minimap_frame,false,true,true,false);
-		outline_frame(console,inventory_frame,false,false,true,false);
-		
 		//write the frame count for debugging
 		#ifdef DEBUG
 			console.write_string(9,0,StringUtils::to_string(gs.frames_elapsed),minimap_frame);
@@ -50,11 +46,14 @@ void DrawSystem::do_work(Console& console, GameState& gs)
 		std::string color = player_health < 30 ? "red" : "white";
 		console.write_string(0,0,"<fg=" + color + ">Health: " + StringUtils::to_string(player_health) + "%",lower_bar_frame);
 		
-		//draw the minimap
+		//draw the minimap frame
 		draw_minimap(console,gs);
 		
 		//draw the NPC frame
 		draw_NPCs(console,gs);
+		
+		//draw the inventory frame
+		draw_inventory(console,gs);
 	}
 	
 	//change color and write out the text-box stuff
@@ -166,8 +165,12 @@ void DrawSystem::draw_minimap(Console& console, GameState& gs)
 		}
 	}
 	
-	//finally, draw the minimap
+	//actually draw the minimap
 	console.write_string(0,1,mm,minimap_frame);
+	
+	//finally, draw the borders
+	console.set_bgcolor(Console::Color::Blue);
+	outline_frame(console,minimap_frame,false,true,true,false);
 }
 
 void DrawSystem::draw_NPCs(Console& console, GameState& gs)
@@ -212,6 +215,47 @@ void DrawSystem::draw_NPCs(Console& console, GameState& gs)
 	//draw the border
 	console.set_bgcolor(Console::Color::Blue);
 	outline_frame(console,NPC_frame,false,true,true,false);
+}
+
+void DrawSystem::draw_inventory(Console& console, GameState& gs)
+{
+	//first, clear out the old text
+	console.set_bgcolor(Console::Color::Black);
+	console.clear(inventory_frame);
+
+	//now get the inventory
+	Object* player = gs.level->get_object(gs.playable_character);
+	std::vector<std::string> content;
+	
+	auto& r = player->objects;
+	for (unsigned i = 0; i < r.size(); ++i)
+	{
+		Object* o = gs.level->get_object(r[i]);
+		content.push_back(o->name);
+	}
+	
+	//if there are too many, say "+ X others"
+	if ((int)content.size() > console.get_height(inventory_frame) - 1)
+	{
+		int i;
+		for (i = 0; i < console.get_height(inventory_frame) - 2; ++i)
+		{
+			console.write_string(i,1,content[i],inventory_frame);
+		}
+		console.write_string(i, 1, "+ " + StringUtils::to_string(1 + (int)content.size() - i) + " others", inventory_frame);
+	}
+	//if there aren't too many, draw the names!
+	else
+	{
+		for (unsigned i = 0; i < content.size(); ++i)
+		{
+			console.write_string(i,1,content[i],inventory_frame);
+		}
+	}
+	
+	//draw the border
+	console.set_bgcolor(Console::Color::Blue);
+	outline_frame(console,inventory_frame,false,false,true,false);
 }
 
 void DrawSystem::outline_frame(Console& console, int frame, bool top, bool bottom, bool left, bool right)

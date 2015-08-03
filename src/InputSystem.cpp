@@ -61,12 +61,153 @@ void InputSystem::command_look_room(Console& console, GameState& gs, ECS::Handle
 
 void InputSystem::command_look_object(Console& console, GameState& gs, std::string desc, std::string type)
 {
+	desc = StringUtils::trim(desc);
+	type = StringUtils::trim(type);
+	Object* obj = find_object(gs, desc);
+	
+	//if we couldn't find anything, spit out the error message
+	if (obj == nullptr)
+	{
+		gs.main_text += "<fg=white><bg=black>\n\nYou don't see anything like '" + desc + "' here.";
+	}
+	else
+	{
+		//if we did find something, then the output will depend on the type: "look in ..." or "look at ..."
+		if (type == "at")
+		{
+			gs.main_text += "<fg=white><bg=black>\n\n" + obj->name + "\n<fg=white><bg=black>" + obj->description;
+		}
+		else if (type == "in")
+		{
+			if (!obj->open)
+			{
+				if (obj->mobile)
+				{
+					gs.main_text += "<fg=white><bg=black>\n\nYou can't look in that.";
+				}
+				else
+				{
+					gs.main_text += "<fg=white><bg=black>\n\nIt is closed.";
+				}
+			}
+			else
+			{
+				gs.main_text += "<fg=white><bg=black>\n\n" + obj->name + " contains the following:";
+				
+				if (obj->objects.empty())
+				{
+					gs.main_text += "\n\tNothing";
+				}
+				else
+				{
+					for (ECS::Handle oh : obj->objects)
+					{
+						gs.main_text += "<fg=white><bg=black>\n\t" + gs.level->get_object(oh)->name;
+					}
+				}
+			}
+		}
+		else
+		{
+			//output an error message I guess? This is probably handled in the do_work function already, but just to be safe...
+			gs.main_text += "<fg=white><bg=black>\n\nLook in or at what?";
+		}
+	}
+}
+
+void InputSystem::command_use_object(Console& console, GameState& gs, std::string desc)
+{
+	Object* obj = find_object(gs, desc);
+	
+	//if we couldn't find anything, spit out the error message
+	if (obj == nullptr)
+	{
+		gs.main_text += "<fg=white><bg=black>\n\nYou don't see anything like '" + desc + "' here.";
+	}
+	else
+	{
+		//if we did find something, call the object's on_use function
+		Room* cr = gs.level->get_room(gs.level->get_object(gs.playable_character)->room_container);
+		
+		//create a ScriptingVariables object to pass into the objects
+		ScriptingVariables sv;
+		fill_scripting_variables(gs,sv,cr,obj);
+		
+		obj->scripts.execute_on_use(sv);
+		
+		unfill_scripting_variables(gs,sv,cr);
+	}
+}
+
+void InputSystem::command_get_object(Console& console, GameState& gs, std::string desc)
+{
+	Object* obj = find_object(gs, desc);
+	
+	//if we couldn't find anything, spit out the error message
+	if (obj == nullptr)
+	{
+		gs.main_text += "<fg=white><bg=black>\n\nYou don't see anything like '" + desc + "' here.";
+	}
+	else
+	{
+		//first off, if we are already holding it then don't try to pick it up again
+		if (obj->object_container == gs.playable_character)
+		{
+			gs.main_text += "<fg=white><bg=black>\n\nYou already have that in your inventory";
+		}
+		//if we don't already have it, find out if it's even holdable
+		else if (obj->holdable)
+		{
+			//if it is holdable, pick it up.
+			Object* p = gs.level->get_object(gs.playable_character);
+			p->objects.push_back(obj->get_handle());
+			
+			//now remove it from wherever it currently resides
+			if (obj->object_container != -1)
+			{
+				auto& l = gs.level->get_object(obj->object_container)->objects;
+				for (auto i = l.begin(); i != l.end(); ++i)
+				{
+					if (*i == obj->get_handle())
+					{
+						l.erase(i);
+						break;
+					}
+				}
+			}
+			if (obj->room_container != -1)
+			{
+				auto& l = gs.level->get_room(obj->room_container)->objects();
+				for (auto i = l.begin(); i != l.end(); ++i)
+				{
+					if (*i == obj->get_handle())
+					{
+						l.erase(i);
+						break;
+					}
+				}
+			}
+			
+			//now mark it as residing only in the inventory
+			obj->object_container = gs.playable_character;
+			obj->room_container = -1;
+			
+			//finally, let the user know they successfully picked it up
+			gs.main_text += "<fg=white><bg=black>\n\nYou pick up " + obj->name + "<fg=white><bg=black> and put it in your inventory.";
+		}
+		else
+		{
+			gs.main_text += "<fg=white><bg=black>\n\nYou can't hold that.";
+		}
+	}
+}
+
+Object* InputSystem::find_object(GameState& gs, std::string desc)
+{
 	//first, we gotta figure out what we're looking at/in
 	Object* obj = nullptr;
 	Object* player = gs.level->get_object(gs.playable_character);
 	Room* current_room = gs.level->get_room(player->room_container);
-	desc = StringUtils::trim(desc);
-	type = StringUtils::trim(type);
 	
 	//look through the inventory
 	for (ECS::Handle oh : player->objects)
@@ -87,48 +228,33 @@ void InputSystem::command_look_object(Console& console, GameState& gs, std::stri
 		{
 			Object* o = gs.level->get_object(oh);
 			
-			if (o->name.find(desc) != std::string::npos)
+			if (StringUtils::to_lowercase(o->name).find(desc) != std::string::npos)
 			{
 				obj = o;
 				break;
 			}
-		}
-	}
-	
-	//if we couldn't find anything, spit out the error message
-	if (obj == nullptr)
-	{
-		gs.main_text += "<fg=white><bg=black>\n\nYou don't see anything like '" + desc + "' here.";
-	}
-	//if we did find something, then the output will depend on the type: "look in ..." or "look at ..."
-	else
-	{
-		if (type == "at")
-		{
-			gs.main_text += "<fg=white><bg=black>\n\n" + obj->name + "\n<fg=white><bg=black>" + obj->description;
-		}
-		else if (type == "in")
-		{
-			gs.main_text += "<fg=white><bg=black>\n\n" + obj->name + " contains the following:";
-			
-			if (obj->objects.empty())
+			else if (o->open)
 			{
-				gs.main_text += "\n\tNothing";
-			}
-			else
-			{
-				for (ECS::Handle oh : obj->objects)
+				for (ECS::Handle ooh : o->objects)
 				{
-					gs.main_text += "<fg=white><bg=black>\n\t" + gs.level->get_object(oh)->name;
+					Object* oo = gs.level->get_object(ooh);
+					
+					if (StringUtils::to_lowercase(oo->name).find(desc) != std::string::npos)
+					{
+						obj = oo;
+						break;
+					}
+				}
+				
+				if (obj != nullptr)
+				{
+					break;
 				}
 			}
 		}
-		else
-		{
-			//output an error message I guess? This is probably handled in the do_work function already, but just to be safe...
-			gs.main_text += "<fg=white><bg=black>\n\nLook in or at what?";
-		}
 	}
+	
+	return obj;
 }
 
 void InputSystem::do_work(Console& console, GameState& gs)
@@ -251,6 +377,26 @@ void InputSystem::do_work(Console& console, GameState& gs)
 						}
 					}
 				}
+			}
+			else if (lower_input.substr(0,3) == "use")
+			{
+				#ifdef DEBUG
+					Log::write("\tUse command recognized.");
+				#endif
+				
+				std::string rest = StringUtils::trim(lower_input.substr(3));
+				
+				command_use_object(console,gs,rest);
+			}
+			else if (lower_input.substr(0,3) == "get")
+			{
+				#ifdef DEBUG
+					Log::write("\tGet command recognized.");
+				#endif
+				
+				std::string rest = StringUtils::trim(lower_input.substr(3));
+				
+				command_get_object(console,gs,rest);
 			}
 			else if (lower_input == "inv" || lower_input == "inventory")
 			{

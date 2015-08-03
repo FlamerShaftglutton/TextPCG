@@ -1,14 +1,19 @@
 #pragma once
 #include <vector>
 #include <string>
+#include "Handle.hpp"
 
 struct ObjectMap
 {
+	ECS::Handle handle;
+	
 	bool* visible;
 	bool* visible_in_short_description;
 	bool* friendly;
 	bool* mobile;
 	bool* playable;
+	bool* open;
+	bool* holdable;
 	
 	int* hitpoints;
 	int* attack;
@@ -20,6 +25,8 @@ struct ObjectMap
 
 struct RoomMap
 {
+	ECS::Handle handle;
+	
 	std::vector<ObjectMap> objects;
 	
 	std::string* description;
