@@ -87,7 +87,8 @@ enum class Expression_Variable_Global
 	current_room,
 	caller,
 	player,
-	object_iterator
+	object_iterator,
+	combat_data
 };
 
 enum class Expression_Variable_Room
@@ -120,12 +121,33 @@ enum class Expression_Variable_Object
 	name
 };
 
+enum class Expression_Variable_Combat
+{
+	player_position_left,
+	player_position_right,
+	player_position_front,
+	player_position_far_front,
+	
+	player_attacking,
+	
+	vulnerable_left,
+	vulnerable_right,
+	vulnerable_front,
+	vulnerable_far_front,
+	
+	attacking_left,
+	attacking_right,
+	attacking_front,
+	attacking_far_front
+};
+
 class Variable_Expression: public Expression
 {
 protected:
 	Expression_Variable_Global global_variable;
 	Expression_Variable_Room room_variable;
 	Expression_Variable_Object object_variable;
+	Expression_Variable_Combat combat_variable;
 	bool well_formed;
 public:
 	Variable_Expression(std::string vname);

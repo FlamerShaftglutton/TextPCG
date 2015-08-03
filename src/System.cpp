@@ -55,6 +55,23 @@ void System::fill_scripting_variables(GameState& gs, ScriptingVariables& sv, Roo
 		//put this object map into the list
 		sv.current_room.objects.push_back(om);
 	}
+	
+	//fill in the combat details
+	if (gs.combat_data == nullptr)
+	{
+		sv.combat.active = false;
+	}
+	else
+	{
+		sv.combat.active = true;
+	
+		sv.combat.player_position = &(gs.combat_data->player_position);
+		
+		sv.combat.player_attacking = &(gs.combat_data->player_attacking);
+		
+		sv.combat.enemy_vulnerable_sides = gs.combat_data->enemy_vulnerable_sides;
+		sv.combat.enemy_attacking_sides = gs.combat_data->enemy_attacking_sides;
+	}
 }
 
 void System::unfill_scripting_variables(GameState& gs, ScriptingVariables& sv, Room* current_room)

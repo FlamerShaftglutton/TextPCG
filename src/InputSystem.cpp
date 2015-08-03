@@ -44,7 +44,7 @@ void InputSystem::command_look_room(Console& console, GameState& gs, ECS::Handle
 					co = "<fg=red><bg=black>";
 				}
 			}
-				
+			
 			contents += co + "\n\t" + o->name;
 		}
 	}
@@ -93,16 +93,26 @@ void InputSystem::command_look_object(Console& console, GameState& gs, std::stri
 			else
 			{
 				gs.main_text += "<fg=white><bg=black>\n\n" + obj->name + " contains the following:";
+				std::vector<std::string> things;
+				for (ECS::Handle oh : obj->objects)
+				{
+					Object* o = gs.level->get_object(oh);
+					
+					if (o->visible)
+					{
+						things.push_back("<fg=white><bg=black>\n\t" + o->name);
+					}
+				}
 				
-				if (obj->objects.empty())
+				if (things.empty())
 				{
 					gs.main_text += "\n\tNothing";
 				}
 				else
 				{
-					for (ECS::Handle oh : obj->objects)
+					for (std::string s : things)
 					{
-						gs.main_text += "<fg=white><bg=black>\n\t" + gs.level->get_object(oh)->name;
+						gs.main_text += s;
 					}
 				}
 			}
@@ -466,6 +476,93 @@ void InputSystem::do_work(Console& console, GameState& gs)
 					
 					//get the description of the room
 					command_look_room(console,gs,next_room,false);
+				}
+			}
+			//if we're in combat, we have extra commands
+			else if (gs.combat_data != nullptr)
+			{
+				if (lower_input == "l" || lower_input == "left" || lower_input == "dodge left" || lower_input == "<left_arrow_key>")
+				{
+					switch (gs.combat_data->player_position)
+					{
+						case CombatData::Position::left:
+							gs.main_text += "\nYou are already on the enemy's left side.";
+							break;
+						case CombatData::Position::right:
+							gs.combat_data->player_position = CombatData::Position::front;
+							gs.main_text += "\nYou roll in front of the enemy.";
+							break;
+						case CombatData::Position::front:
+						case CombatData::Position::far_front:
+							gs.combat_data->player_position = CombatData::Position::left;
+							gs.main_text += "\nYou roll to the enemy's left side.";
+					}
+				}
+				else if (lower_input == "r" || lower_input == "right" || lower_input == "dodge right" || lower_input == "<right_arrow_key>")
+				{
+					switch (gs.combat_data->player_position)
+					{
+						case CombatData::Position::right:
+							gs.main_text += "\nYou are already on the enemy's right side.";
+							break;
+						case CombatData::Position::left:
+							gs.combat_data->player_position = CombatData::Position::front;
+							gs.main_text += "\nYou roll in front of the enemy.";
+							break;
+						case CombatData::Position::front:
+						case CombatData::Position::far_front:
+							gs.combat_data->player_position = CombatData::Position::right;
+							gs.main_text += "\nYou roll to the enemy's right side.";
+					}
+				}
+				else if (lower_input == "<up_arrow_key>" || lower_input == "attack" || lower_input == "a")
+				{
+					if (gs.combat_data->player_position == CombatData::Position::far_front)
+					{
+						gs.combat_data->player_position = CombatData::Position::front;
+						gs.main_text += "\nYou jump forward in front of the enemy.";
+					}
+					else
+					{
+						gs.combat_data->player_attacking = true;
+						gs.main_text += "\nYou attempt to attack the enemy.";
+					}
+				}
+				else if (lower_input == "<down_arrow_key>" || lower_input == "b" || lower_input == "back")
+				{
+					if (gs.combat_data->player_position == CombatData::Position::front)
+					{
+						gs.combat_data->player_position = CombatData::Position::far_front;
+						gs.main_text += "\nYou jump back from the enemy.";
+					}
+				}
+			}
+			//if we're not in combat yet but want to be
+			else if (lower_input.substr(0,4) == "kill" || lower_input.substr(0,6) == "attack")
+			{
+				#ifdef DEBUG
+					Log::write("\tAttack command recognized.");
+				#endif
+				
+				std::string rest = StringUtils::trim(lower_input.substr(3));
+				Object* obj = find_object(gs, rest);
+				
+				if (obj != nullptr && !obj->frindly)
+				{
+					gs.combat_data = new CombatData;
+					gs.combat_data->other = obj->get_handle();
+					gs.combat_data->player_position = CombatData::Position::far_front;
+					gs.combat_data->player_attacking = false;
+					
+					gs.combat_data->enemy_vulnerable_sides[CombatData::Position::left] = 
+					gs.combat_data->enemy_vulnerable_sides[CombatData::Position::right] = 
+					gs.combat_data->enemy_vulnerable_sides[CombatData::Position::front] = 
+					gs.combat_data->enemy_vulnerable_sides[CombatData::Position::far_front] = false;
+					
+					gs.combat_data->enemy_attacking_sides[CombatData::Position::left] = 
+					gs.combat_data->enemy_attacking_sides[CombatData::Position::right] = 
+					gs.combat_data->enemy_attacking_sides[CombatData::Position::front] = 
+					gs.combat_data->enemy_attacking_sides[CombatData::Position::far_front] = false;
 				}
 			}
 			else

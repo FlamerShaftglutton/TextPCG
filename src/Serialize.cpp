@@ -30,6 +30,25 @@ void Serialize::from_file(std::string fname, GameState& gs)
 	gs.main_text = get_string();
 	gs.main_text_dirty_flag = get_bool();
 	
+	//now the combat stuff
+	if (get_bool())
+	{
+		gs.combat_data = new CombatData;
+		gs.combat_data->other = (ECS::Handle)get_int();
+		gs.combat_data->player_position = (CombatData::Position)get_int();
+		gs.combat_data->player_attacking = get_bool();
+		
+		gs.combat_data->enemy_vulnerable_sides[0] = get_bool();
+		gs.combat_data->enemy_vulnerable_sides[1] = get_bool();
+		gs.combat_data->enemy_vulnerable_sides[2] = get_bool();
+		gs.combat_data->enemy_vulnerable_sides[3] = get_bool();
+		
+		gs.combat_data->enemy_attacking_sides[0] = get_bool();
+		gs.combat_data->enemy_attacking_sides[1] = get_bool();
+		gs.combat_data->enemy_attacking_sides[2] = get_bool();
+		gs.combat_data->enemy_attacking_sides[3] = get_bool();
+	}
+	
 	//now the level
 	int level_width = get_int();
 	int level_height = get_int();
@@ -108,8 +127,9 @@ void Serialize::from_file(std::string fname, GameState& gs)
 			o->name = get_string();
 			std::string on_creation = get_string(),
 						on_sight = get_string(),
-						on_use = get_string();
-			o->scripts.construct(on_creation, on_sight, on_use);
+						on_use = get_string(),
+						on_attack = get_string();
+			o->scripts.construct(on_creation, on_sight, on_use,on_attack);
 			
 			std::vector<std::string> objs = StringUtils::split(get_string(),' ');
 			for (unsigned j = 0; j < objs.size(); ++j)
@@ -141,6 +161,30 @@ void Serialize::to_file(std::string fname, GameState& gs)
 	outfile << (int)gs.playable_character << ESC;
 	outfile << gs.main_text << ESC;
 	outfile << gs.main_text_dirty_flag << ESC;
+	
+	//now the combat stuff
+	if (gs.combat_data == nullptr)
+	{
+		outfile << 0 << ESC;
+	}
+	else
+	{
+		outfile << 1 << ESC;
+		
+		outfile << (int)(gs.combat_data->other) << ESC;
+		outfile << (int)(gs.combat_data->player_position) << ESC;
+		outfile << (gs.combat_data->player_attacking ? 1 : 0) << ESC;
+		
+		outfile << (gs.combat_data->enemy_vulnerable_sides[0] ? 1 : 0) << ESC;
+		outfile << (gs.combat_data->enemy_vulnerable_sides[1] ? 1 : 0) << ESC;
+		outfile << (gs.combat_data->enemy_vulnerable_sides[2] ? 1 : 0) << ESC;
+		outfile << (gs.combat_data->enemy_vulnerable_sides[3] ? 1 : 0) << ESC;
+		
+		outfile << (gs.combat_data->enemy_attacking_sides[0] ? 1 : 0) << ESC;
+		outfile << (gs.combat_data->enemy_attacking_sides[1] ? 1 : 0) << ESC;
+		outfile << (gs.combat_data->enemy_attacking_sides[2] ? 1 : 0) << ESC;
+		outfile << (gs.combat_data->enemy_attacking_sides[3] ? 1 : 0) << ESC;
+	}
 	
 	//now output the level details
 	unsigned num_rooms   = gs.level->get_num_rooms();

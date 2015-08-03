@@ -85,7 +85,7 @@ std::string Console::check_for_input()
 			#ifdef DEBUG
 				Log::write("User pressed the UP arrow.");
 			#endif
-			
+			/*
 			//grab the previous thing in the command list
 			if (private_members->command_spot < 0)
 			{
@@ -96,13 +96,16 @@ std::string Console::check_for_input()
 			{
 				private_members->echo_string = private_members->commands[--private_members->command_spot];
 			}
+			*/
+			
+			retval = "<up_arrow_key>";
 		}
 		else if (c == KEY_DOWN)
 		{
 			#ifdef DEBUG
 				Log::write("User pressed the DOWN arrow.");
 			#endif
-			
+			/*
 			//grab the next thing in the command list
 			if (private_members->command_spot >= 0)
 			{
@@ -117,15 +120,29 @@ std::string Console::check_for_input()
 					private_members->echo_string = private_members->commands[private_members->command_spot];
 				}
 			}
+			*/
+			
+			retval = "<down_arrow_key>";
 		}
-		else if (c == KEY_LEFT || c == KEY_RIGHT)
+		else if (c == KEY_LEFT)
 		{
 			//just ignore them for now
 			#ifdef DEBUG
-				Log::write("User pressed a SPECIAL KEY that isn't used.");
+				Log::write("User pressed the LEFT arrow.");
 			#endif
+			
+			retval = "<left_arrow_key>";
 		}
-		//check for normal keys
+		else if (c == KEY_RIGHT)
+		{
+			//just ignore them for now
+			#ifdef DEBUG
+				Log::write("User pressed the LEFT arrow.");
+			#endif
+			
+			retval = "<right_arrow_key>";
+		}
+		//check for the backspace key
 		else if (c == KEY_BACKSPACE || c == 127)
 		{
 			if (private_members->echo_string.length() > 0)
@@ -133,6 +150,7 @@ std::string Console::check_for_input()
 				private_members->echo_string.pop_back();
 			}
 		}
+		//check for the enter key
 		else if (c == KEY_ENTER || c == '\n')
 		{
 			retval = private_members->echo_string;
@@ -144,6 +162,7 @@ std::string Console::check_for_input()
 			}
 			private_members->command_spot = -1;
 		}
+		//check for normal keys
 		else if (c >= 0)
 		{
 			private_members->echo_string += (char)c;

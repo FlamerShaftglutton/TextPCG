@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include "Level.hpp"
+#include "combat_data.hpp"
 
 struct GameState
 {
@@ -12,4 +13,6 @@ struct GameState
 	
 	std::string main_text;
 	bool main_text_dirty_flag;
+	
+	CombatData* combat_data;
 };

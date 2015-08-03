@@ -96,7 +96,7 @@ void game_loop(Console& console)
 		gs.level->get_room(3,3)->set_exit(Room::Exit::WEST,true);
 		gs.level->get_room(3,3)->set_exit(Room::Exit::NORTH,true);
 		gs.level->get_room(3,3)->set_exit(Room::Exit::EAST,false);
-		gs.level->get_room(3,3)->set_description("<fg=white>Room 3,3.\n<fg=red>A small, cramped room. On the eastern wall is a locked door.");
+		gs.level->get_room(3,3)->set_description("<fg=white>Room 3,3.\n<fg=red>A small, cramped room. On the eastern wall is a locked <fg=green>door<fg=red>.");
 		
 		
 		
@@ -147,6 +147,7 @@ void game_loop(Console& console)
 		o->hit_chance = 0.75f;
 		o->name = "Myself";
 		o->description = "A <fg=red>hideous<fg=white> looking human. Possibly beaten, or possibly just always ugly. Hard to tell.";
+		o->scripts.construct("","","","");
 		gs.level->get_room(2,2)->objects().push_back(o->get_handle());
 		
 		o = gs.level->get_object(gs.level->create_object());
@@ -164,7 +165,7 @@ void game_loop(Console& console)
 		o->hit_chance = 0.0f;
 		o->name = "Mysterious underdweller";
 		o->description = "A somewhat short man in a dark gray cloak. He mutters to himself while eyeing you.";
-		o->scripts.construct("(set 0 0);","(choose (get 0) \"Hello stranger.\" \"You again?\");(set 0 1)","(say \"You wanna what now?\");");
+		o->scripts.construct("(set 0 0);","(say (choose (get 0) \"Hello stranger.\" \"You again?\"));(set 0 1);","(say \"Err... Sorry, I'm taken, buddy.\");","");
 		r->objects().push_back(o->get_handle());
 		
 		r = gs.level->get_room(1,3);
@@ -183,11 +184,7 @@ void game_loop(Console& console)
 		o->hit_chance = 0.0f;
 		o->name = "A key";
 		o->description = "A small iron skeleton key. It is covered in small bumps, yet the texture feels smooth.";
-		std::string use_script = "(if (= (get current_room.handle) " + StringUtils::to_string(gs.level->get_room(3,3)->get_handle()) + ") (+ (set global.main_text (+ (get global.main_text) \"\n\nThe key opens a door to the east.\")) (set current_room.open_e true)) (set global.main_text (+ (get global.main_text) \"<fg=white><bg=black>\n\nIt does nothing\")));";
-		o->scripts.construct("","",use_script);
-		#ifdef DEBUG
-			Log::write(use_script);
-		#endif
+		o->scripts.construct("","","(if (= (get current_room.handle) " + StringUtils::to_string(gs.level->get_room(3,3)->get_handle()) + ") (+ (set global.main_text (+ (get global.main_text) \"\n\nThe key opens a door to the east.\")) (set current_room.open_e true)) (set global.main_text (+ (get global.main_text) \"<fg=white><bg=black>\n\nIt does nothing\")));","");
 		
 		r->objects().push_back(o->get_handle());
 		

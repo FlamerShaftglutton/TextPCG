@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include "Handle.hpp"
+#include "combat_data.hpp"
 
 struct ObjectMap
 {
@@ -41,8 +42,21 @@ struct RoomMap
 	bool* visited;
 };
 
+struct CombatMap
+{
+	bool active;
+	
+	CombatData::Position* player_position;
+	
+	bool* player_attacking;
+	
+	bool* enemy_vulnerable_sides;
+	bool* enemy_attacking_sides;
+};
+
 struct ScriptingVariables
 {
+	CombatMap combat;
 	RoomMap current_room;
 	ObjectMap caller;
 	ObjectMap player;

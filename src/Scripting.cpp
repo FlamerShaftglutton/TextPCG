@@ -536,6 +536,10 @@ Script::Script(std::string script, Register* regs)
 			std::vector<std::string> tokens_subset(tokens.begin() + i + 1, tokens.begin() + j); //j - 1
 			std::vector<int> token_types_subset(token_types.begin() + i + 1, token_types.begin() + j); //j - 1
 			
+			#ifdef DEBUG
+				std::vector<std::string> tokens_subset_copy(tokens_subset);
+			#endif
+			
 			Expression* ex = recursively_resolve(tokens_subset, token_types_subset);
 			expressions.push_back(ex);
 		
@@ -550,7 +554,12 @@ Script::Script(std::string script, Register* regs)
 			#ifdef DEBUG
 				else
 				{
-					Log::write("Warning: No semicolon after expression. Continuing anyway.");
+					std::string outval = "";
+					for (unsigned l = 0; l < tokens_subset_copy.size(); ++l)
+					{
+						outval += tokens_subset_copy[l] + " ";
+					}
+					Log::write("Warning: No semicolon after expression '" + outval + "'. Continuing anyway.");
 				}
 			#endif
 			
@@ -601,25 +610,28 @@ void Script::evaluate(ScriptingVariables& pv)
 ScriptSet::ScriptSet()
 {
 	registers = nullptr;
-	on_creation_script = on_sight_script = on_use_script = nullptr;
+	on_creation_script = on_sight_script = on_use_script = on_attack_step_script = nullptr;
 }
 
-void ScriptSet::construct(std::string on_creation, std::string on_sight, std::string on_use)
+void ScriptSet::construct(std::string on_creation, std::string on_sight, std::string on_use, std::string on_attack_step)
 {
 	registers = new Register();
-	on_creation_script = on_sight_script = on_use_script = nullptr;
 	
 	if (on_creation != "")
 	{
-		on_creation_script = new Script(on_creation,registers);
+		on_creation_script = new Script(on_creation, registers);
 	}
 	if (on_sight != "")
 	{
-		on_sight_script = new Script(on_sight,registers);
+		on_sight_script = new Script(on_sight, registers);
 	}
 	if (on_use != "")
 	{
-		on_use_script = new Script(on_use,registers);
+		on_use_script = new Script(on_use, registers);
+	}
+	if (on_attack_step != "")
+	{
+		on_attack_step_script = new Script(on_attack_step, registers);
 	}
 }
 
@@ -647,6 +659,10 @@ ScriptSet::~ScriptSet()
 	{
 		delete on_use_script;
 	}
+	if (on_attack_step_script != nullptr)
+	{
+		delete on_attack_step_script;
+	}
 }
 
 void ScriptSet::execute_on_creation(ScriptingVariables& pv)
@@ -673,6 +689,14 @@ void ScriptSet::execute_on_use(ScriptingVariables& pv)
 	}
 }
 
+void ScriptSet::execute_on_attack_step(ScriptingVariables& pv)
+{
+	if (on_attack_step_script != nullptr)
+	{
+		on_attack_step_script->evaluate(pv);
+	}
+}
+
 std::string ScriptSet::to_string()
 {
 	std::string retval;
@@ -687,7 +711,7 @@ std::string ScriptSet::to_string()
 	}
 	retval += char(4);
 		
-	//then add in the other two Scripts
+	//then add in the other Scripts
 	if (on_sight_script != nullptr)
 	{
 		retval += on_sight_script->to_string();
@@ -696,6 +720,11 @@ std::string ScriptSet::to_string()
 	if (on_use_script != nullptr)
 	{
 		retval += on_use_script->to_string();
+	}
+	retval += char(4);
+	if (on_attack_step_script != nullptr)
+	{
+		retval += on_attack_step_script->to_string();
 	}
 	
 	return retval;

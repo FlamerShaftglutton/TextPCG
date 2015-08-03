@@ -60,14 +60,20 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 			//if we're transitioning to a new room...
 			Object* player = gs.level->get_object(gs.playable_character);
 			ECS::Handle new_current_room = player->room_container;
+			Room* cr = gs.level->get_room(new_current_room);
 			if (new_current_room != current_room)
 			{
 				//update the current room variable
 				current_room = new_current_room;
 				
 				//update the 'visited' flag on the room
-				Room* cr = gs.level->get_room(current_room);
 				cr->set_visited(true);
+				
+				//destroy the combat information if it exists
+				if (gs.combat_data != nullptr)
+				{
+					delete gs.combat_data;
+				}
 				
 				//create a ScriptingVariables object to pass into the objects
 				ScriptingVariables sv;
@@ -96,6 +102,18 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 				
 				//unfill the scripting variables
 				unfill_scripting_variables(gs,sv,cr);
+			}
+			//continue combat if necessary
+			else if (gs.combat_data != nullptr)
+			{
+				//call the attack script of the enemy
+				ScriptingVariables sv;
+				fill_scripting_variables(gs, sv, cr, player);
+				
+				gs.level->get_object(gs.combat_data->other)->scripts.execute_on_attack_step(sv);
+				
+				unfill_scripting_variables(gs, sv, cr);
+				gs.main_text_dirty_flag = true;
 			}
 		}
 	}

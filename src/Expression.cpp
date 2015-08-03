@@ -232,6 +232,7 @@ Variable_Expression::Variable_Expression(std::string vname)
 					{
 						well_formed = true;
 						room_variable = values[i];
+						break;
 					}
 				}
 			}
@@ -258,6 +259,22 @@ Variable_Expression::Variable_Expression(std::string vname)
 					{
 						well_formed = true;
 						object_variable = values[i];
+						break;
+					}
+				}
+			}
+			else if (chunks[0] == "combat")
+			{
+				std::string names[] = {"player_position_left","player_position_right","player_position_front","player_position_far_front","player_attacking","vulnerable_left","vulnerable_right","vulnerable_front","vulnerable_far_front","attacking_left","attacking_right","attacking_front","attacking_far_front"};
+				Expression_Variable_Combat values[] = {Expression_Variable_Combat::player_position_left,Expression_Variable_Combat::player_position_right,Expression_Variable_Combat::player_position_front,Expression_Variable_Combat::player_position_far_front,Expression_Variable_Combat::player_attacking,Expression_Variable_Combat::vulnerable_left,Expression_Variable_Combat::vulnerable_right,Expression_Variable_Combat::vulnerable_front,Expression_Variable_Combat::vulnerable_far_front,Expression_Variable_Combat::attacking_left,Expression_Variable_Combat::attacking_right,Expression_Variable_Combat::attacking_front,Expression_Variable_Combat::attacking_far_front};
+				
+				for (unsigned i = 0; i < 13; ++i)
+				{
+					if (c1 == names[i])
+					{
+						well_formed = true;
+						combat_variable = values[i];
+						break;
 					}
 				}
 			}
@@ -363,6 +380,117 @@ Value* Set_Variable_Expression::evaluate(ScriptingVariables& pv, std::vector<Val
 					correct_type = true;
 				}
 				break;
+		}
+	}
+	//if it's a combat variable
+	else if (global_variable == Expression_Variable_Global::combat_data)
+	{
+		//first off, blow up if we aren't in combat right now
+		if (!pv.combat.active)
+		{
+			#ifdef DEBUG
+				Log::write("ERROR:Tried to alter a combat variable outside of combat!");
+			#endif
+			
+			v->type = Value::Value_Type::Error;
+			correct_type = true;
+		}
+		else
+		{
+			switch (combat_variable)
+			{
+				case Expression_Variable_Combat::player_position_left:
+					if (v->type == Value::Value_Type::Bool)
+					{
+						*(pv.combat.player_position) = CombatData::Position::left;
+						correct_type = true;
+					}
+					break;
+				case Expression_Variable_Combat::player_position_right:
+					if (v->type == Value::Value_Type::Bool)
+					{
+						*(pv.combat.player_position) = CombatData::Position::right;
+						correct_type = true;
+					}
+					break;
+				case Expression_Variable_Combat::player_position_front:
+					if (v->type == Value::Value_Type::Bool)
+					{
+						*(pv.combat.player_position) = CombatData::Position::front;
+						correct_type = true;
+					}
+					break;
+				case Expression_Variable_Combat::player_position_far_front:
+					if (v->type == Value::Value_Type::Bool)
+					{
+						*(pv.combat.player_position) = CombatData::Position::far_front;
+						correct_type = true;
+					}
+					break;
+				case Expression_Variable_Combat::player_attacking:
+					if (v->type == Value::Value_Type::Bool)
+					{
+						*(pv.combat.player_attacking) = v->bool_val;
+						correct_type = true;
+					}
+					break;
+				case Expression_Variable_Combat::vulnerable_left:
+					if (v->type == Value::Value_Type::Bool)
+					{
+						pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::left] = v->bool_val;
+						correct_type = true;
+					}
+					break;
+				case Expression_Variable_Combat::vulnerable_right:
+					if (v->type == Value::Value_Type::Bool)
+					{
+						pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::right] = v->bool_val;
+						correct_type = true;
+					}
+					break;
+				case Expression_Variable_Combat::vulnerable_front:
+					if (v->type == Value::Value_Type::Bool)
+					{
+						pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::front] = v->bool_val;
+						correct_type = true;
+					}
+					break;
+				case Expression_Variable_Combat::vulnerable_far_front:
+					if (v->type == Value::Value_Type::Bool)
+					{
+						pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::far_front] = v->bool_val;
+						correct_type = true;
+					}
+					break;
+				case Expression_Variable_Combat::attacking_left:
+					if (v->type == Value::Value_Type::Bool)
+					{
+						pv.combat.enemy_attacking_sides[(int)CombatData::Position::left] = v->bool_val;
+						correct_type = true;
+					}
+					break;
+				case Expression_Variable_Combat::attacking_right:
+					if (v->type == Value::Value_Type::Bool)
+					{
+						pv.combat.enemy_attacking_sides[(int)CombatData::Position::right] = v->bool_val;
+						correct_type = true;
+					}
+					break;
+				case Expression_Variable_Combat::attacking_front:
+					if (v->type == Value::Value_Type::Bool)
+					{
+						pv.combat.enemy_attacking_sides[(int)CombatData::Position::front] = v->bool_val;
+						correct_type = true;
+					}
+					break;
+				case Expression_Variable_Combat::attacking_far_front:
+					if (v->type == Value::Value_Type::Bool)
+					{
+						pv.combat.enemy_attacking_sides[(int)CombatData::Position::far_front] = v->bool_val;
+						correct_type = true;
+					}
+					break;
+			}
 		}
 	}
 	//if it's an object variable
@@ -540,6 +668,76 @@ Value* Get_Variable_Expression::evaluate(ScriptingVariables& pv, std::vector<Val
 				v->type = Value::Value_Type::Bool;
 				v->bool_val = *(pv.current_room.open_w);
 				break;
+		}
+	}
+	//if it's a combat variable
+	else if (global_variable == Expression_Variable_Global::combat_data)
+	{
+		if (!pv.combat.active)
+		{
+			#ifdef DEBUG
+				Log::write("ERROR:Tried to access combat variable outside of combat!");
+			#endif
+			
+			v->type = Value::Value_Type::Error;
+		}
+		else
+		{
+			switch (combat_variable)
+			{
+				case Expression_Variable_Combat::player_position_left:
+					v->type = Value::Value_Type::Bool;
+					v->bool_val = *(pv.combat.player_position) == CombatData::Position::left;
+					break;
+				case Expression_Variable_Combat::player_position_right:
+					v->type = Value::Value_Type::Bool;
+					v->bool_val = *(pv.combat.player_position) == CombatData::Position::right;
+					break;
+				case Expression_Variable_Combat::player_position_front:
+					v->type = Value::Value_Type::Bool;
+					v->bool_val = *(pv.combat.player_position) == CombatData::Position::front;
+					break;
+				case Expression_Variable_Combat::player_position_far_front:
+					v->type = Value::Value_Type::Bool;
+					v->bool_val = *(pv.combat.player_position) == CombatData::Position::far_front;
+					break;
+				case Expression_Variable_Combat::player_attacking:
+					v->type = Value::Value_Type::Bool;
+					v->bool_val = *(pv.combat.player_attacking);
+					break;
+				case Expression_Variable_Combat::vulnerable_left:
+					v->type = Value::Value_Type::Bool;
+					v->bool_val = pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::left];
+					break;
+				case Expression_Variable_Combat::vulnerable_right:
+					v->type = Value::Value_Type::Bool;
+					v->bool_val = pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::right];
+					break;
+				case Expression_Variable_Combat::vulnerable_front:
+					v->type = Value::Value_Type::Bool;
+					v->bool_val = pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::front];
+					break;
+				case Expression_Variable_Combat::vulnerable_far_front:
+					v->type = Value::Value_Type::Bool;
+					v->bool_val = pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::far_front];
+					break;
+				case Expression_Variable_Combat::attacking_left:
+					v->type = Value::Value_Type::Bool;
+					v->bool_val = pv.combat.enemy_attacking_sides[(int)CombatData::Position::left];
+					break;
+				case Expression_Variable_Combat::attacking_right:
+					v->type = Value::Value_Type::Bool;
+					v->bool_val = pv.combat.enemy_attacking_sides[(int)CombatData::Position::right];
+					break;
+				case Expression_Variable_Combat::attacking_front:
+					v->type = Value::Value_Type::Bool;
+					v->bool_val = pv.combat.enemy_attacking_sides[(int)CombatData::Position::front];
+					break;
+				case Expression_Variable_Combat::attacking_far_front:
+					v->type = Value::Value_Type::Bool;
+					v->bool_val = pv.combat.enemy_attacking_sides[(int)CombatData::Position::far_front];
+					break;
+			}
 		}
 	}
 	//if it's an object variable
