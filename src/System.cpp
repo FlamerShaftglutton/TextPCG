@@ -71,6 +71,8 @@ void System::fill_scripting_variables(GameState& gs, ScriptingVariables& sv, Roo
 		
 		sv.combat.enemy_vulnerable_sides = gs.combat_data->enemy_vulnerable_sides;
 		sv.combat.enemy_attacking_sides = gs.combat_data->enemy_attacking_sides;
+		
+		sv.combat.vulnerable_to_attack = gs.combat_data->player_attacking && gs.combat_data->enemy_vulnerable_sides[(unsigned)gs.combat_data->player_position];
 	}
 }
 

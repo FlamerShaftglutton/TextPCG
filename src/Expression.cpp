@@ -79,6 +79,10 @@ Value* Choose_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* 
 	
 	if (index->type != Value::Value_Type::Int || i > ((int)args.size() - 2) || i < 0)
 	{
+		#ifdef DEBUG
+			Log::write("ERROR: index of choose function evaluated to ERROR.");
+		#endif
+	
 		index->type = Value::Value_Type::Error;
 		return index;
 	}
@@ -116,6 +120,10 @@ Value* Random_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* 
 	
 	if (ll->type != ul->type || ll->type != Value::Value_Type::Int)
 	{
+		#ifdef DEBUG
+			Log::write("ERROR: One or both arguments for the Random function were not integers.");
+		#endif
+	
 		delete ll;
 		ul->type = Value::Value_Type::Error;
 		return ul;
@@ -265,10 +273,11 @@ Variable_Expression::Variable_Expression(std::string vname)
 			}
 			else if (chunks[0] == "combat")
 			{
-				std::string names[] = {"player_position_left","player_position_right","player_position_front","player_position_far_front","player_attacking","vulnerable_left","vulnerable_right","vulnerable_front","vulnerable_far_front","attacking_left","attacking_right","attacking_front","attacking_far_front"};
-				Expression_Variable_Combat values[] = {Expression_Variable_Combat::player_position_left,Expression_Variable_Combat::player_position_right,Expression_Variable_Combat::player_position_front,Expression_Variable_Combat::player_position_far_front,Expression_Variable_Combat::player_attacking,Expression_Variable_Combat::vulnerable_left,Expression_Variable_Combat::vulnerable_right,Expression_Variable_Combat::vulnerable_front,Expression_Variable_Combat::vulnerable_far_front,Expression_Variable_Combat::attacking_left,Expression_Variable_Combat::attacking_right,Expression_Variable_Combat::attacking_front,Expression_Variable_Combat::attacking_far_front};
+				global_variable = Expression_Variable_Global::combat_data;
+				std::string names[] = {"player_position_left","player_position_right","player_position_front","player_position_far_front","player_attacking","vulnerable_left","vulnerable_right","vulnerable_front","vulnerable_far_front","attacking_left","attacking_right","attacking_front","attacking_far_front","vulnerable_to_attack"};
+				Expression_Variable_Combat values[] = {Expression_Variable_Combat::player_position_left,Expression_Variable_Combat::player_position_right,Expression_Variable_Combat::player_position_front,Expression_Variable_Combat::player_position_far_front,Expression_Variable_Combat::player_attacking,Expression_Variable_Combat::vulnerable_left,Expression_Variable_Combat::vulnerable_right,Expression_Variable_Combat::vulnerable_front,Expression_Variable_Combat::vulnerable_far_front,Expression_Variable_Combat::attacking_left,Expression_Variable_Combat::attacking_right,Expression_Variable_Combat::attacking_front,Expression_Variable_Combat::attacking_far_front,Expression_Variable_Combat::vulnerable_to_attack};
 				
-				for (unsigned i = 0; i < 13; ++i)
+				for (unsigned i = 0; i < 14; ++i)
 				{
 					if (c1 == names[i])
 					{
@@ -280,6 +289,13 @@ Variable_Expression::Variable_Expression(std::string vname)
 			}
 		}
 	}
+	
+	#ifdef DEBUG
+		if (!well_formed)
+		{
+			Log::write("ERROR: could not resolve variable name '" + vname + "'.");
+		}
+	#endif
 }
 
 
@@ -489,6 +505,11 @@ Value* Set_Variable_Expression::evaluate(ScriptingVariables& pv, std::vector<Val
 						pv.combat.enemy_attacking_sides[(int)CombatData::Position::far_front] = v->bool_val;
 						correct_type = true;
 					}
+					break;
+				case Expression_Variable_Combat::vulnerable_to_attack:
+					#ifdef DEBUG
+						Log::write("ERROR: Set function tried to set the combat.vulnerable_to_attack field, which is read-only. Nothing changed.");
+					#endif
 					break;
 			}
 		}
@@ -737,6 +758,14 @@ Value* Get_Variable_Expression::evaluate(ScriptingVariables& pv, std::vector<Val
 					v->type = Value::Value_Type::Bool;
 					v->bool_val = pv.combat.enemy_attacking_sides[(int)CombatData::Position::far_front];
 					break;
+				case Expression_Variable_Combat::vulnerable_to_attack:
+					#ifdef DEBUG
+						Log::write("derpp?");
+					#endif
+				
+					v->type = Value::Value_Type::Bool;
+					v->bool_val = pv.combat.vulnerable_to_attack;
+					break;
 			}
 		}
 	}
@@ -852,6 +881,10 @@ Value* Add_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* reg
 				}
 				else
 				{
+					#ifdef DEBUG
+						Log::write("ERROR: In + function the first type was an integer but a later argument was not a number.");
+					#endif
+				
 					l->type = Value::Value_Type::Error;
 					delete r;
 					break;
@@ -869,6 +902,10 @@ Value* Add_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* reg
 				}
 				else
 				{
+					#ifdef DEBUG
+						Log::write("ERROR: In + function the first type was a floating point but a later argument was not a number.");
+					#endif
+				
 					l->type = Value::Value_Type::Error;
 					delete r;
 					break;
@@ -902,8 +939,18 @@ Value* Add_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* reg
 			{
 				l->string_val += r->bool_val ? "true" : "false";
 			}
+			#ifdef DEBUG
+			else if (r->type == Value::Value_Type::Error)
+			{
+				l->string_val += "ERROR EVALUATING ARGUMENT";
+			}
+			#endif
 			else
 			{
+				#ifdef DEBUG
+					Log::write("ERROR: Could not concatenate arguments in + expression.");
+				#endif
+			
 				l->type = Value::Value_Type::Error;
 				delete r;
 				break;
@@ -916,6 +963,10 @@ Value* Add_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* reg
 	}
 	else
 	{
+		#ifdef DEBUG
+			Log::write("ERROR: + function must start with an expression that evaluates to an integer, floating point, or string.");
+		#endif
+	
 		l->type = Value::Value_Type::Error;
 		return l;
 	}
@@ -947,6 +998,10 @@ Value* Subtract_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>
 	Value* r = rhs->evaluate(pv,registers);
 	if ((l->type != Value::Value_Type::Int && l->type != Value::Value_Type::Float) || (r->type != Value::Value_Type::Int && r->type != Value::Value_Type::Float))
 	{
+		#ifdef DEBUG
+			Log::write("ERROR: One or both arguments in - function evaluate to non-numbers.");
+		#endif
+	
 		delete l;
 		r->type = Value::Value_Type::Error;
 		return r;
@@ -1004,6 +1059,10 @@ Value* Multiply_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>
 	Value* r = rhs->evaluate(pv,registers);
 	if ((l->type != Value::Value_Type::Int && l->type != Value::Value_Type::Float) || (r->type != Value::Value_Type::Int && r->type != Value::Value_Type::Float))
 	{
+		#ifdef DEBUG
+			Log::write("Error: One or both arguments in * function evaluate to non-numbers.");
+		#endif
+	
 		delete l;
 		r->type = Value::Value_Type::Error;
 		return r;
@@ -1061,6 +1120,10 @@ Value* Divide_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* 
 	Value* r = rhs->evaluate(pv,registers);
 	if ((l->type != Value::Value_Type::Int && l->type != Value::Value_Type::Float) || (r->type != Value::Value_Type::Int && r->type != Value::Value_Type::Float) || (r->type == Value::Value_Type::Int && r->int_val == 0) || (r->type == Value::Value_Type::Float && r->float_val == 0.0f))
 	{
+		#ifdef DEBUG
+			Log::write("ERROR: One or both arguments in / function evaluate to non-numbers.");
+		#endif
+	
 		delete l;
 		r->type = Value::Value_Type::Error;
 		return r;
@@ -1118,6 +1181,10 @@ Value* Power_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* r
 	Value* r = rhs->evaluate(pv,registers);
 	if ((l->type != Value::Value_Type::Int && l->type != Value::Value_Type::Float) || (r->type != Value::Value_Type::Int && r->type != Value::Value_Type::Float))
 	{
+		#ifdef DEBUG
+			Log::write("Error: One or both arguments in ^ function evaluate to non-numbers.");
+		#endif
+	
 		delete l;
 		r->type = Value::Value_Type::Error;
 		return r;
@@ -1183,6 +1250,10 @@ Value* Min_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* reg
 			
 			if (a->type != Value::Value_Type::Int && a->type != Value::Value_Type::Float)
 			{
+				#ifdef DEBUG
+					Log::write("ERROR: An argument for the min function evaluated to a non-number.");
+				#endif
+			
 				delete a;
 				
 				retval->type = Value::Value_Type::Error;
@@ -1241,6 +1312,10 @@ Value* Max_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* reg
 			
 			if (a->type != Value::Value_Type::Int && a->type != Value::Value_Type::Float)
 			{
+				#ifdef DEBUG
+					Log::write("ERROR: An argument for the max function evaluated to a non-number.");
+				#endif
+			
 				delete a;
 				
 				retval->type = Value::Value_Type::Error;
@@ -1361,6 +1436,10 @@ Value* If_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* regi
 	
 	if (c->type != Value::Value_Type::Bool)
 	{
+		#ifdef DEBUG
+			Log::write("ERROR: The condition expression in if function evaluated to a non-bool type.");
+		#endif
+	
 		c->type = Value::Value_Type::Error;
 		return c;
 	}
@@ -1411,6 +1490,10 @@ Value* And_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* reg
 		
 		if (v->type != Value::Value_Type::Bool)
 		{
+			#ifdef DEBUG
+				Log::write("ERROR: an argument for the And function evaluated to a non-bool type.");
+			#endif
+		
 			v->type = Value::Value_Type::Error;
 			return v;
 		}
@@ -1454,6 +1537,10 @@ Value* Not_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* reg
 	
 	if (v->type != Value::Value_Type::Bool)
 	{
+		#ifdef DEBUG
+			Log::write("ERROR: the argument for the Not function evaluated to a non-bool type.");
+		#endif
+	
 		v->type = Value::Value_Type::Error;
 	}
 	else
@@ -1494,6 +1581,10 @@ Value* Or_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* regi
 		
 		if (v->type != Value::Value_Type::Bool)
 		{
+			#ifdef DEBUG
+				Log::write("ERROR: an argument for the Or function evaluated to a non-bool type.");
+			#endif
+		
 			v->type = Value::Value_Type::Error;
 			return v;
 		}
@@ -1542,6 +1633,10 @@ Value* Xor_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* reg
 	
 	if (l->type != r->type || l->type != Value::Value_Type::Bool)
 	{
+		#ifdef DEBUG
+			Log::write("ERROR: an argument for the Xor function evaluated to a non-bool type.");
+		#endif
+	
 		delete r;
 		l->type = Value::Value_Type::Error;
 		return l;
@@ -1618,6 +1713,10 @@ Value* LessThan_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>
 		return l;
 	}
 	
+	#ifdef DEBUG
+		Log::write("ERROR: One or both arguments for < expression evaluated to non-numbers.");
+	#endif
+	
 	delete r;
 	l->type = Value::Value_Type::Error;
 	return l;
@@ -1687,6 +1786,10 @@ Value* GreaterThan_Expression::evaluate(ScriptingVariables& pv, std::vector<Valu
 		l->bool_val = retval;
 		return l;
 	}
+	
+	#ifdef DEBUG
+		Log::write("ERROR: One or both arguments for > expression evaluated to non-numbers.");
+	#endif
 	
 	delete r;
 	l->type = Value::Value_Type::Error;
@@ -1758,6 +1861,10 @@ Value* LessThanEqual_Expression::evaluate(ScriptingVariables& pv, std::vector<Va
 		return l;
 	}
 	
+	#ifdef DEBUG
+		Log::write("ERROR: One or both arguments for <= expression evaluated to non-numbers.");
+	#endif
+	
 	delete r;
 	l->type = Value::Value_Type::Error;
 	return l;
@@ -1827,6 +1934,10 @@ Value* GreaterThanEqual_Expression::evaluate(ScriptingVariables& pv, std::vector
 		l->bool_val = retval;
 		return l;
 	}
+	
+	#ifdef DEBUG
+		Log::write("ERROR: One or both arguments for >= expression evaluated to non-numbers.");
+	#endif
 	
 	delete r;
 	l->type = Value::Value_Type::Error;
@@ -1916,6 +2027,10 @@ Value* Equal_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* r
 		return l;
 	}
 	
+	#ifdef DEBUG
+		Log::write("ERROR: Type mismatch between evaluated arguments of = function.");
+	#endif
+	
 	delete r;
 	l->type = Value::Value_Type::Error;
 	return l;
@@ -2004,6 +2119,10 @@ Value* NotEqual_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>
 		return l;
 	}
 	
+	#ifdef DEBUG
+		Log::write("ERROR: Type mismatch between evaluated arguments of != function.");
+	#endif
+	
 	delete r;
 	l->type = Value::Value_Type::Error;
 	return l;
@@ -2066,6 +2185,10 @@ Value* Between_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>*
 	}
 	else
 	{
+		#ifdef DEBUG
+			Log::write("ERROR: first argument in between function evaluated to non-number.");
+		#endif
+	
 		delete l;
 		delete r;
 		v->type = Value::Value_Type::Error;
@@ -2083,6 +2206,10 @@ Value* Between_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>*
 	}
 	else
 	{
+		#ifdef DEBUG
+			Log::write("ERROR: second argument in between function evaluated to non-number.");
+		#endif
+	
 		delete l;
 		delete r;
 		v->type = Value::Value_Type::Error;
@@ -2100,6 +2227,10 @@ Value* Between_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>*
 	}
 	else
 	{
+		#ifdef DEBUG
+			Log::write("ERROR: third argument in between function evaluated to non-number.");
+		#endif
+	
 		delete l;
 		delete r;
 		v->type = Value::Value_Type::Error;
@@ -2147,6 +2278,13 @@ Value* FEOIR_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* r
 		for (unsigned j = 0; j < args.size(); ++j)
 		{
 			v = args[j]->evaluate(pv,registers);
+			
+			#ifdef DEBUG
+				if (v->type == Value::Value_Type::Error)
+				{
+					Log::write("Warning: Expression [" + StringUtils::to_string((int)j) + "] returned an error for object " + StringUtils::to_string((int)pv.current_room.objects[i].handle) + ".");
+				}
+			#endif
 		}
 	}
 	
@@ -2157,3 +2295,138 @@ Value* FEOIR_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* r
 
 
 
+bool Attack_Expression::construct(std::vector<Expression*> arguments)
+{
+	if (arguments.size() != 4)
+	{
+		#ifdef DEBUG
+			Log::write("ERROR: incorrect number of arguments for Attack function");
+		#endif
+	
+		return false;
+	}
+	
+	left = arguments[0];
+	right = arguments[1];
+	front = arguments[2];
+	far_front = arguments[3];
+	
+	return true;
+}
+
+Attack_Expression::~Attack_Expression()
+{
+	delete left;
+	delete right;
+	delete front;
+	delete far_front;
+	left = nullptr;
+	right = nullptr;
+	front = nullptr;
+	far_front = nullptr;
+}
+
+Value* Attack_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+{
+	Value* l = left->evaluate(pv,registers);
+	Value* r = right->evaluate(pv,registers);
+	Value* f = front->evaluate(pv,registers);
+	Value* ff = far_front->evaluate(pv,registers);
+	
+	if (l->type != r->type || l->type != f->type || l->type != ff->type || l->type != Value::Value_Type::Bool)
+	{
+		#ifdef DEBUG
+			Log::write("ERROR: one or more arguments for the Attack function evaluated to non-bool type.");
+		#endif
+		
+		delete r;
+		delete f;
+		delete ff;
+		
+		l->type = Value::Value_Type::Error;
+		
+		return l;
+	}
+	
+	pv.combat.enemy_attacking_sides[(int)CombatData::Position::left] = l->bool_val;
+	pv.combat.enemy_attacking_sides[(int)CombatData::Position::right] = r->bool_val;
+	pv.combat.enemy_attacking_sides[(int)CombatData::Position::front] = f->bool_val;
+	pv.combat.enemy_attacking_sides[(int)CombatData::Position::far_front] = ff->bool_val;
+
+	delete r;
+	delete f;
+	delete ff;
+	
+	l->bool_val = true;
+	
+	return l;
+}
+
+
+
+bool Defend_Expression::construct(std::vector<Expression*> arguments)
+{
+	if (arguments.size() != 4)
+	{
+		#ifdef DEBUG
+			Log::write("ERROR: incorrect number of arguments for Defend function");
+		#endif
+	
+		return false;
+	}
+	
+	left = arguments[0];
+	right = arguments[1];
+	front = arguments[2];
+	far_front = arguments[3];
+	
+	return true;
+}
+
+Defend_Expression::~Defend_Expression()
+{
+	delete left;
+	delete right;
+	delete front;
+	delete far_front;
+	left = nullptr;
+	right = nullptr;
+	front = nullptr;
+	far_front = nullptr;
+}
+
+Value* Defend_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+{
+	Value* l = left->evaluate(pv,registers);
+	Value* r = right->evaluate(pv,registers);
+	Value* f = front->evaluate(pv,registers);
+	Value* ff = far_front->evaluate(pv,registers);
+	
+	if (l->type != r->type || l->type != f->type || l->type != ff->type || l->type != Value::Value_Type::Bool)
+	{
+		#ifdef DEBUG
+			Log::write("ERROR: one or more arguments for the Defend function evaluated to non-bool type.");
+		#endif
+		
+		delete r;
+		delete f;
+		delete ff;
+		
+		l->type = Value::Value_Type::Error;
+		
+		return l;
+	}
+	
+	pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::left] = l->bool_val;
+	pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::right] = r->bool_val;
+	pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::front] = f->bool_val;
+	pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::far_front] = ff->bool_val;
+
+	delete r;
+	delete f;
+	delete ff;
+	
+	l->bool_val = true;
+	
+	return l;
+}

@@ -34,7 +34,13 @@ void Serialize::from_file(std::string fname, GameState& gs)
 	if (get_bool())
 	{
 		gs.combat_data = new CombatData;
-		gs.combat_data->other = (ECS::Handle)get_int();
+		
+		std::vector<std::string> enemies = StringUtils::split(get_string(),' ');
+		for (unsigned i = 0; i < enemies.size(); ++i)
+		{
+			gs.combat_data->enemy_queue.push_back((ECS::Handle)StringUtils::stoi(enemies[i]));
+		}
+		
 		gs.combat_data->player_position = (CombatData::Position)get_int();
 		gs.combat_data->player_attacking = get_bool();
 		
@@ -171,7 +177,12 @@ void Serialize::to_file(std::string fname, GameState& gs)
 	{
 		outfile << 1 << ESC;
 		
-		outfile << (int)(gs.combat_data->other) << ESC;
+		for (unsigned i = 0; i < gs.combat_data->enemy_queue.size(); ++i)
+		{
+			outfile << (int)gs.combat_data->enemy_queue[i] << ' ';
+		}
+		outfile << ESC;
+		
 		outfile << (int)(gs.combat_data->player_position) << ESC;
 		outfile << (gs.combat_data->player_attacking ? 1 : 0) << ESC;
 		

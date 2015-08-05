@@ -73,6 +73,7 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 				if (gs.combat_data != nullptr)
 				{
 					delete gs.combat_data;
+					gs.combat_data = nullptr;
 				}
 				
 				//create a ScriptingVariables object to pass into the objects
@@ -126,24 +127,130 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 					gs.combat_data = new CombatData;
 					gs.combat_data->player_position = CombatData::Position::far_front;
 					gs.combat_data->player_attacking = false;
-					
-					for (unsigned i = 0; i < enemies.size(); ++i)
-					{
-						
-					}
+					gs.combat_data->enemy_queue.insert(gs.combat_data->enemy_queue.begin(),enemies.begin(),enemies.end());
+					combat_tick = 0;
 				}
 			}
 			//continue combat if necessary
-			else if (gs.combat_data != nullptr)
+			else if (gs.combat_data != nullptr && combat_tick++ == 9)//we only run this once every second or so
 			{
-				//call the attack script of the enemy
-				ScriptingVariables sv;
-				fill_scripting_variables(gs, sv, cr, player);
+				#ifdef DEBUG
+					Log::write("Advancing to the next combat beat, calling the object script.");
+				#endif
 				
-				gs.level->get_object(gs.combat_data->other)->scripts.execute_on_attack_step(sv);
+				combat_tick = 0;
+			
+				//call the attack script of the first (actually last) enemy
+				ScriptingVariables sv;
+				Object* o = gs.level->get_object(gs.combat_data->enemy_queue.back());
+				fill_scripting_variables(gs, sv, cr, o);
+				o->scripts.execute_on_attack_step(sv);
 				
 				unfill_scripting_variables(gs, sv, cr);
 				gs.main_text_dirty_flag = true;
+				
+				#ifdef DEBUG
+					Log::write("\tCombat script completed.");
+				#endif 
+				
+				//now that the enemy did something, figure out what happened to the enemy
+				if (gs.combat_data->player_attacking)
+				{
+					//reset the flag
+					gs.combat_data->player_attacking = false;
+				
+					//if we hit them and they were vulnerable on that side...
+					if (gs.combat_data->enemy_vulnerable_sides[(unsigned)gs.combat_data->player_position])
+					{
+						//first, hit the enemy!
+						o->hitpoints -= player->attack;
+						
+						//if the enemy died...
+						if (o->hitpoints <= 0)
+						{
+							//display a message
+							gs.main_text += "<fg=white><bg=black>\nYou killed <fg=red>" + o->name + "<fg=white>!";
+							
+							//make it drop all of its loot
+							for (ECS::Handle oh : o->objects)
+							{
+								Object* oo = gs.level->get_object(oh);
+								oo->object_container = -1;
+								oo->room_container = current_room;
+								cr->objects().push_back(oh);
+							}
+							
+							//remove it from the room
+							for (auto iter = cr->objects().begin(); iter != cr->objects().end(); ++iter)
+							{
+								if (*iter == o->get_handle())
+								{
+									cr->objects().erase(iter);
+									break;
+								}
+							}
+							
+							//delete it from existence!
+							gs.level->destroy_object(o->get_handle());
+							o = nullptr;
+							
+							//remove it from the list of enemies!
+							gs.combat_data->enemy_queue.pop_back();
+							
+							//finally, if we've killed everything in the room, destroy the combat data object
+							if (gs.combat_data->enemy_queue.empty())
+							{
+								delete gs.combat_data;
+								gs.combat_data = nullptr;
+							}
+							//if we haven't killed everything, set up the next one
+							else
+							{
+								gs.combat_data->player_position = CombatData::Position::far_front;
+							}
+						}
+					}
+					//if the player hit an invulnerable side, just display a message
+					else
+					{
+						gs.main_text += "<fg=white><bg=black>\nYour attack bounces off!";
+					}
+				}
+				
+				//figure out what happened to the player
+				if (o != nullptr)
+				{
+					//if the enemy is attacking...
+					if (gs.combat_data->enemy_attacking_sides[0] || gs.combat_data->enemy_attacking_sides[1] || gs.combat_data->enemy_attacking_sides[2] || gs.combat_data->enemy_attacking_sides[3])
+					{
+						//did they attack the player's position?
+						if (gs.combat_data->enemy_attacking_sides[(unsigned)gs.combat_data->player_position])
+						{
+							//right now this just removes health from the player, but in the future things like invulnerability potions may change this
+							player->hitpoints -= o->attack;
+						}
+						//if they missed then they should display text about that
+					}
+				}
+				
+				//reset the variables
+				gs.combat_data->enemy_attacking_sides[0] =
+				gs.combat_data->enemy_attacking_sides[1] =
+				gs.combat_data->enemy_attacking_sides[2] =
+				gs.combat_data->enemy_attacking_sides[3] = false;
+				
+				gs.combat_data->enemy_vulnerable_sides[0] = 
+				gs.combat_data->enemy_vulnerable_sides[1] = 
+				gs.combat_data->enemy_vulnerable_sides[2] = 
+				gs.combat_data->enemy_vulnerable_sides[3] = false;
+				
+				gs.combat_data->player_attacking = false;
+			}
+			
+			//check if the player died from anything
+			if (player->hitpoints < 0)
+			{
+				gs.main_text += "<fg=red><bg=black>\n\nYou died. Please quit and start a new game.";
 			}
 		}
 	}

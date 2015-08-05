@@ -126,7 +126,6 @@ std::string Console::check_for_input()
 		}
 		else if (c == KEY_LEFT)
 		{
-			//just ignore them for now
 			#ifdef DEBUG
 				Log::write("User pressed the LEFT arrow.");
 			#endif
@@ -135,7 +134,6 @@ std::string Console::check_for_input()
 		}
 		else if (c == KEY_RIGHT)
 		{
-			//just ignore them for now
 			#ifdef DEBUG
 				Log::write("User pressed the LEFT arrow.");
 			#endif

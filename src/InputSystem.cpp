@@ -537,6 +537,7 @@ void InputSystem::do_work(Console& console, GameState& gs)
 					}
 				}
 			}
+			/*//for now combat is entered automatically
 			//if we're not in combat yet but want to be
 			else if (lower_input.substr(0,4) == "kill" || lower_input.substr(0,6) == "attack")
 			{
@@ -547,10 +548,10 @@ void InputSystem::do_work(Console& console, GameState& gs)
 				std::string rest = StringUtils::trim(lower_input.substr(3));
 				Object* obj = find_object(gs, rest);
 				
-				if (obj != nullptr && !obj->frindly)
+				if (obj != nullptr && !obj->friendly)
 				{
 					gs.combat_data = new CombatData;
-					gs.combat_data->other = obj->get_handle();
+					gs.combat_data-> = obj->get_handle();
 					gs.combat_data->player_position = CombatData::Position::far_front;
 					gs.combat_data->player_attacking = false;
 					
@@ -565,6 +566,7 @@ void InputSystem::do_work(Console& console, GameState& gs)
 					gs.combat_data->enemy_attacking_sides[CombatData::Position::far_front] = false;
 				}
 			}
+			*/
 			else
 			{
 				gs.main_text += "\n<fg=white>Command not recognized.";

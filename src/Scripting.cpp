@@ -329,6 +329,14 @@ Expression* Script::recursively_resolve(std::vector<std::string>& tokens, std::v
 				{
 					retval = new FEOIR_Expression;
 				}
+				else if (s == "attack")
+				{
+					retval = new Attack_Expression;
+				}
+				else if (s == "defend")
+				{
+					retval = new Defend_Expression;
+				}
 				#ifdef DEBUG
 				else
 				{

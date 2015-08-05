@@ -52,6 +52,8 @@ struct CombatMap
 	
 	bool* enemy_vulnerable_sides;
 	bool* enemy_attacking_sides;
+	
+	bool vulnerable_to_attack;
 };
 
 struct ScriptingVariables

@@ -138,7 +138,9 @@ enum class Expression_Variable_Combat
 	attacking_left,
 	attacking_right,
 	attacking_front,
-	attacking_far_front
+	attacking_far_front,
+	
+	vulnerable_to_attack
 };
 
 class Variable_Expression: public Expression
@@ -365,4 +367,26 @@ public:
  	bool construct(std::vector<Expression*> arguments) override;
  	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
  	~FEOIR_Expression();
+};
+class Attack_Expression: public Expression
+{
+	Expression* left;
+	Expression* right;
+	Expression* front;
+	Expression* far_front;
+public:
+	bool construct(std::vector<Expression*> arguments) override;
+	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
+	~Attack_Expression();
+};
+class Defend_Expression: public Expression
+{
+	Expression* left;
+	Expression* right;
+	Expression* front;
+	Expression* far_front;
+public:
+	bool construct(std::vector<Expression*> arguments) override;
+	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
+	~Defend_Expression();
 };
