@@ -3,7 +3,7 @@
 
 struct CombatData
 {
-	ECS::Handle other;
+	std::vector<ECS::Handle> enemy_queue;
 
 	enum class Position
 	{

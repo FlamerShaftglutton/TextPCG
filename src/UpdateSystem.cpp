@@ -102,6 +102,36 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 				
 				//unfill the scripting variables
 				unfill_scripting_variables(gs,sv,cr);
+				
+				//finally, if there are any enemies they should start attacking
+				if (gs.combat_data != nullptr)
+				{
+					delete gs.combat_data;
+				}
+				
+				std::vector<ECS::Handle> enemies;
+				for (unsigned i = 0; i < os.size(); ++i)
+				{
+					//get the object
+					Object* o = gs.level->get_object(os[i]);
+					
+					if (o->mobile && !o->friendly && !o->playable)
+					{
+						enemies.push_back(o->get_handle());
+					}
+				}
+				
+				if (!enemies.empty())
+				{
+					gs.combat_data = new CombatData;
+					gs.combat_data->player_position = CombatData::Position::far_front;
+					gs.combat_data->player_attacking = false;
+					
+					for (unsigned i = 0; i < enemies.size(); ++i)
+					{
+						
+					}
+				}
 			}
 			//continue combat if necessary
 			else if (gs.combat_data != nullptr)

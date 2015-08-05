@@ -328,7 +328,7 @@ class GreaterThanEqual_Expression : public Expression
 public:
  	bool construct(std::vector<Expression*> arguments) override;
  	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
- 	~GreaterThanEqual_Expression(); 
+ 	~GreaterThanEqual_Expression();
 };
 class Equal_Expression : public Expression
 {
@@ -337,7 +337,7 @@ class Equal_Expression : public Expression
 public:
  	bool construct(std::vector<Expression*> arguments) override;
  	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
- 	~Equal_Expression(); 
+ 	~Equal_Expression();
 };
 class NotEqual_Expression : public Expression
 {
@@ -346,7 +346,7 @@ class NotEqual_Expression : public Expression
 public:
  	bool construct(std::vector<Expression*> arguments) override;
  	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
- 	~NotEqual_Expression(); 
+ 	~NotEqual_Expression();
 };
 class Between_Expression : public Expression
 {
@@ -356,7 +356,7 @@ class Between_Expression : public Expression
 public:
  	bool construct(std::vector<Expression*> arguments) override;
  	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
- 	~Between_Expression(); 
+ 	~Between_Expression();
 };
 class FEOIR_Expression : public Expression
 {
@@ -364,5 +364,5 @@ class FEOIR_Expression : public Expression
 public:
  	bool construct(std::vector<Expression*> arguments) override;
  	Value* evaluate(ScriptingVariables& pv, std::vector<Value*>* registers) override;
- 	~FEOIR_Expression(); 
+ 	~FEOIR_Expression();
 };

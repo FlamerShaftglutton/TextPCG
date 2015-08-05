@@ -320,7 +320,7 @@ Value* Set_Variable_Expression::evaluate(ScriptingVariables& pv, std::vector<Val
 		{
 			case Expression_Variable_Room::handle:
 				#ifdef DEBUG
-					Log::write("ERROR: Set function tried to set the <room>. field, which is read-only. Nothing changed.");
+					Log::write("ERROR: Set function tried to set the <room>.handle field, which is read-only. Nothing changed.");
 				#endif
 				break;
 			case Expression_Variable_Room::description: 
