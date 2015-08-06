@@ -1,5 +1,9 @@
 (if (get combat.vulnerable_to_attack)
-	(+ "" (set 0 2) (set main_text (+ (get main_text) "<fg=green><bg=black>\nThe goblin reels back from your attack!")))
+	(+ "" 
+	   (set 0 2) 
+	   (set main_text (+ (get main_text) "<fg=green><bg=black>\nThe goblin reels back from your attack!"))
+	   (set combat.player_position_far_front true)
+	   )
 	(choose (get 0)
 			(if (get combat.player_position_front) 
 				(+ "" 
@@ -9,7 +13,8 @@
 				(+ "" 
 				   (set main_text (+ (get main_text) "<fg=white><bg=black>\n" (if (get combat.player_position_far_front) "The goblin stalks towards you!" "The goblin turns towards you!")))
 				   (set combat.player_position_front true)
-				   (defend true true true true)))
+				   (defend true true true true)
+				   (attack false false false false)))
 		  
 			(if (or (get combat.player_position_front) (get combat.player_position_far_front)) 
 				(+ "" 

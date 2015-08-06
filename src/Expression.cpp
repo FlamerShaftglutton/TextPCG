@@ -188,7 +188,6 @@ bool Get_Register_Expression::construct(std::vector<Expression*> arguments)
 
 Value* Get_Register_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
 {
-	//add in the ability to select game variables as well
 	if (register_number < registers->size())
 	{
 		return copy_value((*registers)[register_number]);
@@ -230,11 +229,11 @@ Variable_Expression::Variable_Expression(std::string vname)
 			
 			if (chunks[0] == "current_room")
 			{
-				std::string names[] = {"handle","description","short_description","minimap_symbol","visited","open_n","open_e","open_s","open_w"};
-				Expression_Variable_Room values[] = {Expression_Variable_Room::handle,Expression_Variable_Room::description,Expression_Variable_Room::short_description,Expression_Variable_Room::minimap_symbol,Expression_Variable_Room::visited,Expression_Variable_Room::open_n,Expression_Variable_Room::open_e,Expression_Variable_Room::open_s,Expression_Variable_Room::open_w};
+				std::vector<std::string> names = {"handle","description","short_description","minimap_symbol","visited","open_n","open_e","open_s","open_w"};
+				std::vector<Expression_Variable_Room> values = {Expression_Variable_Room::handle,Expression_Variable_Room::description,Expression_Variable_Room::short_description,Expression_Variable_Room::minimap_symbol,Expression_Variable_Room::visited,Expression_Variable_Room::open_n,Expression_Variable_Room::open_e,Expression_Variable_Room::open_s,Expression_Variable_Room::open_w};
 				global_variable = Expression_Variable_Global::current_room;
 				
-				for (unsigned i = 0; i < 8; ++i)
+				for (unsigned i = 0; i < names.size(); ++i)
 				{
 					if (c1 == names[i])
 					{
@@ -259,9 +258,9 @@ Variable_Expression::Variable_Expression(std::string vname)
 					global_variable = Expression_Variable_Global::object_iterator;
 				}
 				
-				std::string names[] = {"handle","visible","visible_in_short_description","friendly","mobile","playable","open","holdable","hitpoints","attack","hit_chance","description","name"};
-				Expression_Variable_Object values[] = {Expression_Variable_Object::handle,Expression_Variable_Object::visible,Expression_Variable_Object::visible_in_short_description,Expression_Variable_Object::friendly,Expression_Variable_Object::mobile,Expression_Variable_Object::playable,Expression_Variable_Object::open,Expression_Variable_Object::holdable,Expression_Variable_Object::hitpoints,Expression_Variable_Object::attack,Expression_Variable_Object::hit_chance,Expression_Variable_Object::description,Expression_Variable_Object::name};
-				for (unsigned i = 0; i < 11; ++i)
+				std::vector<std::string> names = {"handle","visible","visible_in_short_description","friendly","mobile","playable","open","holdable","hitpoints","attack","hit_chance","description","name","destroyed"};
+				std::vector<Expression_Variable_Object> values = {Expression_Variable_Object::handle,Expression_Variable_Object::visible,Expression_Variable_Object::visible_in_short_description,Expression_Variable_Object::friendly,Expression_Variable_Object::mobile,Expression_Variable_Object::playable,Expression_Variable_Object::open,Expression_Variable_Object::holdable,Expression_Variable_Object::hitpoints,Expression_Variable_Object::attack,Expression_Variable_Object::hit_chance,Expression_Variable_Object::description,Expression_Variable_Object::name,Expression_Variable_Object::destroyed};
+				for (unsigned i = 0; i < names.size(); ++i)
 				{
 					if (c1 == names[i])
 					{
@@ -274,10 +273,10 @@ Variable_Expression::Variable_Expression(std::string vname)
 			else if (chunks[0] == "combat")
 			{
 				global_variable = Expression_Variable_Global::combat_data;
-				std::string names[] = {"player_position_left","player_position_right","player_position_front","player_position_far_front","player_attacking","vulnerable_left","vulnerable_right","vulnerable_front","vulnerable_far_front","attacking_left","attacking_right","attacking_front","attacking_far_front","vulnerable_to_attack"};
-				Expression_Variable_Combat values[] = {Expression_Variable_Combat::player_position_left,Expression_Variable_Combat::player_position_right,Expression_Variable_Combat::player_position_front,Expression_Variable_Combat::player_position_far_front,Expression_Variable_Combat::player_attacking,Expression_Variable_Combat::vulnerable_left,Expression_Variable_Combat::vulnerable_right,Expression_Variable_Combat::vulnerable_front,Expression_Variable_Combat::vulnerable_far_front,Expression_Variable_Combat::attacking_left,Expression_Variable_Combat::attacking_right,Expression_Variable_Combat::attacking_front,Expression_Variable_Combat::attacking_far_front,Expression_Variable_Combat::vulnerable_to_attack};
+				std::vector<std::string> names = {"player_position_left","player_position_right","player_position_front","player_position_far_front","player_attacking","vulnerable_left","vulnerable_right","vulnerable_front","vulnerable_far_front","attacking_left","attacking_right","attacking_front","attacking_far_front","vulnerable_to_attack"};
+				std::vector<Expression_Variable_Combat> values = {Expression_Variable_Combat::player_position_left,Expression_Variable_Combat::player_position_right,Expression_Variable_Combat::player_position_front,Expression_Variable_Combat::player_position_far_front,Expression_Variable_Combat::player_attacking,Expression_Variable_Combat::vulnerable_left,Expression_Variable_Combat::vulnerable_right,Expression_Variable_Combat::vulnerable_front,Expression_Variable_Combat::vulnerable_far_front,Expression_Variable_Combat::attacking_left,Expression_Variable_Combat::attacking_right,Expression_Variable_Combat::attacking_front,Expression_Variable_Combat::attacking_far_front,Expression_Variable_Combat::vulnerable_to_attack};
 				
-				for (unsigned i = 0; i < 14; ++i)
+				for (unsigned i = 0; i < names.size(); ++i)
 				{
 					if (c1 == names[i])
 					{
@@ -610,6 +609,13 @@ Value* Set_Variable_Expression::evaluate(ScriptingVariables& pv, std::vector<Val
 					*(om.name) = v->string_val;
 				}
 				break;
+			case Expression_Variable_Object::destroyed:
+				if (v->type == Value::Value_Type::Bool)
+				{
+					correct_type = true;
+					om.destroyed = v->bool_val;
+				}
+				break;
 		}
 	}
 	
@@ -825,6 +831,10 @@ Value* Get_Variable_Expression::evaluate(ScriptingVariables& pv, std::vector<Val
 			case Expression_Variable_Object::name:
 				v->type = Value::Value_Type::String;
 				v->string_val = *(om.name);
+				break;
+			case Expression_Variable_Object::destroyed:
+				v->type = Value::Value_Type::Bool;
+				v->string_val = om.destroyed;
 				break;
 		}
 	}
@@ -2417,14 +2427,6 @@ Value* Defend_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* 
 	pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::right] = !r->bool_val;
 	pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::front] = !f->bool_val;
 	pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::far_front] = !ff->bool_val;
-	
-	#ifdef DEBUG
-		Log::write("\t\tDefend Inputs: " + std::string(l->bool_val ? "yes " : "no  ") + (r->bool_val ? "yes " : "no  ") + std::string(f->bool_val ? "yes " : "no  ") + (ff->bool_val ? "yes " : "no  "));
-		Log::write("\t\tVulnerable left: " + std::string(pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::left] ? "yes" : "no "));
-		Log::write("\t\tVulnerable right: " + std::string(pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::right] ? "yes" : "no "));
-		Log::write("\t\tVulnerable front: " + std::string(pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::front] ? "yes" : "no "));
-		Log::write("\t\tVulnerable far front: " + std::string(pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::far_front] ? "yes" : "no "));
-	#endif
 
 	delete r;
 	delete f;

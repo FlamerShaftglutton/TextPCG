@@ -38,7 +38,7 @@ Expression* Script::recursively_resolve(std::vector<std::string>& tokens, std::v
 			v->type = Value::Value_Type::String;
 			v->string_val = tokens[0];
 		}
-		//if it's a non-quoted string, then it should be a boolean
+		//if it's a non-quoted string
 		else if (token_types[0] == 5 && (StringUtils::to_lowercase(tokens[0]) == "true" || StringUtils::to_lowercase(tokens[0]) == "false"))
 		{
 			v->type = Value::Value_Type::Bool;
@@ -74,7 +74,7 @@ Expression* Script::recursively_resolve(std::vector<std::string>& tokens, std::v
 					if (tokens.size() < 3)
 					{
 						#ifdef DEBUG
-							Log::write("ERROR: argument list too short for Set function.");
+							Log::write("ERROR: argument list too short for Set function. Trying to set variable or register '" + tokens[1] + "'.");
 						#endif
 						
 						Value* v = new Value;

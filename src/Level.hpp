@@ -35,7 +35,43 @@ public:
 	inline ECS::Handle create_object() { auto h = (ECS::Handle)objects.size(); objects.push_back(new Object(h)); return h; }
 	
 	inline Object* get_object(ECS::Handle h) { if (h < 0 || h >= (ECS::Handle)objects.size()) { return nullptr;} return objects[(int)h]; }
-	inline void destroy_object(ECS::Handle h) { if (h > 0 && h < (ECS::Handle)objects.size()) { delete objects[(int)h]; objects[(int)h] = nullptr; } }
+	inline void destroy_object(ECS::Handle h) 
+	{
+		if (h > 0 && h < (ECS::Handle)objects.size() && objects[(int)h] != nullptr)
+		{ 
+			Object* o = objects[(int)h];
+			
+			if (o->room_container >= 0)
+			{
+				Room* r = get_room(o->room_container);
+				
+				for (auto i = r->objects().begin(); i != r->objects().end(); ++i)
+				{
+					if (*i == h)
+					{
+						r->objects().erase(i);
+						break;
+					}
+				}
+			}
+			
+			if (o->object_container >= 0)
+			{
+				Object* r = get_object(o->object_container);
+				
+				for (auto i = r->objects.begin(); i != r->objects.end(); ++i)
+				{
+					if (*i == h)
+					{
+						r->objects.erase(i);
+						break;
+					}
+				}
+			}
+			
+			delete objects[(int)h]; objects[(int)h] = nullptr;
+		} 
+	}
 	
 	ECS::Handle get_open_neighbor(ECS::Handle room, Room::Exit direction)
 	{
@@ -53,7 +89,6 @@ public:
 				int y_modifier = direction == Room::Exit::EAST || direction == Room::Exit::WEST ? 0 : direction == Room::Exit::SOUTH ? 1 : -1;
 				
 				next_room = get_room(current_room_x + x_modifier, current_room_y + y_modifier)->get_handle();
-				
 			}
 			
 			#ifdef DEBUG

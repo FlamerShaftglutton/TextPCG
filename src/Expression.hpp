@@ -118,7 +118,8 @@ enum class Expression_Variable_Object
 	attack,
 	hit_chance,
 	description,
-	name
+	name,
+	destroyed
 };
 
 enum class Expression_Variable_Combat

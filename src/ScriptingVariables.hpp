@@ -22,6 +22,7 @@ struct ObjectMap
 	
 	std::string* description;
 	std::string* name;
+	bool destroyed;
 };
 
 struct RoomMap

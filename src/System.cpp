@@ -1,6 +1,11 @@
 #include "System.hpp"
 #include "GameState.hpp"
 #include "ScriptingVariables.hpp"
+#ifdef DEBUG
+	#include "Log.hpp"
+	#include "string_utils.hpp"
+#endif
+
 
 void System::fill_ObjectMap(Object* o, ObjectMap& om)
 {
@@ -15,6 +20,7 @@ void System::fill_ObjectMap(Object* o, ObjectMap& om)
 	om.hit_chance = &(o->hit_chance);
 	om.description = &(o->description);
 	om.name = &(o->name);
+	om.destroyed = false;
 }
 
 void System::fill_scripting_variables(GameState& gs, ScriptingVariables& sv, Room* current_room, Object* caller)
@@ -89,6 +95,25 @@ void System::unfill_scripting_variables(GameState& gs, ScriptingVariables& sv, R
 	cr->set_exit(Room::Exit::SOUTH, *(sv.current_room.open_s));
 	cr->set_exit(Room::Exit::WEST, *(sv.current_room.open_w));
 	
+	for (std::size_t i = 0; i < sv.current_room.objects.size(); ++i)
+	{
+		if (sv.current_room.objects[i].destroyed)
+		{
+			gs.level->destroy_object(sv.current_room.objects[i].handle);
+		}
+	}
+	
+	//now check the caller, which may not be in the room (it may be in inventory or something)
+	Object* c = gs.level->get_object(sv.caller.handle);
+	
+	if (c != nullptr && sv.caller.destroyed)
+	{
+		gs.level->destroy_object(sv.caller.handle);
+	}
+	
+	//we could also do the same for the player, but that really shouldn't be happening
+	
+	//delete all the semi-temporary variables
 	delete sv.current_room.description;
 	delete sv.current_room.short_description;
 	delete sv.current_room.minimap_symbol;

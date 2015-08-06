@@ -34,7 +34,7 @@ void DrawSystem::do_work(Console& console, GameState& gs)
 	console.set_bgcolor(Console::Color::Blue);
 	outline_frame(console,lower_bar_frame,true,false,false,false);
 	
-	if (gs.menu_index == 2)
+	if (gs.menu_index == UI_State::In_Game)
 	{
 		//write the frame count for debugging
 		#ifdef DEBUG

@@ -8,11 +8,13 @@
 #include "UpdateSystem.hpp"
 #include "Serialize.hpp"
 #include "string_utils.hpp"
+#include "UIConstants.hpp"
+
+	#include <sstream>
+	#include <fstream>
 
 #ifdef DEBUG
 	#include "Log.hpp"
-	#include <sstream>
-	#include <fstream>
 #endif
 
 void game_loop(Console& console)
@@ -44,7 +46,7 @@ void game_loop(Console& console)
 	
 	//Serialize::from_file("savedgame.tsf",gs);
 	
-	gs.menu_index = 0;
+	gs.menu_index = UI_State::Main_Menu;
 	gs.main_text = "";
 	gs.main_text_dirty_flag = true;
 	gs.frames_elapsed = 0;
@@ -221,10 +223,10 @@ void game_loop(Console& console)
 		o->description = "A small iron skeleton key. It is covered in small bumps, yet the texture feels smooth.";
 		o->scripts.construct("",
 							 "",
-							 "(if (= (get current_room.handle) " + StringUtils::to_string(gs.level->get_room(3,3)->get_handle()) + ") (+ (set global.main_text (+ (get global.main_text) \"\n\nThe key opens a door to the east.\")) (set current_room.open_e true)) (set global.main_text (+ (get global.main_text) \"<fg=white><bg=black>\n\nIt does nothing\")));",
+							 "(if (= (get current_room.handle) " + StringUtils::to_string(gs.level->get_room(3,3)->get_handle()) + ") (+ (set global.main_text (+ (get global.main_text) \"\n\nThe key opens a door to the east.\")) (set current_room.open_e true) (set caller.destroyed true)) (set global.main_text (+ (get global.main_text) \"<fg=white><bg=black>\n\nIt does nothing\")));",
 							 "");
 		
-		r->objects().push_back(o->get_handle());
+		gs.level->get_object(oh)->objects.push_back(o->get_handle());
 		
 		gs.combat_data = nullptr;
 		
@@ -244,7 +246,7 @@ void game_loop(Console& console)
 		input_system.do_work(console,gs);
 		
 		//if the user quit, then kill the program
-		if (gs.menu_index < 0)
+		if (gs.menu_index == UI_State::Exit)
 			break;
 	
 		//if we're ready for another frame, fill it in!

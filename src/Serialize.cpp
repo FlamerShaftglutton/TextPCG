@@ -5,6 +5,7 @@
 #include <locale>
 #include "GameState.hpp"
 #include "string_utils.hpp"
+#include "UIConstants.hpp"
 #ifdef DEBUG
 	#include "Log.hpp"
 #endif
@@ -24,7 +25,7 @@ void Serialize::from_file(std::string fname, GameState& gs)
 	
 	//first, the GameState stuff
 	gs.frames_elapsed = get_int();
-	gs.menu_index = get_int();
+	gs.menu_index = (UI_State)get_int();
 	gs.menu_transition = get_bool();
 	gs.playable_character = (ECS::Handle)get_int();
 	gs.main_text = get_string();
@@ -106,15 +107,17 @@ void Serialize::from_file(std::string fname, GameState& gs)
 	{
 		//check the skip/ok flags
 		ECS::Handle oh = gs.level->create_object();
+		Object* o = gs.level->get_object(oh);
+		
 		if (!get_bool())
 		{
 			//this ensures a blank (well, nullptr) space, which keeps the handles aligned
+			o->room_container = -1;
+			o->object_container = -1;
 			gs.level->destroy_object(oh);
 		}
 		else
 		{
-			Object* o = gs.level->get_object(oh);
-			
 			o->visible = get_bool();
 			o->visible_in_short_description = get_bool();
 			o->friendly = get_bool();
@@ -162,7 +165,7 @@ void Serialize::to_file(std::string fname, GameState& gs)
 	
 	//the first lines will be the GameState stuff
 	outfile << gs.frames_elapsed << ESC;
-	outfile << gs.menu_index << ESC;
+	outfile << (int)gs.menu_index << ESC;
 	outfile << (int)gs.menu_transition << ESC;
 	outfile << (int)gs.playable_character << ESC;
 	outfile << gs.main_text << ESC;

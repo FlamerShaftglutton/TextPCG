@@ -3,6 +3,8 @@
 #include "GameState.hpp"
 #include <string>
 #include "ScriptingVariables.hpp"
+#include "UIConstants.hpp"
+#include "Serialize.hpp"
 
 UpdateSystem::UpdateSystem(GameState& gs)
 {
@@ -18,11 +20,11 @@ UpdateSystem::UpdateSystem(GameState& gs)
 void UpdateSystem::do_work(Console& console, GameState& gs)
 {
 	//first off, the menu will be the real defining factor here
-	if (gs.menu_index < 0)//shouldn't ever happen, but better safe than sorry
+	if (gs.menu_index == UI_State::Exit)//shouldn't ever happen, but better safe than sorry
 	{
 		return;
 	}
-	else if (gs.menu_index == 0)//main menu
+	else if (gs.menu_index == UI_State::Main_Menu)
 	{
 		if (gs.menu_transition)
 		{
@@ -36,17 +38,29 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 			gs.main_text_dirty_flag = true;
 		}
 	}
-	else if (gs.menu_index == 1)//Game creation screen
+	else if (gs.menu_index == UI_State::New_Game)
 	{
 		if (gs.menu_transition)
 		{
-			gs.menu_transition = false;
-			console.clear();
-			gs.main_text = "";
-			//put some text into gs.main_text
+			//gs.menu_transition = false;
+			//console.clear();
+			//gs.main_text = "Derp!";
+			
+			//fill this in later so that the user can create a whole new game
+			Serialize::from_file("newgame.tsf",gs);
+			gs.menu_transition = true;
+			gs.menu_index = UI_State::In_Game;
 		}
 	}
-	else if (gs.menu_index == 2)//the actual game
+	else if (gs.menu_index == UI_State::Load_Game)
+	{
+		//fill this in later so the user can pick a game
+		//gs.menu_transition = false;
+		Serialize::from_file("savedgame.tsf",gs);
+		gs.menu_transition = true;
+		gs.menu_index = UI_State::In_Game;
+	}
+	else if (gs.menu_index == UI_State::In_Game)//the actual game
 	{
 		if (gs.menu_transition)
 		{
@@ -134,50 +148,30 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 			//continue combat if necessary
 			else if (gs.combat_data != nullptr && combat_tick++ == 9)//we only run this once every second or so
 			{
-				#ifdef DEBUG
-					Log::write("Advancing to the next combat beat, calling the object script.");
-				#endif
-				
 				combat_tick = 0;
 			
-				//call the attack script of the first (actually last) enemy
+				//fill in the scripting variables
 				ScriptingVariables sv;
 				Object* o = gs.level->get_object(gs.combat_data->enemy_queue.back());
 				fill_scripting_variables(gs, sv, cr, o);
+				
+				//reset the attacking/defending stuff
+				sv.combat.enemy_attacking_sides[0] =
+				sv.combat.enemy_attacking_sides[1] =
+				sv.combat.enemy_attacking_sides[2] =
+				sv.combat.enemy_attacking_sides[3] = false;
+				
+				sv.combat.enemy_vulnerable_sides[0] = 
+				sv.combat.enemy_vulnerable_sides[1] = 
+				sv.combat.enemy_vulnerable_sides[2] = 
+				sv.combat.enemy_vulnerable_sides[3] = true;
+				
+				//call the attack script of the first (actually last) enemy
 				o->scripts.execute_on_attack_step(sv);
-				
-				#ifdef DEBUG
-				{
-					std::string names[] = {"left","right","front","far front"};
-					std::string ll = gs.combat_data->enemy_vulnerable_sides[0] ? "left " : "";
-					ll += gs.combat_data->enemy_vulnerable_sides[1] ? "right " : "";
-					ll += gs.combat_data->enemy_vulnerable_sides[2] ? "front " : "";
-					ll += gs.combat_data->enemy_vulnerable_sides[3] ? "far front" : "";
-					Log::write("\tVulnerabilities: " + ll);
-					
-					Log::write("\tPlayer Pos: " + names[(unsigned)gs.combat_data->player_position]);
-				}
-				#endif
-				
+
+				//turn the script variables around and put the values into the 'real' classes
 				unfill_scripting_variables(gs, sv, cr);
 				gs.main_text_dirty_flag = true;
-				
-				#ifdef DEBUG
-					Log::write("\tCombat script completed.");
-				#endif 
-				
-				#ifdef DEBUG
-				{
-					std::string names[] = {"left","right","front","far front"};
-					std::string ll = gs.combat_data->enemy_vulnerable_sides[0] ? "left " : "";
-					ll += gs.combat_data->enemy_vulnerable_sides[1] ? "right " : "";
-					ll += gs.combat_data->enemy_vulnerable_sides[2] ? "front " : "";
-					ll += gs.combat_data->enemy_vulnerable_sides[3] ? "far front" : "";
-					Log::write("\tVulnerabilities: " + ll);
-					
-					Log::write("\tPlayer Pos: " + names[(unsigned)gs.combat_data->player_position]);
-				}
-				#endif
 				
 				//now that the enemy did something, figure out what happened to the enemy
 				if (gs.combat_data->player_attacking)
@@ -195,21 +189,17 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 							gs.main_text += "<fg=white><bg=black>\nYou killed <fg=red>" + o->name + "<fg=white>!";
 							
 							//make it drop all of its loot
-							for (ECS::Handle oh : o->objects)
+							if (!o->objects.empty())
 							{
-								Object* oo = gs.level->get_object(oh);
-								oo->object_container = -1;
-								oo->room_container = current_room;
-								cr->objects().push_back(oh);
-							}
-							
-							//remove it from the room
-							for (auto iter = cr->objects().begin(); iter != cr->objects().end(); ++iter)
-							{
-								if (*iter == o->get_handle())
+								gs.main_text += "<fg=white><bg=black>\nIt dropped the following loot:";
+								for (ECS::Handle oh : o->objects)
 								{
-									cr->objects().erase(iter);
-									break;
+									Object* oo = gs.level->get_object(oh);
+									oo->object_container = -1;
+									oo->room_container = current_room;
+									cr->objects().push_back(oh);
+									
+									gs.main_text += "<fg=white><bg=black>\n\t" + oo->name;
 								}
 							}
 							
@@ -259,16 +249,6 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 				//reset the variables
 				if (gs.combat_data != nullptr)
 				{
-					gs.combat_data->enemy_attacking_sides[0] =
-					gs.combat_data->enemy_attacking_sides[1] =
-					gs.combat_data->enemy_attacking_sides[2] =
-					gs.combat_data->enemy_attacking_sides[3] = false;
-					
-					gs.combat_data->enemy_vulnerable_sides[0] = 
-					gs.combat_data->enemy_vulnerable_sides[1] = 
-					gs.combat_data->enemy_vulnerable_sides[2] = 
-					gs.combat_data->enemy_vulnerable_sides[3] = true;
-					
 					gs.combat_data->player_attacking = false;
 				}
 			}

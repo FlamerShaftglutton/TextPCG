@@ -3,6 +3,7 @@
 #include "GameState.hpp"
 #include "string_utils.hpp"
 #include <string>
+#include "UIConstants.hpp"
 
 #ifdef DEBUG
 	#include "Log.hpp"
@@ -281,44 +282,44 @@ void InputSystem::do_work(Console& console, GameState& gs)
 	
 		if (lower_input == "q" || lower_input == "quit")
 		{
-			if (gs.menu_index == 0)
+			if (gs.menu_index == UI_State::Main_Menu)
 			{
-				gs.menu_index = -1;
+				gs.menu_index = UI_State::Exit;
 				gs.menu_transition = true;
 			}
 			else
 			{
-				gs.menu_index = 0;
+				gs.menu_index = UI_State::Main_Menu;
 				gs.menu_transition = true;
 			}
 		}
-		else if (gs.menu_index == 0)//main menu
+		else if (gs.menu_index == UI_State::Main_Menu)//main menu
 		{
 			if (lower_input == "1")//New Game
 			{
-				gs.menu_index = 1;
+				gs.menu_index = UI_State::New_Game;
 				gs.menu_transition = true;
 			}
 			else if (lower_input == "2") //Continue Game
 			{
-				gs.menu_index = 2;
+				gs.menu_index = UI_State::Load_Game;
 				gs.menu_transition = true;
 			}
 			else if (lower_input == "3") //Restart Game
 			{
-				gs.menu_index = 1;//change this later
+				gs.menu_index = UI_State::New_Game;//change this later
 				gs.menu_transition = true;
 			}
 			else if (lower_input == "4") //Quit
 			{
-				gs.menu_index = -1;
+				gs.menu_index = UI_State::Exit;
 			}
 		}
-		else if (gs.menu_index == 1)//Game creation screen
+		else if (gs.menu_index == UI_State::New_Game)//Game creation screen
 		{
 			
 		}
-		else if (gs.menu_index == 2)//the actual game
+		else if (gs.menu_index == UI_State::In_Game)//the actual game
 		{
 			#ifdef DEBUG
 				Log::write("\tMenu level 2: actual game.");
