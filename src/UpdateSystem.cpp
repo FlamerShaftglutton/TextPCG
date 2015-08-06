@@ -146,6 +146,19 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 				fill_scripting_variables(gs, sv, cr, o);
 				o->scripts.execute_on_attack_step(sv);
 				
+				#ifdef DEBUG
+				{
+					std::string names[] = {"left","right","front","far front"};
+					std::string ll = gs.combat_data->enemy_vulnerable_sides[0] ? "left " : "";
+					ll += gs.combat_data->enemy_vulnerable_sides[1] ? "right " : "";
+					ll += gs.combat_data->enemy_vulnerable_sides[2] ? "front " : "";
+					ll += gs.combat_data->enemy_vulnerable_sides[3] ? "far front" : "";
+					Log::write("\tVulnerabilities: " + ll);
+					
+					Log::write("\tPlayer Pos: " + names[(unsigned)gs.combat_data->player_position]);
+				}
+				#endif
+				
 				unfill_scripting_variables(gs, sv, cr);
 				gs.main_text_dirty_flag = true;
 				
@@ -153,12 +166,22 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 					Log::write("\tCombat script completed.");
 				#endif 
 				
+				#ifdef DEBUG
+				{
+					std::string names[] = {"left","right","front","far front"};
+					std::string ll = gs.combat_data->enemy_vulnerable_sides[0] ? "left " : "";
+					ll += gs.combat_data->enemy_vulnerable_sides[1] ? "right " : "";
+					ll += gs.combat_data->enemy_vulnerable_sides[2] ? "front " : "";
+					ll += gs.combat_data->enemy_vulnerable_sides[3] ? "far front" : "";
+					Log::write("\tVulnerabilities: " + ll);
+					
+					Log::write("\tPlayer Pos: " + names[(unsigned)gs.combat_data->player_position]);
+				}
+				#endif
+				
 				//now that the enemy did something, figure out what happened to the enemy
 				if (gs.combat_data->player_attacking)
-				{
-					//reset the flag
-					gs.combat_data->player_attacking = false;
-				
+				{	
 					//if we hit them and they were vulnerable on that side...
 					if (gs.combat_data->enemy_vulnerable_sides[(unsigned)gs.combat_data->player_position])
 					{
@@ -234,17 +257,20 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 				}
 				
 				//reset the variables
-				gs.combat_data->enemy_attacking_sides[0] =
-				gs.combat_data->enemy_attacking_sides[1] =
-				gs.combat_data->enemy_attacking_sides[2] =
-				gs.combat_data->enemy_attacking_sides[3] = false;
-				
-				gs.combat_data->enemy_vulnerable_sides[0] = 
-				gs.combat_data->enemy_vulnerable_sides[1] = 
-				gs.combat_data->enemy_vulnerable_sides[2] = 
-				gs.combat_data->enemy_vulnerable_sides[3] = false;
-				
-				gs.combat_data->player_attacking = false;
+				if (gs.combat_data != nullptr)
+				{
+					gs.combat_data->enemy_attacking_sides[0] =
+					gs.combat_data->enemy_attacking_sides[1] =
+					gs.combat_data->enemy_attacking_sides[2] =
+					gs.combat_data->enemy_attacking_sides[3] = false;
+					
+					gs.combat_data->enemy_vulnerable_sides[0] = 
+					gs.combat_data->enemy_vulnerable_sides[1] = 
+					gs.combat_data->enemy_vulnerable_sides[2] = 
+					gs.combat_data->enemy_vulnerable_sides[3] = true;
+					
+					gs.combat_data->player_attacking = false;
+				}
 			}
 			
 			//check if the player died from anything

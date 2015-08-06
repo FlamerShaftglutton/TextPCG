@@ -759,10 +759,6 @@ Value* Get_Variable_Expression::evaluate(ScriptingVariables& pv, std::vector<Val
 					v->bool_val = pv.combat.enemy_attacking_sides[(int)CombatData::Position::far_front];
 					break;
 				case Expression_Variable_Combat::vulnerable_to_attack:
-					#ifdef DEBUG
-						Log::write("derpp?");
-					#endif
-				
 					v->type = Value::Value_Type::Bool;
 					v->bool_val = pv.combat.vulnerable_to_attack;
 					break;
@@ -2417,10 +2413,18 @@ Value* Defend_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* 
 		return l;
 	}
 	
-	pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::left] = l->bool_val;
-	pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::right] = r->bool_val;
-	pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::front] = f->bool_val;
-	pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::far_front] = ff->bool_val;
+	pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::left] = !l->bool_val;
+	pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::right] = !r->bool_val;
+	pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::front] = !f->bool_val;
+	pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::far_front] = !ff->bool_val;
+	
+	#ifdef DEBUG
+		Log::write("\t\tDefend Inputs: " + std::string(l->bool_val ? "yes " : "no  ") + (r->bool_val ? "yes " : "no  ") + std::string(f->bool_val ? "yes " : "no  ") + (ff->bool_val ? "yes " : "no  "));
+		Log::write("\t\tVulnerable left: " + std::string(pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::left] ? "yes" : "no "));
+		Log::write("\t\tVulnerable right: " + std::string(pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::right] ? "yes" : "no "));
+		Log::write("\t\tVulnerable front: " + std::string(pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::front] ? "yes" : "no "));
+		Log::write("\t\tVulnerable far front: " + std::string(pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::far_front] ? "yes" : "no "));
+	#endif
 
 	delete r;
 	delete f;

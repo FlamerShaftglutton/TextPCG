@@ -11,6 +11,8 @@
 
 #ifdef DEBUG
 	#include "Log.hpp"
+	#include <sstream>
+	#include <fstream>
 #endif
 
 void game_loop(Console& console)
@@ -188,19 +190,17 @@ void game_loop(Console& console)
 		o->hit_chance = 0.0f;
 		o->name = "An Evil Goblin";
 		o->description = "An ugly creature with beady bloodthirsty eyes.";
+		
+		std::string s;
+		std::ifstream infile("expressions.txt");
+		std::stringstream ss;
+		ss << infile.rdbuf();
+		s = StringUtils::replace(ss.str(),"\\n","\n");
+		
 		o->scripts.construct("(set 0 0);",
 							 "(say \"SCREEE!!!\");",
-							 "",
-							 "(if (get combat.vulnerable_to_attack)\
-									(+ \"\" (set 0 2) (set main_text (+ (get main_text) \"\n<fg=green><bg=black>The goblin reels back from your attack!\"))));\
-							  (choose (get 0)\
-									  (if (get combat.player_position_front) \
-										  (+ \"\" (set main_text (+ (get main_text) \"<fg=white><bg_black>\nThe goblin raises his sword over his head!\")) (set 0 1) (defend false false true true))\
-										  (+ \"\" (set combat.player_position_front true) (set main_text (+ (get main_text) \"\n<fg=white><bg=black>\" (if (get combat.player_position_far_front) \"The goblins stalks towards you!\" \"The goblin turns towards you!\"))) (defend true true true true)))\
-									  (if (or (get combat.player_position_front) (get combat.player_position_far_front)) \
-										  (+ \"\" (set 0 0) (attack false false true true) (set main_text (+ (get main_text) \"\n<fg=white><bg=black>The goblins slashes you with its sword!\")) (defend false false false false))\
-										  (+ \"\" (set 0 0) (set main_text (+ (get main_text) \"\n<fg=white><bg=black>The goblin's sword clinks to the ground where you used to be standing!\")) (defend false false false false)))\
-									  (+ \"\" (set 0 0) (set main_text (+ (get main_text) \"\n<fg=white><bg=black>The goblins recovers and holds his sword in a defensive position.\")) (defend true true true)));");
+							 "(set main_text (+ (get main_text) \"\n<fg=white><bg=black>You can't use an enemy!\"));",
+							 s);
 		r->objects().push_back(o->get_handle());
 		ECS::Handle oh = o->get_handle();
 		

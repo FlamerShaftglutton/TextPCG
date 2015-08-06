@@ -11,4 +11,5 @@ namespace StringUtils
 	int stoi(std::string input);
 	float stof(std::string input);
 	std::vector<std::string> split(std::string input, char delimiter);
+	std::string replace(std::string subject, const std::string& search, const std::string& replace);
 }

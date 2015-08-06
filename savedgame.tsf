@@ -1,9 +1,9 @@
-98-110Please enter the number of your choice then press <fg=red>ENTER<fg=white>.
+270-110Please enter the number of your choice then press <fg=red>ENTER<fg=white>.
 1. New Game
 2. Continue Game
 3. Restart Game
 4. Quit
-012 20000000009981400000000001011000000-1 -1 -1 -1 -1 -1 -1 -1 -1 A Small Room<fg=white>Room 1,1.
+012 10111100009981400000000001011000000-1 -1 -1 -1 -1 -1 -1 -1 -1 A Small Room<fg=white>Room 1,1.
 <fg=green>Lawful Good!<fg=yellow><bg=yellow> 11001100000-1 -1 -1 -1 -1 -1 -1 -1 -1 A Small Room<fg=white>Room 2,1.
 <fg=green>Lawful Neutral!<fg=yellow><bg=yellow> 11001000000-1 -1 -1 -1 -1 -1 -1 -1 -1 A Small Room<fg=white>Room 3,1.
 <fg=green>Lawful Evil!<fg=yellow><bg=yellow> 00000001101000000-1 -1 -1 -1 -1 -1 -1 -1 -1 A Small Room<fg=white>Room 1,2.
@@ -12,13 +12,42 @@
 <fg=yellow>Evil neutral!<fg=yellow><bg=yellow> 01001000000-1 -1 -1 -1 -1 -1 -1 -1 -1 A dead end<fg=white>A small rectangular room with no visible exit but from the way you came in. The walls and floors are cold masonry, but the corners are dark and hard to see.<fg=yellow><bg=white> 0000001100000000-1 -1 -1 -1 -1 -1 -1 -1 -1 A Small Room<fg=white>Room 1,3.
 <fg=red>Chaotic Good!<fg=yellow><bg=yellow> 12 3 0 1110000000-1 -1 -1 -1 -1 -1 -1 -1 -1 A Small Room<fg=white>Room 2,3.
 <fg=red>Chaotic Neutral!<fg=yellow><bg=yellow> 01100100000-1 -1 -1 -1 -1 -1 -1 -1 -1 A Small Room<fg=white>Room 3,3.
-<fg=red>A small, cramped room. On the eastern wall is a locked <fg=green>door<fg=red>.<fg=yellow><bg=yellow> 01111100000-1 -1 -1 -1 -1 -1 -1 -1 -1 A circular entryway<fg=white>An <fg=purple>odd<fg=white> circular entryway. The walls and floors are cold masonry, and on all sides are stone archways leading to more rooms.<fg=yellow><bg=white> 01000100000-1 -1 -1 -1 -1 -1 -1 -1 -1 A dead end<fg=white>A small rectangular room with no visible exit but from the way you came in. The walls and floors are cold masonry, but the corners are dark and hard to see.<fg=yellow><bg=white> 000000001100000000-1 -1 -1 -1 -1 -1 -1 -1 -1 A dead end<fg=white>A small rectangular room with no visible exit but from the way you came in. The walls and floors are cold masonry, but the corners are dark and hard to see.<fg=yellow><bg=white> 01 000000000000000000000000000000000000000011111110-12899100.75A <fg=red>hideous<fg=white> looking human. Possibly beaten, or possibly just always ugly. Hard to tell.Myself11111000-1401200A somewhat short man in a dark gray cloak. He mutters to himself while eyeing you.Mysterious underdweller(set 0 0);(say (choose (get 0) "Hello stranger." "You again?"));(set 0 1);(say "Err... Sorry, I'm taken, buddy.");11101000-1281210An ugly creature with beady bloodthirsty eyes.An Evil Goblin(set 0 1);(say "SCREEE!!!");(if (get combat.vulnerable_to_attack)									(+ "" (set 0 2) (set main_text (+ (get main_text) "
-<fg=green><bg=black>The goblin reels back from your attack!"))));							  (choose (get 0)									  (if (get combat.player_position_front) 										  (+ "" (set main_text (+ (get main_text) "<fg=white><bg_black>
-The goblin raises his sword over his head!")) (set 0 1) (defend false false true true))										  (+ "" (set combat.player_position_front true) (set main_text (+ (get main_text) "
-<fg=white><bg=black>" (if (get combat.player_position_far_front) "The goblins stalks towards you!" "The goblin turns towards you!"))) (defend true true true true)))									  (if (or (get combat.player_position_front) (get combat.player_position_far_front)) 										  (+ "" (set 0 0) (attack false false true true) (set main_text (+ (get main_text) "
-<fg=white><bg=black>The goblins slashes you with its sword!")) (defend false false false false))										  (+ "" (set 0 0) (set main_text (+ (get main_text) "
-<fg=white><bg=black>The goblin's sword clinks to the ground where you used to be standing!")) (defend false false false false)))									  (+ "" (set 0 0) (set main_text (+ (get main_text) "
-<fg=white><bg=black>The goblins recovers and holds his sword in a defensive position.")) (defend true true true)));110100012-1-100A small iron skeleton key. It is covered in small bumps, yet the texture feels smooth.A key(if (= (get current_room.handle) 30) (+ (set global.main_text (+ (get global.main_text) "
+<fg=red>A small, cramped room. On the eastern wall is a locked <fg=green>door<fg=red>.<fg=yellow><bg=yellow> 01111100000-1 -1 -1 -1 -1 -1 -1 -1 -1 A circular entryway<fg=white>An <fg=purple>odd<fg=white> circular entryway. The walls and floors are cold masonry, and on all sides are stone archways leading to more rooms.<fg=yellow><bg=white> 01000100000-1 -1 -1 -1 -1 -1 -1 -1 -1 A dead end<fg=white>A small rectangular room with no visible exit but from the way you came in. The walls and floors are cold masonry, but the corners are dark and hard to see.<fg=yellow><bg=white> 000000001100000000-1 -1 -1 -1 -1 -1 -1 -1 -1 A dead end<fg=white>A small rectangular room with no visible exit but from the way you came in. The walls and floors are cold masonry, but the corners are dark and hard to see.<fg=yellow><bg=white> 01 000000000000000000000000000000000000000011111110-128100100.75A <fg=red>hideous<fg=white> looking human. Possibly beaten, or possibly just always ugly. Hard to tell.Myself11111000-1401200A somewhat short man in a dark gray cloak. He mutters to himself while eyeing you.Mysterious underdweller(set 0 0);(say (choose (get 0) "Hello stranger." "You again?"));(set 0 1);(say "Err... Sorry, I'm taken, buddy.");11101000-1281210An ugly creature with beady bloodthirsty eyes.An Evil Goblin(set 0 0);(say "SCREEE!!!");(set main_text (+ (get main_text) "
+<fg=white><bg=black>You can't use an enemy!"));(if (get combat.vulnerable_to_attack)
+	(+ "" (set 0 2) (set main_text (+ (get main_text) "<fg=green><bg=black>
+The goblin reels back from your attack!"))));
+(choose (get 0)
+		(if (get combat.player_position_front) 
+			(+ "" 
+			   (set main_text (+ (get main_text) "<fg=white><bg_black>
+The goblin raises his sword over his head!"))
+			   (set 0 1) 
+			   (defend false false true true))
+			(+ "" 
+			   (set main_text (+ (get main_text) "<fg=white><bg=black>
+" (if (get combat.player_position_far_front) "The goblin stalks towards you!" "The goblin turns towards you!")))
+			   (set combat.player_position_front true)
+			   (defend true true true true)))
+	  
+		(if (or (get combat.player_position_front) (get combat.player_position_far_front)) 
+			(+ "" 
+			   (set 0 0) 
+			   (attack false false true true) 
+			   (set main_text (+ (get main_text) "<fg=white><bg=black>
+The goblins slashes you with its sword!")) 
+			   (defend true true true true))
+			(+ "" 
+			   (set 0 0) 
+			   (set main_text (+ (get main_text) "<fg=white><bg=black>
+The goblin's sword clinks to the ground where you used to be standing!")) 
+			   (defend false false true true)))
+	  
+		(+ "" 
+		   (set 0 0) 
+		   (set main_text (+ (get main_text) "<fg=white><bg=black>
+The goblins recovers and holds his sword in a defensive position.")) 
+		   (defend true true true true)));
+110100012-1-100A small iron skeleton key. It is covered in small bumps, yet the texture feels smooth.A key(if (= (get current_room.handle) 30) (+ (set global.main_text (+ (get global.main_text) "
 
 The key opens a door to the east.")) (set current_room.open_e true)) (set global.main_text (+ (get global.main_text) "<fg=white><bg=black>
 

@@ -522,7 +522,7 @@ void InputSystem::do_work(Console& console, GameState& gs)
 						gs.combat_data->player_position = CombatData::Position::front;
 						gs.main_text += "\nYou jump forward in front of the enemy.";
 					}
-					else
+					else if (!gs.combat_data->player_attacking)
 					{
 						gs.combat_data->player_attacking = true;
 						gs.main_text += "\nYou attempt to attack the enemy.";
