@@ -6,6 +6,7 @@
 #include "GameState.hpp"
 #include "string_utils.hpp"
 #include "UIConstants.hpp"
+
 #ifdef DEBUG
 	#include "Log.hpp"
 #endif
@@ -30,6 +31,12 @@ void Serialize::from_file(std::string fname, GameState& gs)
 	gs.playable_character = (ECS::Handle)get_int();
 	gs.main_text = get_string();
 	gs.main_text_dirty_flag = get_bool();
+	
+	if (gs.combat_data != nullptr)
+	{
+		delete gs.combat_data;
+		gs.combat_data = nullptr;
+	}
 	
 	//now the combat stuff
 	if (get_bool())
@@ -61,6 +68,12 @@ void Serialize::from_file(std::string fname, GameState& gs)
 	int level_height = get_int();
 	int num_rooms = get_int();
 	int num_objects = get_int();
+	
+	if (gs.level != nullptr)
+	{
+		delete gs.level;
+		gs.level = nullptr;
+	}
 	gs.level = new Level(level_width,level_height);
 	
 	//now the rooms
@@ -145,8 +158,12 @@ void Serialize::from_file(std::string fname, GameState& gs)
 			{
 				o->objects.push_back((ECS::Handle)StringUtils::stoi(objs[j]));
 			}
+			
+			o->scripts.execute_on_creation();
 		}
 	}
+	
+	infile.close();
 }
 
 void Serialize::to_file(std::string fname, GameState& gs)

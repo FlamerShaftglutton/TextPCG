@@ -9,26 +9,30 @@
 UpdateSystem::UpdateSystem(GameState& gs)
 {
 	current_room = -1;
+	previous_menu = UI_State::Exit;
 	ScriptingVariables sv;
-	
-	for (ECS::Handle i = 0; i < (ECS::Handle)gs.level->get_num_objects(); ++i)
-	{
-		gs.level->get_object(i)->scripts.execute_on_creation(sv);
-	}
 }
 
 void UpdateSystem::do_work(Console& console, GameState& gs)
 {
+	UI_State current_menu = gs.menu_index;
+	bool menu_transition = current_menu != previous_menu;
+
 	//first off, the menu will be the real defining factor here
-	if (gs.menu_index == UI_State::Exit)//shouldn't ever happen, but better safe than sorry
+	if (current_menu == UI_State::Exit)//shouldn't ever happen, but better safe than sorry
 	{
 		return;
 	}
-	else if (gs.menu_index == UI_State::Main_Menu)
+	else if (current_menu == UI_State::Main_Menu)
 	{
-		if (gs.menu_transition)
+		if (menu_transition)
 		{
-			gs.menu_transition = false;
+			//if we just quit from the game, save it!
+			if (previous_menu == UI_State::In_Game)
+			{
+				Serialize::to_file("savedgame.tsf", gs);
+			}
+		
 			console.clear();
 			gs.main_text = "Please enter the number of your choice then press <fg=red>ENTER<fg=white>.\n";
 			gs.main_text += "1. New Game\n";
@@ -38,33 +42,33 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 			gs.main_text_dirty_flag = true;
 		}
 	}
-	else if (gs.menu_index == UI_State::New_Game)
+	else if (current_menu == UI_State::New_Game)
 	{
-		if (gs.menu_transition)
+		if (menu_transition)
 		{
-			//gs.menu_transition = false;
+			//menu_transition = false;
 			//console.clear();
 			//gs.main_text = "Derp!";
 			
 			//fill this in later so that the user can create a whole new game
-			Serialize::from_file("newgame.tsf",gs);
-			gs.menu_transition = true;
+			Serialize::from_file("newgame.tsf", gs);
+			menu_transition = true;
 			gs.menu_index = UI_State::In_Game;
 		}
 	}
-	else if (gs.menu_index == UI_State::Load_Game)
+	else if (current_menu == UI_State::Load_Game)
 	{
 		//fill this in later so the user can pick a game
-		//gs.menu_transition = false;
+		//menu_transition = false;
 		Serialize::from_file("savedgame.tsf",gs);
-		gs.menu_transition = true;
+		menu_transition = true;
 		gs.menu_index = UI_State::In_Game;
 	}
-	else if (gs.menu_index == UI_State::In_Game)//the actual game
+	else if (current_menu == UI_State::In_Game)//the actual game
 	{
-		if (gs.menu_transition)
+		if (menu_transition)
 		{
-			gs.menu_transition = false;
+			menu_transition = false;
 			console.clear();
 			gs.main_text = "<fg=Red>Welcome! <fg=white>Type your command then press ENTER.\n";
 			gs.main_text_dirty_flag = true;
@@ -260,4 +264,6 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 			}
 		}
 	}
+	
+	previous_menu = current_menu;
 }

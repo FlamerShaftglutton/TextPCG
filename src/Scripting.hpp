@@ -35,7 +35,7 @@ public:
 	~ScriptSet();
 	void construct(std::string on_creation, std::string on_sight, std::string on_use, std::string on_attack_step);
 	
-	void execute_on_creation(ScriptingVariables& pv);
+	void execute_on_creation();
 	void execute_on_sight(ScriptingVariables& pv);
 	void execute_on_use(ScriptingVariables& pv);
 	void execute_on_attack_step(ScriptingVariables& pv);

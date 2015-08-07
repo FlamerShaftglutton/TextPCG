@@ -9,6 +9,8 @@
 
 #ifdef DEBUG
 	#include "Log.hpp"
+	#include <fstream>
+	#include <sstream>
 #endif
 
 Expression* Script::recursively_resolve(std::vector<std::string>& tokens, std::vector<int>& token_types)
@@ -385,6 +387,20 @@ Script::Script(std::string script, Register* regs)
 	registers = regs;
 	raw_script = script;
 	
+	#ifdef DEBUG
+		//if debugging, then the script can just specify a file to read from
+		if (script.substr(0,5) == "file:")
+		{
+			Log::write("Warning: using a script from a file. This will not work when compiled without the DEBUG flag!");
+			
+			//read the whole thing in and assign the value to script
+			std::ifstream infile(script.substr(5).c_str());
+			std::stringstream ss;
+			ss << infile.rdbuf();
+			script = StringUtils::replace(ss.str(),"\\n","\n");
+		}
+	#endif
+	
 	//interpret the string into a program, manually creating registers and values
 	std::vector<std::string> tokens;
 	std::vector<int> token_types; //0: opening paren, 1: closing paren, 2: semicolon, 3: number, 4: quoted string, 5: quoteless string
@@ -673,10 +689,11 @@ ScriptSet::~ScriptSet()
 	}
 }
 
-void ScriptSet::execute_on_creation(ScriptingVariables& pv)
+void ScriptSet::execute_on_creation()
 {
 	if (on_creation_script != nullptr)
 	{
+		ScriptingVariables pv;
 		on_creation_script->evaluate(pv);
 	}
 }

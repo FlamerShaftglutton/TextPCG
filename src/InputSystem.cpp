@@ -487,16 +487,16 @@ void InputSystem::do_work(Console& console, GameState& gs)
 					switch (gs.combat_data->player_position)
 					{
 						case CombatData::Position::left:
-							gs.main_text += "\nYou are already on the enemy's left side.";
+							gs.main_text += "<fg=white><bg=black>\nYou are already on the enemy's left side.";
 							break;
 						case CombatData::Position::right:
 							gs.combat_data->player_position = CombatData::Position::front;
-							gs.main_text += "\nYou roll in front of the enemy.";
+							gs.main_text += "<fg=white><bg=black>\nYou roll in front of the enemy.";
 							break;
 						case CombatData::Position::front:
 						case CombatData::Position::far_front:
 							gs.combat_data->player_position = CombatData::Position::left;
-							gs.main_text += "\nYou roll to the enemy's left side.";
+							gs.main_text += "<fg=white><bg=black>\nYou roll to the enemy's left side.";
 					}
 				}
 				else if (lower_input == "r" || lower_input == "right" || lower_input == "dodge right" || lower_input == "<right_arrow_key>")
@@ -504,16 +504,16 @@ void InputSystem::do_work(Console& console, GameState& gs)
 					switch (gs.combat_data->player_position)
 					{
 						case CombatData::Position::right:
-							gs.main_text += "\nYou are already on the enemy's right side.";
+							gs.main_text += "<fg=white><bg=black>\nYou are already on the enemy's right side.";
 							break;
 						case CombatData::Position::left:
 							gs.combat_data->player_position = CombatData::Position::front;
-							gs.main_text += "\nYou roll in front of the enemy.";
+							gs.main_text += "<fg=white><bg=black>\nYou roll in front of the enemy.";
 							break;
 						case CombatData::Position::front:
 						case CombatData::Position::far_front:
 							gs.combat_data->player_position = CombatData::Position::right;
-							gs.main_text += "\nYou roll to the enemy's right side.";
+							gs.main_text += "<fg=white><bg=black>\nYou roll to the enemy's right side.";
 					}
 				}
 				else if (lower_input == "<up_arrow_key>" || lower_input == "attack" || lower_input == "a")
@@ -521,12 +521,12 @@ void InputSystem::do_work(Console& console, GameState& gs)
 					if (gs.combat_data->player_position == CombatData::Position::far_front)
 					{
 						gs.combat_data->player_position = CombatData::Position::front;
-						gs.main_text += "\nYou jump forward in front of the enemy.";
+						gs.main_text += "<fg=white><bg=black>\nYou jump forward in front of the enemy.";
 					}
 					else if (!gs.combat_data->player_attacking)
 					{
 						gs.combat_data->player_attacking = true;
-						gs.main_text += "\nYou attempt to attack the enemy.";
+						gs.main_text += "<fg=white><bg=black>\nYou attempt to attack the enemy.";
 					}
 				}
 				else if (lower_input == "<down_arrow_key>" || lower_input == "b" || lower_input == "back")
@@ -534,7 +534,7 @@ void InputSystem::do_work(Console& console, GameState& gs)
 					if (gs.combat_data->player_position == CombatData::Position::front)
 					{
 						gs.combat_data->player_position = CombatData::Position::far_front;
-						gs.main_text += "\nYou jump back from the enemy.";
+						gs.main_text += "<fg=white><bg=black>\nYou jump back from the enemy.";
 					}
 				}
 			}
