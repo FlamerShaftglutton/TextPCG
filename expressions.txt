@@ -4,30 +4,36 @@
 	   (set main_text (+ (get main_text) "<fg=green><bg=black>\nThe goblin reels back from your attack!"))
 	   (set combat.player_position_far_front true)
 	   )
-	(choose (get 0)
-			(if (get combat.player_position_front) 
-				(+ "" 
-				   (set main_text (+ (get main_text) "<fg=white><bg_black>\nThe goblin raises his sword over his head!"))
-				   (set 0 1) 
-				   (defend false false true true))
-				(+ "" 
-				   (set main_text (+ (get main_text) "<fg=white><bg=black>\n" (if (get combat.player_position_far_front) "The goblin stalks towards you!" "The goblin turns towards you!")))
-				   (set combat.player_position_front true)
-				   (defend true true true true)
-				   (attack false false false false)))
-		  
-			(if (or (get combat.player_position_front) (get combat.player_position_far_front)) 
+	(+ ""
+	    (if (get combat.player_attacking) (set 0 3))
+		(choose (get 0)
+				(if (get combat.player_position_front) 
+					(+ "" 
+					   (set main_text (+ (get main_text) "<fg=white><bg=black>\nThe goblin raises his sword over his head!"))
+					   (set 0 1) 
+					   (defend false false true true))
+					(+ "" 
+					   (set main_text (+ (get main_text) "<fg=white><bg=black>\n" (if (get combat.player_position_far_front) "The goblin stalks towards you!" "The goblin turns towards you!")))
+					   (set combat.player_position_front true)
+					   (defend true true true true)
+					   (attack false false false false)))
+			  
+				(if (or (get combat.player_position_front) (get combat.player_position_far_front)) 
+					(+ "" 
+					   (set 0 0) 
+					   (attack false false true true) 
+					   (set main_text (+ (get main_text) "<fg=white><bg=black>\nThe goblin slashes you with its sword!")) 
+					   (defend true true true true))
+					(+ "" 
+					   (set 0 0) 
+					   (set main_text (+ (get main_text) "<fg=white><bg=black>\nThe goblin's sword clinks to the ground where you used to be standing!")) 
+					   (defend false false true true)))
+			  
 				(+ "" 
 				   (set 0 0) 
-				   (attack false false true true) 
-				   (set main_text (+ (get main_text) "<fg=white><bg=black>\nThe goblins slashes you with its sword!")) 
+				   (set main_text (+ (get main_text) "<fg=white><bg=black>\nThe goblin recovers and holds his sword in a defensive position.")) 
 				   (defend true true true true))
-				(+ "" 
-				   (set 0 0) 
-				   (set main_text (+ (get main_text) "<fg=white><bg=black>\nThe goblin's sword clinks to the ground where you used to be standing!")) 
-				   (defend false false true true)))
-		  
-			(+ "" 
-			   (set 0 0) 
-			   (set main_text (+ (get main_text) "<fg=white><bg=black>\nThe goblins recovers and holds his sword in a defensive position.")) 
-			   (defend true true true true))));
+				(+ ""
+				   (set 0 0)
+				   (set main_text (+ (get main_text) "<fg=white><bg=black>\nThe goblin blocks your attack!"))
+				   (defend true true true true)))));

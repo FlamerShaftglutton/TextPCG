@@ -392,12 +392,23 @@ Script::Script(std::string script, Register* regs)
 		if (script.substr(0,5) == "file:")
 		{
 			Log::write("Warning: using a script from a file. This will not work when compiled without the DEBUG flag!");
+			Log::write("\tFilename: " + script.substr(5));
 			
 			//read the whole thing in and assign the value to script
 			std::ifstream infile(script.substr(5).c_str());
-			std::stringstream ss;
-			ss << infile.rdbuf();
-			script = StringUtils::replace(ss.str(),"\\n","\n");
+			
+			if (infile.is_open())
+			{
+				std::stringstream ss;
+				ss << infile.rdbuf();
+				script = StringUtils::replace(ss.str(),"\\n","\n");
+			
+				Log::write("\tScript pulled successfully.");
+			}
+			else
+			{
+				Log::write("\tCouldn't open the file...");
+			}
 		}
 	#endif
 	

@@ -191,7 +191,7 @@ void game_loop(Console& console)
 		o->scripts.construct("(set 0 0);",
 							 "(say \"SCREEE!!!\");",
 							 "(set main_text (+ (get main_text) \"\n<fg=white><bg=black>You can't use an enemy!\"));",
-							 "file:expression.txt");
+							 "file:expressions.txt");
 		r->objects().push_back(o->get_handle());
 		ECS::Handle oh = o->get_handle();
 		
@@ -212,7 +212,7 @@ void game_loop(Console& console)
 		o->description = "A small iron skeleton key. It is covered in small bumps, yet the texture feels smooth.";
 		o->scripts.construct("",
 							 "",
-							 "(if (= (get current_room.handle) " + StringUtils::to_string(gs.level->get_room(3,3)->get_handle()) + ") (+ (set global.main_text (+ (get global.main_text) \"\n\nThe key opens a door to the east.\")) (set current_room.open_e true) (set caller.destroyed true)) (set global.main_text (+ (get global.main_text) \"<fg=white><bg=black>\n\nIt does nothing\")));",
+							 "(if (= (get current_room.handle) " + StringUtils::to_string(gs.level->get_room(3,3)->get_handle()) + ") (+ (set current_room.description \"<fg=red><bg=black>A small, cramped room. On the eastern wall is an unlocked door.\") (set global.main_text (+ (get global.main_text) \"\n\nThe key opens a door to the east.\")) (set current_room.open_e true) (set caller.destroyed true)) (set global.main_text (+ (get global.main_text) \"<fg=white><bg=black>\n\nIt does nothing\")));",
 							 "");
 		
 		gs.level->get_object(oh)->objects.push_back(o->get_handle());
@@ -245,7 +245,7 @@ void game_loop(Console& console)
 			++gs.frames_elapsed;
 			next_frame += frame_period;
 			
-			update_system.do_work(console, gs);//pass in the number of ms since the last frame
+			update_system.do_work(console, gs);
 		}
 		
 		//if we're ready for another draw, draw it!

@@ -276,10 +276,6 @@ void InputSystem::do_work(Console& console, GameState& gs)
 	//depends greatly on the current menu, but all menus accept "quit"
 	if (input != "")
 	{
-		#ifdef DEBUG
-			Log::write("User input: " + input + ", lowered_input read as: " + lower_input);
-		#endif
-	
 		if (lower_input == "q" || lower_input == "quit")
 		{
 			if (gs.menu_index == UI_State::Main_Menu)
@@ -321,19 +317,12 @@ void InputSystem::do_work(Console& console, GameState& gs)
 		}
 		else if (gs.menu_index == UI_State::In_Game)//the actual game
 		{
-			#ifdef DEBUG
-				Log::write("\tMenu level 2: actual game.");
-			#endif
 			//first off, get the handle of the room the player's in
 			ECS::Handle current_room_handle = gs.level->get_object(gs.playable_character)->room_container;
 			
 			//check out the command
 			if (lower_input.substr(0,4) == "look")
 			{
-				#ifdef DEBUG
-					Log::write("\tLook command recognized.");
-				#endif
-				
 				//if we're just looking around
 				if (lower_input.length() < 5)
 				{
@@ -349,10 +338,19 @@ void InputSystem::do_work(Console& console, GameState& gs)
 					if (type == "at" || type == "in")
 					{
 						//split the rest into the type ("at" or "in") and the description
-						std::string desc = StringUtils::trim(rest.substr(rest.find_first_of(' ')));
+						std::size_t pos = rest.find_first_of(' ');
 						
-						//call the function
-						command_look_object(console,gs,desc,type);
+						if (rest.size() == 2 || pos == std::string::npos)
+						{
+							gs.main_text += "\n<fg=white><bg=black>Look " + type + " what?";
+						}
+						else
+						{
+							std::string desc = StringUtils::trim(rest.substr(pos));
+							
+							//call the function
+							command_look_object(console,gs,desc,type);
+						}
 					}
 					//if we're looking in a direction
 					else
