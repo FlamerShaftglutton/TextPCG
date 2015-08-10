@@ -121,25 +121,30 @@ Expression* Script::recursively_resolve(std::vector<std::string>& tokens, std::v
 				if (token_types[1] == 3)
 				{
 					rn = StringUtils::stoi(tokens[1]);
+					Value* v = nullptr;
 					
 					//set up the register if necessary
 					if (rn >= (int)registers->size())
 					{
-						Value* v = new Value;
+						v = new Value;
 						v->type = Value::Value_Type::Int;
 						v->int_val = 0;
 						registers->push_back(v);
+					}
+					else
+					{
+						v = (*registers)[rn];
 					}
 					
 					//finally, make the node
 					if (s == "get")
 					{
-						Get_Register_Expression* e = new Get_Register_Expression(rn);
+						Get_Register_Expression* e = new Get_Register_Expression(v);
 						return e;
 					}
 					else
 					{
-						Set_Register_Expression* se = new Set_Register_Expression(rn,e);
+						Set_Register_Expression* se = new Set_Register_Expression(v,e);
 						return se;
 					}
 					
@@ -635,7 +640,7 @@ void Script::evaluate(ScriptingVariables& pv)
 {
 	for (unsigned i = 0; i < expressions.size(); ++i)
 	{
-		Value* v = expressions[i]->evaluate(pv,registers);
+		Value* v = expressions[i]->evaluate(pv);
 		delete v;
 	}
 }
@@ -746,7 +751,7 @@ std::string ScriptSet::to_string()
 		}
 	}
 	retval += char(4);
-		
+	
 	//then add in the other Scripts
 	if (on_sight_script != nullptr)
 	{

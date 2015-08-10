@@ -33,7 +33,7 @@ bool Value::construct(std::vector<Expression*> arguments)
 	return true;
 }
 
-Value* Value::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* Value::evaluate(ScriptingVariables& pv)
 {
 	return copy_value(this);
 }
@@ -72,9 +72,9 @@ Choose_Expression::~Choose_Expression()
 	}
 }
 
-Value* Choose_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* Choose_Expression::evaluate(ScriptingVariables& pv)
 {
-	Value* index = args[0]->evaluate(pv,registers);
+	Value* index = args[0]->evaluate(pv);
 	int i = index->int_val;
 	
 	if (index->type != Value::Value_Type::Int || i > ((int)args.size() - 2) || i < 0)
@@ -88,7 +88,7 @@ Value* Choose_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* 
 	}
 	
 	delete index;
-	return args[i + 1]->evaluate(pv,registers);
+	return args[i + 1]->evaluate(pv);
 }
 
 
@@ -113,10 +113,10 @@ Random_Expression::~Random_Expression()
 	upper_limit = nullptr;
 }
 
-Value* Random_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* Random_Expression::evaluate(ScriptingVariables& pv)
 {
-	Value* ll = lower_limit->evaluate(pv,registers);
-	Value* ul = upper_limit->evaluate(pv,registers);
+	Value* ll = lower_limit->evaluate(pv);
+	Value* ul = upper_limit->evaluate(pv);
 	
 	if (ll->type != ul->type || ll->type != Value::Value_Type::Int)
 	{
@@ -136,9 +136,9 @@ Value* Random_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* 
 
 
 
-Set_Register_Expression::Set_Register_Expression(unsigned rn, Expression* arg)
+Set_Register_Expression::Set_Register_Expression(Value* register_val, Expression* arg)
 {
-	register_number = rn;
+	reg = register_val;
 	argument = arg;
 }
 
@@ -149,26 +149,24 @@ bool Set_Register_Expression::construct(std::vector<Expression*> arguments)
 
 Set_Register_Expression::~Set_Register_Expression()
 {
+	//note: it is not the Set Expression's job to clean up the register it references. The Script object will do that.
+
 	delete argument;
 	argument = nullptr;
 }
 
-Value* Set_Register_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* Set_Register_Expression::evaluate(ScriptingVariables& pv)
 {
-	Value* v = argument->evaluate(pv,registers);
+	Value* v = argument->evaluate(pv);
 	
-	if (register_number < registers->size())
+	if (reg != nullptr)
 	{
-		delete ((*registers)[register_number]);
-		(*registers)[register_number] = copy_value(v);
-	}
-	else
-	{
-		#ifdef DEBUG
-			Log::write("ERROR:Invalid register number in Set call. Value not changed.");
-		#endif
+		reg->bool_val = v->bool_val;
+		reg->int_val = v->int_val;
+		reg->float_val = v->float_val;
+		reg->string_val = v->string_val;
 		
-		v->type = Value::Value_Type::Error;
+		reg->type = v->type;
 	}
 	
 	return v;
@@ -176,9 +174,9 @@ Value* Set_Register_Expression::evaluate(ScriptingVariables& pv, std::vector<Val
 
 
 
-Get_Register_Expression::Get_Register_Expression(unsigned rn)
+Get_Register_Expression::Get_Register_Expression(Value* register_val)
 {
-	register_number = rn;
+	reg = register_val;
 }
 
 bool Get_Register_Expression::construct(std::vector<Expression*> arguments)
@@ -186,16 +184,12 @@ bool Get_Register_Expression::construct(std::vector<Expression*> arguments)
 	return true;
 }
 
-Value* Get_Register_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* Get_Register_Expression::evaluate(ScriptingVariables& pv)
 {
-	if (register_number < registers->size())
+	if (reg != nullptr)
 	{
-		return copy_value((*registers)[register_number]);
+		return copy_value(reg);
 	}
-
-	#ifdef DEBUG
-		Log::write("ERROR:Invalid register number in Get call.");
-	#endif
 	
 	Value* v = new Value;
 	v->type = Value::Value_Type::Error;
@@ -314,9 +308,9 @@ Set_Variable_Expression::~Set_Variable_Expression()
 	argument = nullptr;
 }
 
-Value* Set_Variable_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* Set_Variable_Expression::evaluate(ScriptingVariables& pv)
 {
-	Value* v = argument->evaluate(pv,registers);
+	Value* v = argument->evaluate(pv);
 	bool correct_type = false;
 	
 	//if it's the global text...
@@ -643,7 +637,7 @@ bool Get_Variable_Expression::construct(std::vector<Expression*> arguments)
 	return well_formed;
 }
 
-Value* Get_Variable_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* Get_Variable_Expression::evaluate(ScriptingVariables& pv)
 {
 	Value* v = new Value;
 	v->type = Value::Value_Type::Error;//this function should never reach the end before setting the value, but just in case...
@@ -864,15 +858,15 @@ Add_Expression::~Add_Expression()
 	}
 }
 
-Value* Add_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* Add_Expression::evaluate(ScriptingVariables& pv)
 {
-	Value* l = args[0]->evaluate(pv,registers);
+	Value* l = args[0]->evaluate(pv);
 	
 	if (l->type == Value::Value_Type::Int || l->type == Value::Value_Type::Float)
 	{
 		for (std::size_t i = 1; i < args.size(); ++i)
 		{
-			Value* r = args[i]->evaluate(pv,registers);
+			Value* r = args[i]->evaluate(pv);
 			
 			if (l->type == Value::Value_Type::Int)
 			{
@@ -927,7 +921,7 @@ Value* Add_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* reg
 	{
 		for (std::size_t i = 1; i < args.size(); ++i)
 		{
-			Value* r = args[i]->evaluate(pv,registers);
+			Value* r = args[i]->evaluate(pv);
 			
 			if (r->type == Value::Value_Type::Int)
 			{
@@ -998,10 +992,10 @@ Subtract_Expression::~Subtract_Expression()
 	rhs = nullptr;
 }
 
-Value* Subtract_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* Subtract_Expression::evaluate(ScriptingVariables& pv)
 {
-	Value* l = lhs->evaluate(pv,registers);
-	Value* r = rhs->evaluate(pv,registers);
+	Value* l = lhs->evaluate(pv);
+	Value* r = rhs->evaluate(pv);
 	if ((l->type != Value::Value_Type::Int && l->type != Value::Value_Type::Float) || (r->type != Value::Value_Type::Int && r->type != Value::Value_Type::Float))
 	{
 		#ifdef DEBUG
@@ -1059,10 +1053,10 @@ Multiply_Expression::~Multiply_Expression()
 	rhs = nullptr;
 }
 
-Value* Multiply_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* Multiply_Expression::evaluate(ScriptingVariables& pv)
 {
-	Value* l = lhs->evaluate(pv,registers);
-	Value* r = rhs->evaluate(pv,registers);
+	Value* l = lhs->evaluate(pv);
+	Value* r = rhs->evaluate(pv);
 	if ((l->type != Value::Value_Type::Int && l->type != Value::Value_Type::Float) || (r->type != Value::Value_Type::Int && r->type != Value::Value_Type::Float))
 	{
 		#ifdef DEBUG
@@ -1120,10 +1114,10 @@ Divide_Expression::~Divide_Expression()
 	rhs = nullptr;
 }
 
-Value* Divide_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* Divide_Expression::evaluate(ScriptingVariables& pv)
 {
-	Value* l = lhs->evaluate(pv,registers);
-	Value* r = rhs->evaluate(pv,registers);
+	Value* l = lhs->evaluate(pv);
+	Value* r = rhs->evaluate(pv);
 	if ((l->type != Value::Value_Type::Int && l->type != Value::Value_Type::Float) || (r->type != Value::Value_Type::Int && r->type != Value::Value_Type::Float) || (r->type == Value::Value_Type::Int && r->int_val == 0) || (r->type == Value::Value_Type::Float && r->float_val == 0.0f))
 	{
 		#ifdef DEBUG
@@ -1181,10 +1175,10 @@ Power_Expression::~Power_Expression()
 	rhs = nullptr;
 }
 
-Value* Power_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* Power_Expression::evaluate(ScriptingVariables& pv)
 {
-	Value* l = lhs->evaluate(pv,registers);
-	Value* r = rhs->evaluate(pv,registers);
+	Value* l = lhs->evaluate(pv);
+	Value* r = rhs->evaluate(pv);
 	if ((l->type != Value::Value_Type::Int && l->type != Value::Value_Type::Float) || (r->type != Value::Value_Type::Int && r->type != Value::Value_Type::Float))
 	{
 		#ifdef DEBUG
@@ -1244,15 +1238,15 @@ Min_Expression::~Min_Expression()
 	}
 }
 
-Value* Min_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* Min_Expression::evaluate(ScriptingVariables& pv)
 {
-	Value* retval = args[0]->evaluate(pv,registers);
+	Value* retval = args[0]->evaluate(pv);
 	
 	if (retval->type == Value::Value_Type::Int || retval->type == Value::Value_Type::Float)
 	{
 		for (unsigned i = 1; i < args.size(); ++i)
 		{
-			Value* a = args[i]->evaluate(pv,registers);
+			Value* a = args[i]->evaluate(pv);
 			
 			if (a->type != Value::Value_Type::Int && a->type != Value::Value_Type::Float)
 			{
@@ -1306,15 +1300,15 @@ Max_Expression::~Max_Expression()
 	}
 }
 
-Value* Max_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* Max_Expression::evaluate(ScriptingVariables& pv)
 {
-	Value* retval = args[0]->evaluate(pv,registers);
+	Value* retval = args[0]->evaluate(pv);
 	
 	if (retval->type == Value::Value_Type::Int || retval->type == Value::Value_Type::Float)
 	{
 		for (unsigned i = 1; i < args.size(); ++i)
 		{
-			Value* a = args[i]->evaluate(pv,registers);
+			Value* a = args[i]->evaluate(pv);
 			
 			if (a->type != Value::Value_Type::Int && a->type != Value::Value_Type::Float)
 			{
@@ -1369,9 +1363,9 @@ Say_Expression::~Say_Expression()
 	arg = nullptr;
 }
 
-Value* Say_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* Say_Expression::evaluate(ScriptingVariables& pv)
 {
-	Value* v = arg->evaluate(pv,registers);
+	Value* v = arg->evaluate(pv);
 
 	if (v->type == Value::Value_Type::String)
 	{
@@ -1436,9 +1430,9 @@ If_Expression::~If_Expression()
 	if_true = nullptr;
 }
 
-Value* If_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* If_Expression::evaluate(ScriptingVariables& pv)
 {
-	Value* c = condition->evaluate(pv,registers);
+	Value* c = condition->evaluate(pv);
 	
 	if (c->type != Value::Value_Type::Bool)
 	{
@@ -1453,12 +1447,12 @@ Value* If_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* regi
 	if (c->bool_val)
 	{
 		delete c;
-		return if_true->evaluate(pv,registers);
+		return if_true->evaluate(pv);
 	}
 	else if (if_false != nullptr)
 	{
 		delete c;
-		return if_false->evaluate(pv,registers);
+		return if_false->evaluate(pv);
 	}
 	
 	c->type = Value::Value_Type::Bool;
@@ -1488,11 +1482,11 @@ And_Expression::~And_Expression()
 	}
 }
 
-Value* And_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* And_Expression::evaluate(ScriptingVariables& pv)
 {
 	for (unsigned i = 0; i < args.size(); ++i)
 	{
-		Value* v = args[i]->evaluate(pv,registers);
+		Value* v = args[i]->evaluate(pv);
 		
 		if (v->type != Value::Value_Type::Bool)
 		{
@@ -1537,9 +1531,9 @@ Not_Expression::~Not_Expression()
 	arg = nullptr;
 }
 
-Value* Not_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* Not_Expression::evaluate(ScriptingVariables& pv)
 {
-	Value* v = arg->evaluate(pv,registers);
+	Value* v = arg->evaluate(pv);
 	
 	if (v->type != Value::Value_Type::Bool)
 	{
@@ -1579,11 +1573,11 @@ Or_Expression::~Or_Expression()
 	}
 }
 
-Value* Or_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* Or_Expression::evaluate(ScriptingVariables& pv)
 {
 	for (unsigned i = 0; i < args.size(); ++i)
 	{
-		Value* v = args[i]->evaluate(pv,registers);
+		Value* v = args[i]->evaluate(pv);
 		
 		if (v->type != Value::Value_Type::Bool)
 		{
@@ -1632,10 +1626,10 @@ Xor_Expression::~Xor_Expression()
 	rhs = nullptr;
 }
 
-Value* Xor_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* Xor_Expression::evaluate(ScriptingVariables& pv)
 {
-	Value* l = lhs->evaluate(pv,registers);
-	Value* r = rhs->evaluate(pv,registers);
+	Value* l = lhs->evaluate(pv);
+	Value* r = rhs->evaluate(pv);
 	
 	if (l->type != r->type || l->type != Value::Value_Type::Bool)
 	{
@@ -1677,10 +1671,10 @@ LessThan_Expression::~LessThan_Expression()
 	rhs = nullptr;
 }
 
-Value* LessThan_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* LessThan_Expression::evaluate(ScriptingVariables& pv)
 {
-	Value* l = lhs->evaluate(pv,registers);
-	Value* r = rhs->evaluate(pv,registers);
+	Value* l = lhs->evaluate(pv);
+	Value* r = rhs->evaluate(pv);
 	
 	if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Int)
 	{
@@ -1751,10 +1745,10 @@ GreaterThan_Expression::~GreaterThan_Expression()
 	rhs = nullptr;
 }
 
-Value* GreaterThan_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* GreaterThan_Expression::evaluate(ScriptingVariables& pv)
 {
-	Value* l = lhs->evaluate(pv,registers);
-	Value* r = rhs->evaluate(pv,registers);
+	Value* l = lhs->evaluate(pv);
+	Value* r = rhs->evaluate(pv);
 	
 	if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Int)
 	{
@@ -1825,10 +1819,10 @@ LessThanEqual_Expression::~LessThanEqual_Expression()
 	rhs = nullptr;
 }
 
-Value* LessThanEqual_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* LessThanEqual_Expression::evaluate(ScriptingVariables& pv)
 {
-	Value* l = lhs->evaluate(pv,registers);
-	Value* r = rhs->evaluate(pv,registers);
+	Value* l = lhs->evaluate(pv);
+	Value* r = rhs->evaluate(pv);
 	
 	if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Int)
 	{
@@ -1899,10 +1893,10 @@ GreaterThanEqual_Expression::~GreaterThanEqual_Expression()
 	rhs = nullptr;
 }
 
-Value* GreaterThanEqual_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* GreaterThanEqual_Expression::evaluate(ScriptingVariables& pv)
 {
-	Value* l = lhs->evaluate(pv,registers);
-	Value* r = rhs->evaluate(pv,registers);
+	Value* l = lhs->evaluate(pv);
+	Value* r = rhs->evaluate(pv);
 	
 	if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Int)
 	{
@@ -1973,10 +1967,10 @@ Equal_Expression::~Equal_Expression()
 	rhs = nullptr;
 }
 
-Value* Equal_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* Equal_Expression::evaluate(ScriptingVariables& pv)
 {
-	Value* l = lhs->evaluate(pv,registers);
-	Value* r = rhs->evaluate(pv,registers);
+	Value* l = lhs->evaluate(pv);
+	Value* r = rhs->evaluate(pv);
 	
 	if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Int)
 	{
@@ -2065,10 +2059,10 @@ NotEqual_Expression::~NotEqual_Expression()
 	rhs = nullptr;
 }
 
-Value* NotEqual_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* NotEqual_Expression::evaluate(ScriptingVariables& pv)
 {
-	Value* l = lhs->evaluate(pv,registers);
-	Value* r = rhs->evaluate(pv,registers);
+	Value* l = lhs->evaluate(pv);
+	Value* r = rhs->evaluate(pv);
 	
 	if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Int)
 	{
@@ -2162,11 +2156,11 @@ Between_Expression::~Between_Expression()
 	upper_limit = nullptr;
 }
 
-Value* Between_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* Between_Expression::evaluate(ScriptingVariables& pv)
 {
-	Value* v = val->evaluate(pv,registers);
-	Value* l = lower_limit->evaluate(pv,registers);
-	Value* r = upper_limit->evaluate(pv,registers);
+	Value* v = val->evaluate(pv);
+	Value* l = lower_limit->evaluate(pv);
+	Value* r = upper_limit->evaluate(pv);
 	
 	if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Int && v->type == Value::Value_Type::Int)
 	{
@@ -2274,7 +2268,7 @@ FEOIR_Expression::~FEOIR_Expression()
 	}
 }
 
-Value* FEOIR_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* FEOIR_Expression::evaluate(ScriptingVariables& pv)
 {
 	Value* v;
 	for (unsigned i = 0; i < pv.current_room.objects.size(); ++i)
@@ -2283,7 +2277,7 @@ Value* FEOIR_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* r
 		
 		for (unsigned j = 0; j < args.size(); ++j)
 		{
-			v = args[j]->evaluate(pv,registers);
+			v = args[j]->evaluate(pv);
 			
 			#ifdef DEBUG
 				if (v->type == Value::Value_Type::Error)
@@ -2332,12 +2326,12 @@ Attack_Expression::~Attack_Expression()
 	far_front = nullptr;
 }
 
-Value* Attack_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* Attack_Expression::evaluate(ScriptingVariables& pv)
 {
-	Value* l = left->evaluate(pv,registers);
-	Value* r = right->evaluate(pv,registers);
-	Value* f = front->evaluate(pv,registers);
-	Value* ff = far_front->evaluate(pv,registers);
+	Value* l = left->evaluate(pv);
+	Value* r = right->evaluate(pv);
+	Value* f = front->evaluate(pv);
+	Value* ff = far_front->evaluate(pv);
 	
 	if (l->type != r->type || l->type != f->type || l->type != ff->type || l->type != Value::Value_Type::Bool)
 	{
@@ -2401,12 +2395,12 @@ Defend_Expression::~Defend_Expression()
 	far_front = nullptr;
 }
 
-Value* Defend_Expression::evaluate(ScriptingVariables& pv, std::vector<Value*>* registers)
+Value* Defend_Expression::evaluate(ScriptingVariables& pv)
 {
-	Value* l = left->evaluate(pv,registers);
-	Value* r = right->evaluate(pv,registers);
-	Value* f = front->evaluate(pv,registers);
-	Value* ff = far_front->evaluate(pv,registers);
+	Value* l = left->evaluate(pv);
+	Value* r = right->evaluate(pv);
+	Value* f = front->evaluate(pv);
+	Value* ff = far_front->evaluate(pv);
 	
 	if (l->type != r->type || l->type != f->type || l->type != ff->type || l->type != Value::Value_Type::Bool)
 	{
