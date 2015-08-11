@@ -14,21 +14,66 @@
 	#include "Log.hpp"
 #endif
 
+void init(Console& console)
+{
+	//some all-purpose frames
+	Console::Frame f("text_box",console.get_height() - 2, console.get_width(), 0,0,false, false, true);
+	Console::Frame lower_bar_frame("lower_bar",2,console.get_width(), console.get_height() - 2, 0, true, false, false);
+	Console::Frame echo_frame("echo",2,console.get_width(), console.get_height() - 1, 0, true, false, false);
+	
+	//the Main Menu frameset
+	Console::FrameSet main_menu("main_menu");
+	main_menu.add_frame(f);
+	main_menu.add_frame(lower_bar_frame);
+	int echo_frame_index = main_menu.add_frame(echo_frame);
+	main_menu.set_echo_frame(echo_frame_index, Console::Color::White, Console::Color::Black);
+	main_menu.set_echo_text("");
+	main_menu.set_command_history_enabled(true);
+	
+	//the New Game frameset
+	Console::FrameSet new_game("new_game");
+	new_game.add_frame(f);
+	new_game.add_frame(lower_bar_frame);
+	echo_frame_index = new_game.add_frame(echo_frame);
+	new_game.set_echo_frame(echo_frame_index, Console::Color::White, Console::Color::Black);
+	new_game.set_echo_text("");
+	new_game.set_command_history_enabled(true);
+	
+	//the Continue Game frameset
+	Console::FrameSet continue_game("continue_game");
+	continue_game.add_frame(f);
+	continue_game.add_frame(lower_bar_frame);
+	echo_frame_index = continue_game.add_frame(echo_frame);
+	continue_game.set_echo_frame(echo_frame_index, Console::Color::White, Console::Color::Black);
+	continue_game.set_echo_text("");
+	continue_game.set_command_history_enabled(true);
+	
+	//the In Game frameset
+	Console::FrameSet in_game("in_game");
+	f.width -= 10;
+	in_game.add_frame(f);
+	in_game.add_frame(lower_bar_frame);
+	echo_frame_index = in_game.add_frame(echo_frame);
+	in_game.set_echo_frame(echo_frame_index, Console::Color::White, Console::Color::Black);
+	
+	Console::Frame minimap_frame("minimap",10,10,0,f.width,false,false,false);
+	Console::Frame NPC_frame("NPC",6,10,10,f.width,false,false,false);
+	Console::Frame inventory_frame("inventory",f.height - 16, 10, 16, f.width, false, false, false);
+	in_game.add_frame(minimap_frame);
+	in_game.add_frame(NPC_frame);
+	in_game.add_frame(inventory_frame);
+	
+	in_game.set_command_history_enabled(false);
+	
+	//add the framesets to the console
+	console.add_frameset(main_menu);
+	console.add_frameset(new_game);
+	console.add_frameset(continue_game);
+	console.add_frameset(in_game);
+}
+
 void game_loop(Console& console)
 {
-	//set up the console frames
-	int tw = console.get_width() - 10;
-	int text_box_frame = console.add_frame(console.get_height() - 2, tw, 0, 0, false, false, true);
-	int minimap_frame = console.add_frame(10, 10, 0, tw, false, false, false);
-	int NPC_frame = console.add_frame(6, 10, 10, tw, false, false, false);
-	int inventory_frame = console.add_frame(console.get_height() - 18, 10, 16, tw, false, false, false);
-	int lower_bar_frame = console.add_frame(1, -1, console.get_height() - 2, 0, true, false, false);
-	int echo_frame = console.add_frame(1, -1, console.get_height() - 1, 0, true, false, false);
-	
-	//set up the console echo frame (where the user input is displayed until ENTER is hit)
-	console.set_echo_frame(echo_frame);
-	console.set_echo_colors(Console::Color::White, Console::Color::Black);
-
 	//set up the timing stuff
 	auto start_time = std::chrono::high_resolution_clock::now();
 	unsigned long mcount = 0;
@@ -46,7 +91,7 @@ void game_loop(Console& console)
 	gs.main_text_dirty_flag = true;
 	gs.frames_elapsed = 0;
 	gs.menu_transition = true;
-	//*
+	/*
 	gs.level = new Level(9,9);
 	
 	//Debugging, create dummy level
@@ -226,7 +271,7 @@ void game_loop(Console& console)
 	//set up our systems
 	InputSystem input_system;
 	UpdateSystem update_system(gs);
-	DrawSystem draw_system(text_box_frame, lower_bar_frame, minimap_frame, NPC_frame, inventory_frame);
+	DrawSystem draw_system;
 	
 	//loop until something calls 'break'
 	for(int counter = 0;;++counter)
@@ -264,6 +309,8 @@ int main()
 {
 	//set up the console with the settings we want
 	Console console;
+	
+	init(console);
 	
 	game_loop(console);
 	

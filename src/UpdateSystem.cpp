@@ -33,7 +33,7 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 				Serialize::to_file("savedgame.tsf", gs);
 			}
 		
-			console.clear();
+			console.get_current_frameset().clear();
 			gs.main_text = "Please enter the number of your choice then press <fg=red>ENTER<fg=white>.\n";
 			gs.main_text += "1. New Game\n";
 			gs.main_text += "2. Continue Game\n";
@@ -54,6 +54,7 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 			Serialize::from_file("newgame.tsf", gs);
 			menu_transition = true;
 			gs.menu_index = UI_State::In_Game;
+			console.switch_to_frameset(console.get_frameset_by_name("in_game"));
 		}
 	}
 	else if (current_menu == UI_State::Load_Game)
@@ -63,13 +64,14 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 		Serialize::from_file("savedgame.tsf",gs);
 		menu_transition = true;
 		gs.menu_index = UI_State::In_Game;
+		console.switch_to_frameset(console.get_frameset_by_name("in_game"));
 	}
 	else if (current_menu == UI_State::In_Game)//the actual game
 	{
 		if (menu_transition)
 		{
 			menu_transition = false;
-			console.clear();
+			console.get_current_frameset().clear();
 			gs.main_text = "<fg=Red>Welcome! <fg=white>Type your command then press ENTER.\n";
 			gs.main_text_dirty_flag = true;
 		}

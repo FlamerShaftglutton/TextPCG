@@ -5,67 +5,66 @@
 #include <string>
 #include <utility>
 
-DrawSystem::DrawSystem(int text_box_f, int lower_bar_f, int minimap_f, int NPC_f, int inventory_f)
-{
-	text_box_frame = text_box_f;
-	lower_bar_frame = lower_bar_f;
-	minimap_frame = minimap_f;
-	NPC_frame = NPC_f;
-	inventory_frame = inventory_f;
-}
-
 void DrawSystem::do_work(Console& console, GameState& gs)
 {
+	Console::FrameSet& fs = console.get_current_frameset();
+	int text_box_frame = fs.get_frame_index_by_name("text_box"), 
+		lower_bar_frame = fs.get_frame_index_by_name("lower_bar"), 
+		minimap_frame = fs.get_frame_index_by_name("minimap"), 
+		NPC_frame = fs.get_frame_index_by_name("NPC"), 
+		inventory_frame = fs.get_frame_index_by_name("inventory");
+	
+
 	//if the main text window got new text, redraw it
 	if (gs.main_text_dirty_flag)
 	{
 		//recalculate the string
 		gs.main_text_dirty_flag = false;
-		gs.main_text = console.get_last_n_lines(gs.main_text,console.get_height(text_box_frame),text_box_frame);
+		gs.main_text = Console::get_last_n_lines(gs.main_text,fs[text_box_frame].height,fs[text_box_frame].width,fs[text_box_frame].word_wrap);
 		
 		//change color and write out the text-box stuff
-		console.set_fgcolor(Console::Color::White);
-		console.set_bgcolor(Console::Color::Black);
-		console.write_string(0,0,gs.main_text,text_box_frame);
+		fs.set_fgcolor(Console::Color::White);
+		fs.set_bgcolor(Console::Color::Black);
+		fs.write_string(0,0,gs.main_text,text_box_frame);
 	}
 	
 	//draw the borders for any menu
-	console.set_fgcolor(Console::Color::White);
-	console.set_bgcolor(Console::Color::Blue);
+	fs.set_fgcolor(Console::Color::White);
+	fs.set_bgcolor(Console::Color::Blue);
 	outline_frame(console,lower_bar_frame,true,false,false,false);
 	
 	if (gs.menu_index == UI_State::In_Game)
 	{
 		//write the frame count for debugging
 		#ifdef DEBUG
-			console.write_string(9,0,StringUtils::to_string(gs.frames_elapsed),minimap_frame);
+			fs.write_string(9,0,StringUtils::to_string(gs.frames_elapsed),minimap_frame);
 		#endif
 		
 		//display some status bar text
 		int player_health = gs.level->get_object(gs.playable_character)->hitpoints;
 		std::string color = player_health < 30 ? "red" : "white";
-		console.write_string(0,0,"<fg=" + color + ">Health: " + StringUtils::to_string(player_health) + "%",lower_bar_frame);
+		fs.write_string(0,0,"<fg=" + color + ">Health: " + StringUtils::to_string(player_health) + "%",lower_bar_frame);
 		
 		//draw the minimap frame
-		draw_minimap(console,gs);
+		draw_minimap(console,gs,minimap_frame);
 		
 		//draw the NPC frame
-		draw_NPCs(console,gs);
+		draw_NPCs(console,gs,NPC_frame);
 		
 		//draw the inventory frame
-		draw_inventory(console,gs);
+		draw_inventory(console,gs,inventory_frame);
 	}
 	
 	//change color and write out the text-box stuff
-	console.set_fgcolor(Console::Color::White);
-	console.set_bgcolor(Console::Color::Black);
-	console.write_string(0,0,gs.main_text,text_box_frame);
+	fs.set_fgcolor(Console::Color::White);
+	fs.set_bgcolor(Console::Color::Black);
+	fs.write_string(0,0,gs.main_text,text_box_frame);
 	
 	//refresh the console to display the changes
-	console.refresh();
+	fs.refresh();
 }
 
-void DrawSystem::draw_minimap(Console& console, GameState& gs)
+void DrawSystem::draw_minimap(Console& console, GameState& gs, int minimap_frame)
 {
 	//draw the minimap
 	std::string symbols[9][9];
@@ -166,18 +165,20 @@ void DrawSystem::draw_minimap(Console& console, GameState& gs)
 	}
 	
 	//actually draw the minimap
-	console.write_string(0,1,mm,minimap_frame);
+	Console::FrameSet& fs = console.get_current_frameset();
+	fs.write_string(0,1,mm,minimap_frame);
 	
 	//finally, draw the borders
-	console.set_bgcolor(Console::Color::Blue);
+	fs.set_bgcolor(Console::Color::Blue);
 	outline_frame(console,minimap_frame,false,true,true,false);
 }
 
-void DrawSystem::draw_NPCs(Console& console, GameState& gs)
+void DrawSystem::draw_NPCs(Console& console, GameState& gs, int NPC_frame)
 {
 	//first, clear out the old text
-	console.set_bgcolor(Console::Color::Black);
-	console.clear(NPC_frame);
+	Console::FrameSet& fs = console.get_current_frameset();
+	fs.set_bgcolor(Console::Color::Black);
+	fs.clear(NPC_frame);
 
 	//now get the NPCs for the current room (including color tags)
 	Room* r = gs.level->get_room(gs.level->get_object(gs.playable_character)->room_container);
@@ -194,34 +195,35 @@ void DrawSystem::draw_NPCs(Console& console, GameState& gs)
 	}
 	
 	//if there are too many, say "+ X others"
-	if ((int)content.size() > console.get_height(NPC_frame) - 1)
+	if ((int)content.size() > fs[NPC_frame].height - 1)
 	{
 		int i;
-		for (i = 0; i < console.get_height(NPC_frame) - 2; ++i)
+		for (i = 0; i < fs[NPC_frame].height - 2; ++i)
 		{
-			console.write_string(i,1,content[i],NPC_frame);
+			fs.write_string(i,1,content[i],NPC_frame);
 		}
-		console.write_string(i, 1, "+ " + StringUtils::to_string(1 + (int)content.size() - i) + " others", NPC_frame);
+		fs.write_string(i, 1, "+ " + StringUtils::to_string(1 + (int)content.size() - i) + " others", NPC_frame);
 	}
 	//if there aren't too many, draw the names!
 	else
 	{
 		for (unsigned i = 0; i < content.size(); ++i)
 		{
-			console.write_string(i,1,content[i],NPC_frame);
+			fs.write_string(i,1,content[i],NPC_frame);
 		}
 	}
 	
 	//draw the border
-	console.set_bgcolor(Console::Color::Blue);
+	fs.set_bgcolor(Console::Color::Blue);
 	outline_frame(console,NPC_frame,false,true,true,false);
 }
 
-void DrawSystem::draw_inventory(Console& console, GameState& gs)
+void DrawSystem::draw_inventory(Console& console, GameState& gs, int inventory_frame)
 {
 	//first, clear out the old text
-	console.set_bgcolor(Console::Color::Black);
-	console.clear(inventory_frame);
+	Console::FrameSet& fs = console.get_current_frameset();
+	fs.set_bgcolor(Console::Color::Black);
+	fs.clear(inventory_frame);
 
 	//now get the inventory
 	Object* player = gs.level->get_object(gs.playable_character);
@@ -235,45 +237,46 @@ void DrawSystem::draw_inventory(Console& console, GameState& gs)
 	}
 	
 	//if there are too many, say "+ X others"
-	if ((int)content.size() > console.get_height(inventory_frame) - 1)
+	if ((int)content.size() > fs[inventory_frame].height - 1)
 	{
 		int i;
-		for (i = 0; i < console.get_height(inventory_frame) - 2; ++i)
+		for (i = 0; i < fs[inventory_frame].height - 2; ++i)
 		{
-			console.write_string(i,1,content[i],inventory_frame);
+			fs.write_string(i,1,content[i],inventory_frame);
 		}
-		console.write_string(i, 1, "+ " + StringUtils::to_string(1 + (int)content.size() - i) + " others", inventory_frame);
+		fs.write_string(i, 1, "+ " + StringUtils::to_string(1 + (int)content.size() - i) + " others", inventory_frame);
 	}
 	//if there aren't too many, draw the names!
 	else
 	{
 		for (unsigned i = 0; i < content.size(); ++i)
 		{
-			console.write_string(i,1,content[i],inventory_frame);
+			fs.write_string(i,1,content[i],inventory_frame);
 		}
 	}
 	
 	//draw the border
-	console.set_bgcolor(Console::Color::Blue);
+	fs.set_bgcolor(Console::Color::Blue);
 	outline_frame(console,inventory_frame,false,false,true,false);
 }
 
 void DrawSystem::outline_frame(Console& console, int frame, bool top, bool bottom, bool left, bool right)
 {
-	for (int i = 0; i < console.get_width(frame); ++i)
+	Console::FrameSet& fs = console.get_current_frameset();
+	for (int i = 0; i < fs[frame].width; ++i)
 	{
 		if (top)
-			console.write_character(0,i,' ',frame);
+			fs.write_character(0, i, ' ', frame);
 		
 		if (bottom)
-			console.write_character(console.get_height(frame) - 1, i, ' ', frame);
+			fs.write_character(fs[frame].height - 1, i, ' ', frame);
 	}
 	
-	for (int i = 0; i < console.get_height(frame); ++i)
+	for (int i = 0; i < fs[frame].height; ++i)
 	{
 		if (left)
-			console.write_character(i,0,' ',frame);
+			fs.write_character(i, 0, ' ', frame);
 		if (right)
-			console.write_character(i,console.get_width(frame)-1,' ',frame);
+			fs.write_character(i, fs[frame].width - 1, ' ', frame);
 	}
 }

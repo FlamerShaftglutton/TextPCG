@@ -287,6 +287,7 @@ void InputSystem::do_work(Console& console, GameState& gs)
 			{
 				gs.menu_index = UI_State::Main_Menu;
 				gs.menu_transition = true;
+				console.switch_to_frameset(console.get_frameset_by_name("main_menu"));
 			}
 		}
 		else if (gs.menu_index == UI_State::Main_Menu)//main menu
@@ -295,16 +296,19 @@ void InputSystem::do_work(Console& console, GameState& gs)
 			{
 				gs.menu_index = UI_State::New_Game;
 				gs.menu_transition = true;
+				console.switch_to_frameset(console.get_frameset_by_name("new_game"));
 			}
 			else if (lower_input == "2") //Continue Game
 			{
 				gs.menu_index = UI_State::Load_Game;
 				gs.menu_transition = true;
+				console.switch_to_frameset(console.get_frameset_by_name("continue_game"));
 			}
 			else if (lower_input == "3") //Restart Game
 			{
 				gs.menu_index = UI_State::New_Game;//change this later
 				gs.menu_transition = true;
+				console.switch_to_frameset(console.get_frameset_by_name("new_game"));
 			}
 			else if (lower_input == "4") //Quit
 			{
