@@ -2,7 +2,7 @@
 #include <vector>
 #include <string>
 #include "Handle.hpp"
-#include "combat_data.hpp"
+#include "CombatData.hpp"
 
 struct ObjectMap
 {

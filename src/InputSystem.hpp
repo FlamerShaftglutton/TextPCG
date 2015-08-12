@@ -1,7 +1,6 @@
 #pragma once
 #include "System.hpp"
-#include "Console.hpp"
-#include "GameState.hpp"
+#include "Handle.hpp"
 #include <string>
 
 class InputSystem : public System

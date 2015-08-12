@@ -2,8 +2,11 @@
 #include "Handle.hpp"
 #include <vector>
 #include <string>
-#include "ScriptingVariables.hpp"
-#include "Expression.hpp"
+
+//forward declarations
+class Expression;
+struct GameState;
+struct Value;
 
 //Script stuff
 typedef std::vector<Value*> Register;
@@ -18,7 +21,7 @@ public:
 	Script(std::string script, Register* regs);
 	~Script();
 	std::string to_string();
-	void evaluate(ScriptingVariables& pv);
+	void evaluate(GameState& pv, ECS::Handle caller);
 };
 
 class ScriptSet
@@ -36,8 +39,8 @@ public:
 	void construct(std::string on_creation, std::string on_sight, std::string on_use, std::string on_attack_step);
 	
 	void execute_on_creation();
-	void execute_on_sight(ScriptingVariables& pv);
-	void execute_on_use(ScriptingVariables& pv);
-	void execute_on_attack_step(ScriptingVariables& pv);
+	void execute_on_sight(GameState& pv, ECS::Handle caller);
+	void execute_on_use(GameState& pv, ECS::Handle caller);
+	void execute_on_attack_step(GameState& pv, ECS::Handle caller);
 	std::string to_string();
 };

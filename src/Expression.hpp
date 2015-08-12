@@ -1,8 +1,10 @@
 #pragma once
 #include <vector>
 #include <string>
-#include "ScriptingVariables.hpp"
+#include "Handle.hpp"
 
+//some forward declarations
+struct GameState;
 class Value;
 
 //an Expression interface
@@ -11,7 +13,7 @@ class Expression
 public:
 	virtual ~Expression() = default;
 	virtual bool construct(std::vector<Expression*> arguments) = 0;
-	virtual Value* evaluate(ScriptingVariables& pv) = 0;
+	virtual Value* evaluate(GameState& gs, ECS::Handle caller) = 0;
 };
 
 //a value class
@@ -37,7 +39,7 @@ public:
 	} type;
 	
 	bool construct(std::vector<Expression*> arguments) override;
-	Value* evaluate(ScriptingVariables& pv) override;
+	Value* evaluate(GameState& gs, ECS::Handle caller) override;
 	std::string to_string();
 };
 
@@ -47,7 +49,7 @@ class Choose_Expression: public Expression
 	std::vector<Expression*> args;
 public:
 	bool construct(std::vector<Expression*> arguments) override;
-	Value* evaluate(ScriptingVariables& pv) override;
+	Value* evaluate(GameState& gs, ECS::Handle caller) override;
 	~Choose_Expression();
 };
 
@@ -57,7 +59,7 @@ class Random_Expression: public Expression
 	Expression* upper_limit;
 public:
 	bool construct(std::vector<Expression*> arguments) override;
-	Value* evaluate(ScriptingVariables& pv) override;
+	Value* evaluate(GameState& gs, ECS::Handle caller) override;
 	~Random_Expression();
 };
 
@@ -68,7 +70,7 @@ class Set_Register_Expression: public Expression
 public:
 	Set_Register_Expression(Value* register_val, Expression* arg);
 	bool construct(std::vector<Expression*> arguments) override;
-	Value* evaluate(ScriptingVariables& pv) override;
+	Value* evaluate(GameState& gs, ECS::Handle caller) override;
 	~Set_Register_Expression();
 };
 
@@ -78,7 +80,7 @@ class Get_Register_Expression: public Expression
 public:
 	Get_Register_Expression(Value* register_val);
 	bool construct(std::vector<Expression*> arguments) override;
-	Value* evaluate(ScriptingVariables& pv) override;
+	Value* evaluate(GameState& gs, ECS::Handle caller) override;
 };
 
 enum class Expression_Variable_Global
@@ -118,8 +120,7 @@ enum class Expression_Variable_Object
 	attack,
 	hit_chance,
 	description,
-	name,
-	destroyed
+	name
 };
 
 enum class Expression_Variable_Combat
@@ -155,7 +156,7 @@ protected:
 public:
 	Variable_Expression(std::string vname);
 	bool construct(std::vector<Expression*> arguments) = 0;
-	Value* evaluate(ScriptingVariables& pv) = 0;
+	Value* evaluate(GameState& gs, ECS::Handle caller) = 0;
 };
 
 class Set_Variable_Expression: public Variable_Expression
@@ -164,7 +165,7 @@ class Set_Variable_Expression: public Variable_Expression
 public:
 	Set_Variable_Expression(std::string vname, Expression* arg);
 	bool construct(std::vector<Expression*> arguments) override;
-	Value* evaluate(ScriptingVariables& pv) override;
+	Value* evaluate(GameState& gs, ECS::Handle caller) override;
 	~Set_Variable_Expression();
 };
 
@@ -173,7 +174,7 @@ class Get_Variable_Expression: public Variable_Expression
 public:
 	Get_Variable_Expression(std::string vname);
 	bool construct(std::vector<Expression*> arguments) override;
-	Value* evaluate(ScriptingVariables& pv) override;
+	Value* evaluate(GameState& gs, ECS::Handle caller) override;
 };
 
 class Add_Expression: public Expression
@@ -181,7 +182,7 @@ class Add_Expression: public Expression
 	std::vector<Expression*> args;
 public:
 	bool construct(std::vector<Expression*> arguments) override;
-	Value* evaluate(ScriptingVariables& pv) override;
+	Value* evaluate(GameState& gs, ECS::Handle caller) override;
 	~Add_Expression();
 };
 
@@ -191,7 +192,7 @@ class Subtract_Expression: public Expression
 	Expression* rhs;
 public:
 	bool construct(std::vector<Expression*> arguments) override;
-	Value* evaluate(ScriptingVariables& pv) override;
+	Value* evaluate(GameState& gs, ECS::Handle caller) override;
 	~Subtract_Expression();
 };
 
@@ -201,7 +202,7 @@ class Multiply_Expression: public Expression
 	Expression* rhs;
 public:
 	bool construct(std::vector<Expression*> arguments) override;
-	Value* evaluate(ScriptingVariables& pv) override;
+	Value* evaluate(GameState& gs, ECS::Handle caller) override;
 	~Multiply_Expression();
 };
 
@@ -211,7 +212,7 @@ class Divide_Expression: public Expression
 	Expression* rhs;
 public:
 	bool construct(std::vector<Expression*> arguments) override;
-	Value* evaluate(ScriptingVariables& pv) override;
+	Value* evaluate(GameState& gs, ECS::Handle caller) override;
 	~Divide_Expression();
 };
 
@@ -221,7 +222,7 @@ class Power_Expression: public Expression
 	Expression* rhs;
 public:
 	bool construct(std::vector<Expression*> arguments) override;
-	Value* evaluate(ScriptingVariables& pv) override;
+	Value* evaluate(GameState& gs, ECS::Handle caller) override;
 	~Power_Expression();
 };
 
@@ -230,7 +231,7 @@ class Min_Expression: public Expression
 	std::vector<Expression*> args;
 public:
 	bool construct(std::vector<Expression*> arguments) override;
-	Value* evaluate(ScriptingVariables& pv) override;
+	Value* evaluate(GameState& gs, ECS::Handle caller) override;
 	~Min_Expression();
 };
 
@@ -239,7 +240,7 @@ class Max_Expression: public Expression
 	std::vector<Expression*> args;
 public:
 	bool construct(std::vector<Expression*> arguments) override;
-	Value* evaluate(ScriptingVariables& pv) override;
+	Value* evaluate(GameState& gs, ECS::Handle caller) override;
 	~Max_Expression();
 };
 
@@ -248,7 +249,7 @@ class Say_Expression : public Expression
 	Expression* arg;
 public:
 	bool construct(std::vector<Expression*> arguments) override;
-	Value* evaluate(ScriptingVariables& pv) override;
+	Value* evaluate(GameState& gs, ECS::Handle caller) override;
 	~Say_Expression();
 };
 
@@ -259,7 +260,7 @@ class If_Expression : public Expression
 	Expression* if_false;
 public:
 	bool construct(std::vector<Expression*> arguments) override;
-	Value* evaluate(ScriptingVariables& pv) override;
+	Value* evaluate(GameState& gs, ECS::Handle caller) override;
 	~If_Expression();
 };
 
@@ -268,7 +269,7 @@ class And_Expression : public Expression
 	std::vector<Expression*> args;
 public:
 	bool construct(std::vector<Expression*> arguments) override;
-	Value* evaluate(ScriptingVariables& pv) override;
+	Value* evaluate(GameState& gs, ECS::Handle caller) override;
 	~And_Expression();
 };
 
@@ -277,7 +278,7 @@ class Not_Expression : public Expression
  	Expression* arg;
 public:
  	bool construct(std::vector<Expression*> arguments) override;
- 	Value* evaluate(ScriptingVariables& pv) override;
+ 	Value* evaluate(GameState& gs, ECS::Handle caller) override;
  	~Not_Expression(); 
 };
 class Or_Expression : public Expression
@@ -285,7 +286,7 @@ class Or_Expression : public Expression
  	std::vector<Expression*> args;
 public:
  	bool construct(std::vector<Expression*> arguments) override;
- 	Value* evaluate(ScriptingVariables& pv) override;
+ 	Value* evaluate(GameState& gs, ECS::Handle caller) override;
  	~Or_Expression(); 
 };
 class Xor_Expression : public Expression
@@ -294,7 +295,7 @@ class Xor_Expression : public Expression
 	Expression* rhs;
 public:
  	bool construct(std::vector<Expression*> arguments) override;
- 	Value* evaluate(ScriptingVariables& pv) override;
+ 	Value* evaluate(GameState& gs, ECS::Handle caller) override;
  	~Xor_Expression(); 
 };
 class LessThan_Expression : public Expression
@@ -303,7 +304,7 @@ class LessThan_Expression : public Expression
 	Expression* rhs;
 public:
  	bool construct(std::vector<Expression*> arguments) override;
- 	Value* evaluate(ScriptingVariables& pv) override;
+ 	Value* evaluate(GameState& gs, ECS::Handle caller) override;
  	~LessThan_Expression(); 
 };
 class GreaterThan_Expression : public Expression
@@ -312,7 +313,7 @@ class GreaterThan_Expression : public Expression
 	Expression* rhs;
 public:
  	bool construct(std::vector<Expression*> arguments) override;
- 	Value* evaluate(ScriptingVariables& pv) override;
+ 	Value* evaluate(GameState& gs, ECS::Handle caller) override;
  	~GreaterThan_Expression(); 
 };
 class LessThanEqual_Expression : public Expression
@@ -321,7 +322,7 @@ class LessThanEqual_Expression : public Expression
 	Expression* rhs;
 public:
  	bool construct(std::vector<Expression*> arguments) override;
- 	Value* evaluate(ScriptingVariables& pv) override;
+ 	Value* evaluate(GameState& gs, ECS::Handle caller) override;
  	~LessThanEqual_Expression(); 
 };
 class GreaterThanEqual_Expression : public Expression
@@ -330,7 +331,7 @@ class GreaterThanEqual_Expression : public Expression
 	Expression* rhs;
 public:
  	bool construct(std::vector<Expression*> arguments) override;
- 	Value* evaluate(ScriptingVariables& pv) override;
+ 	Value* evaluate(GameState& gs, ECS::Handle caller) override;
  	~GreaterThanEqual_Expression();
 };
 class Equal_Expression : public Expression
@@ -339,7 +340,7 @@ class Equal_Expression : public Expression
 	Expression* rhs;
 public:
  	bool construct(std::vector<Expression*> arguments) override;
- 	Value* evaluate(ScriptingVariables& pv) override;
+ 	Value* evaluate(GameState& gs, ECS::Handle caller) override;
  	~Equal_Expression();
 };
 class NotEqual_Expression : public Expression
@@ -348,7 +349,7 @@ class NotEqual_Expression : public Expression
 	Expression* rhs;
 public:
  	bool construct(std::vector<Expression*> arguments) override;
- 	Value* evaluate(ScriptingVariables& pv) override;
+ 	Value* evaluate(GameState& gs, ECS::Handle caller) override;
  	~NotEqual_Expression();
 };
 class Between_Expression : public Expression
@@ -358,7 +359,7 @@ class Between_Expression : public Expression
 	Expression* upper_limit;
 public:
  	bool construct(std::vector<Expression*> arguments) override;
- 	Value* evaluate(ScriptingVariables& pv) override;
+ 	Value* evaluate(GameState& gs, ECS::Handle caller) override;
  	~Between_Expression();
 };
 class FEOIR_Expression : public Expression
@@ -366,7 +367,7 @@ class FEOIR_Expression : public Expression
  	std::vector<Expression*> args;
 public:
  	bool construct(std::vector<Expression*> arguments) override;
- 	Value* evaluate(ScriptingVariables& pv) override;
+ 	Value* evaluate(GameState& gs, ECS::Handle caller) override;
  	~FEOIR_Expression();
 };
 class Attack_Expression: public Expression
@@ -377,7 +378,7 @@ class Attack_Expression: public Expression
 	Expression* far_front;
 public:
 	bool construct(std::vector<Expression*> arguments) override;
-	Value* evaluate(ScriptingVariables& pv) override;
+	Value* evaluate(GameState& gs, ECS::Handle caller) override;
 	~Attack_Expression();
 };
 class Defend_Expression: public Expression
@@ -388,6 +389,22 @@ class Defend_Expression: public Expression
 	Expression* far_front;
 public:
 	bool construct(std::vector<Expression*> arguments) override;
-	Value* evaluate(ScriptingVariables& pv) override;
+	Value* evaluate(GameState& gs, ECS::Handle caller) override;
 	~Defend_Expression();
+};
+class Destroy_Expression: public Expression
+{
+	Expression* target;
+public:
+	bool construct(std::vector<Expression*> arguments) override;
+	Value* evaluate(GameState& gs, ECS::Handle caller) override;
+	~Destroy_Expression();
+};
+class Copy_Expression: public Expression
+{
+	Expression* target;
+public:
+	bool construct(std::vector<Expression*> arguments) override;
+	Value* evaluate(GameState& gs, ECS::Handle caller) override;
+	~Copy_Expression();
 };

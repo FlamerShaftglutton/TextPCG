@@ -1,14 +1,16 @@
 #include <string>
 #include <chrono>
 #include "GameState.hpp"
-#include "Console.hpp"
 #include "Level.hpp"
+#include "Room.hpp"
+#include "Object.hpp"
+
+#include "Console.hpp"
 #include "DrawSystem.hpp"
 #include "InputSystem.hpp"
 #include "UpdateSystem.hpp"
 #include "Serialize.hpp"
 #include "string_utils.hpp"
-#include "UIConstants.hpp"
 
 #ifdef DEBUG
 	#include "Log.hpp"
@@ -86,12 +88,10 @@ void game_loop(Console& console)
 	//set up the game state
 	GameState gs;
 	
-	gs.menu_index = UI_State::Main_Menu;
 	gs.main_text = "";
 	gs.main_text_dirty_flag = true;
 	gs.frames_elapsed = 0;
-	gs.menu_transition = true;
-	/*
+	//*
 	gs.level = new Level(9,9);
 	
 	//Debugging, create dummy level
@@ -257,7 +257,7 @@ void game_loop(Console& console)
 		o->description = "A small iron skeleton key. It is covered in small bumps, yet the texture feels smooth.";
 		o->scripts.construct("",
 							 "",
-							 "(if (= (get current_room.handle) " + StringUtils::to_string(gs.level->get_room(3,3)->get_handle()) + ") (+ (set current_room.description \"<fg=red><bg=black>A small, cramped room. On the eastern wall is an unlocked door.\") (set global.main_text (+ (get global.main_text) \"\n\nThe key opens a door to the east.\")) (set current_room.open_e true) (set caller.destroyed true)) (set global.main_text (+ (get global.main_text) \"<fg=white><bg=black>\n\nIt does nothing\")));",
+							 "(if (= (get current_room.handle) " + StringUtils::to_string(gs.level->get_room(3,3)->get_handle()) + ") (+ (set current_room.description \"<fg=red><bg=black>A small, cramped room. On the eastern wall is an unlocked door.\") (set global.main_text (+ (get global.main_text) \"\n\nThe key opens a door to the east.\")) (set current_room.open_e true) (destroy (get caller.handle))) (set global.main_text (+ (get global.main_text) \"<fg=white><bg=black>\n\nIt does nothing\")));",
 							 "");
 		
 		gs.level->get_object(oh)->objects.push_back(o->get_handle());
@@ -280,7 +280,7 @@ void game_loop(Console& console)
 		input_system.do_work(console,gs);
 		
 		//if the user quit, then kill the program
-		if (gs.menu_index == UI_State::Exit)
+		if (console.get_current_frameset_index() < 0)
 			break;
 	
 		//if we're ready for another frame, fill it in!

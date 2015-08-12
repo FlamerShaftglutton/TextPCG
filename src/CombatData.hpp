@@ -17,4 +17,6 @@ struct CombatData
 	
 	bool enemy_vulnerable_sides[4],//indexed with a Position variable
 		 enemy_attacking_sides[4];
+	
+	bool vulnerable_to_attack;//this is a scripting variable used to tell the script that a successful hit is happening.
 };

@@ -268,13 +268,15 @@ Console::FrameSet& Console::get_frameset(int index)
 
 void Console::switch_to_frameset(int index)
 {
-	if (index >= 0 && index < (int)framesets.size())
+	if (index < (int)framesets.size())
 	{
 		frameset_index = index;
 	}
-	
 	#ifdef DEBUG
+	else
+	{
 		Log::write("Warning: tried to access an undefined frameset. Check that the index '" + StringUtils::to_string(index) + "' is valid.");
+	}
 	#endif
 }
 

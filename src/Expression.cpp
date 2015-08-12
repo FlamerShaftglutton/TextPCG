@@ -1,7 +1,11 @@
 #include "Expression.hpp"
 #include <vector>
 #include <string>
-#include "ScriptingVariables.hpp"
+#include "GameState.hpp"
+#include "Level.hpp"
+#include "Room.hpp"
+#include "Object.hpp"
+#include "CombatData.hpp"
 #include "mymath.hpp"
 #include <cmath>
 #include "string_utils.hpp"
@@ -33,7 +37,7 @@ bool Value::construct(std::vector<Expression*> arguments)
 	return true;
 }
 
-Value* Value::evaluate(ScriptingVariables& pv)
+Value* Value::evaluate(GameState& gs, ECS::Handle caller)
 {
 	return copy_value(this);
 }
@@ -72,9 +76,9 @@ Choose_Expression::~Choose_Expression()
 	}
 }
 
-Value* Choose_Expression::evaluate(ScriptingVariables& pv)
+Value* Choose_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
-	Value* index = args[0]->evaluate(pv);
+	Value* index = args[0]->evaluate(gs,caller);
 	int i = index->int_val;
 	
 	if (index->type != Value::Value_Type::Int || i > ((int)args.size() - 2) || i < 0)
@@ -88,7 +92,7 @@ Value* Choose_Expression::evaluate(ScriptingVariables& pv)
 	}
 	
 	delete index;
-	return args[i + 1]->evaluate(pv);
+	return args[i + 1]->evaluate(gs,caller);
 }
 
 
@@ -113,10 +117,10 @@ Random_Expression::~Random_Expression()
 	upper_limit = nullptr;
 }
 
-Value* Random_Expression::evaluate(ScriptingVariables& pv)
+Value* Random_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
-	Value* ll = lower_limit->evaluate(pv);
-	Value* ul = upper_limit->evaluate(pv);
+	Value* ll = lower_limit->evaluate(gs,caller);
+	Value* ul = upper_limit->evaluate(gs,caller);
 	
 	if (ll->type != ul->type || ll->type != Value::Value_Type::Int)
 	{
@@ -155,9 +159,9 @@ Set_Register_Expression::~Set_Register_Expression()
 	argument = nullptr;
 }
 
-Value* Set_Register_Expression::evaluate(ScriptingVariables& pv)
+Value* Set_Register_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
-	Value* v = argument->evaluate(pv);
+	Value* v = argument->evaluate(gs,caller);
 	
 	if (reg != nullptr)
 	{
@@ -184,7 +188,7 @@ bool Get_Register_Expression::construct(std::vector<Expression*> arguments)
 	return true;
 }
 
-Value* Get_Register_Expression::evaluate(ScriptingVariables& pv)
+Value* Get_Register_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
 	if (reg != nullptr)
 	{
@@ -252,8 +256,8 @@ Variable_Expression::Variable_Expression(std::string vname)
 					global_variable = Expression_Variable_Global::object_iterator;
 				}
 				
-				std::vector<std::string> names = {"handle","visible","visible_in_short_description","friendly","mobile","playable","open","holdable","hitpoints","attack","hit_chance","description","name","destroyed"};
-				std::vector<Expression_Variable_Object> values = {Expression_Variable_Object::handle,Expression_Variable_Object::visible,Expression_Variable_Object::visible_in_short_description,Expression_Variable_Object::friendly,Expression_Variable_Object::mobile,Expression_Variable_Object::playable,Expression_Variable_Object::open,Expression_Variable_Object::holdable,Expression_Variable_Object::hitpoints,Expression_Variable_Object::attack,Expression_Variable_Object::hit_chance,Expression_Variable_Object::description,Expression_Variable_Object::name,Expression_Variable_Object::destroyed};
+				std::vector<std::string> names = {"handle","visible","visible_in_short_description","friendly","mobile","playable","open","holdable","hitpoints","attack","hit_chance","description","name"};
+				std::vector<Expression_Variable_Object> values = {Expression_Variable_Object::handle,Expression_Variable_Object::visible,Expression_Variable_Object::visible_in_short_description,Expression_Variable_Object::friendly,Expression_Variable_Object::mobile,Expression_Variable_Object::playable,Expression_Variable_Object::open,Expression_Variable_Object::holdable,Expression_Variable_Object::hitpoints,Expression_Variable_Object::attack,Expression_Variable_Object::hit_chance,Expression_Variable_Object::description,Expression_Variable_Object::name};
 				for (unsigned i = 0; i < names.size(); ++i)
 				{
 					if (c1 == names[i])
@@ -308,9 +312,9 @@ Set_Variable_Expression::~Set_Variable_Expression()
 	argument = nullptr;
 }
 
-Value* Set_Variable_Expression::evaluate(ScriptingVariables& pv)
+Value* Set_Variable_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
-	Value* v = argument->evaluate(pv);
+	Value* v = argument->evaluate(gs,caller);
 	bool correct_type = false;
 	
 	//if it's the global text...
@@ -318,13 +322,15 @@ Value* Set_Variable_Expression::evaluate(ScriptingVariables& pv)
 	{
 		if (v->type == Value::Value_Type::String)
 		{
-			*(pv.main_text) = v->string_val;
+			gs.main_text = v->string_val;
+			gs.main_text_dirty_flag = true;
 			correct_type = true;
 		}
 	}
 	//if it's a room variable for the current_room
 	else if (global_variable == Expression_Variable_Global::current_room)
 	{
+		Room* r = gs.level->get_room(gs.level->get_object(gs.playable_character)->room_container);
 		switch (room_variable)
 		{
 			case Expression_Variable_Room::handle:
@@ -335,21 +341,21 @@ Value* Set_Variable_Expression::evaluate(ScriptingVariables& pv)
 			case Expression_Variable_Room::description: 
 				if (v->type == Value::Value_Type::String)
 				{
-					*(pv.current_room.description) = v->string_val;
+					r->set_description(v->string_val);
 					correct_type = true;
 				}
 				break;
 			case Expression_Variable_Room::short_description:
 				if (v->type == Value::Value_Type::String)
 				{
-					*(pv.current_room.short_description) = v->string_val;
+					r->set_short_description(v->string_val);
 					correct_type = true;
 				}
 				break;
 			case Expression_Variable_Room::minimap_symbol:
 				if (v->type == Value::Value_Type::String)
 				{
-					*(pv.current_room.minimap_symbol) = v->string_val;
+					r->set_minimap_symbol(v->string_val);
 					correct_type = true;
 				}
 				break;
@@ -357,35 +363,35 @@ Value* Set_Variable_Expression::evaluate(ScriptingVariables& pv)
 				break;
 				if (v->type == Value::Value_Type::Bool)
 				{
-					*(pv.current_room.visited) = v->bool_val;
+					r->set_visited(v->bool_val);
 					correct_type = true;
 				}
 				break;
 			case Expression_Variable_Room::open_n:
 				if (v->type == Value::Value_Type::Bool)
 				{
-					*(pv.current_room.open_n) = v->bool_val;
+					r->set_exit(Room::Exit::NORTH, v->bool_val);
 					correct_type = true;
 				}
 				break;
 			case Expression_Variable_Room::open_e:
 				if (v->type == Value::Value_Type::Bool)
 				{
-					*(pv.current_room.open_e) = v->bool_val;
+					r->set_exit(Room::Exit::EAST, v->bool_val);
 					correct_type = true;
 				}
 				break;
 			case Expression_Variable_Room::open_s:
 				if (v->type == Value::Value_Type::Bool)
 				{
-					*(pv.current_room.open_s) = v->bool_val;
+					r->set_exit(Room::Exit::SOUTH, v->bool_val);
 					correct_type = true;
 				}
 				break;
 			case Expression_Variable_Room::open_w:
 				if (v->type == Value::Value_Type::Bool)
 				{
-					*(pv.current_room.open_w) = v->bool_val;
+					r->set_exit(Room::Exit::WEST, v->bool_val);
 					correct_type = true;
 				}
 				break;
@@ -395,7 +401,7 @@ Value* Set_Variable_Expression::evaluate(ScriptingVariables& pv)
 	else if (global_variable == Expression_Variable_Global::combat_data)
 	{
 		//first off, blow up if we aren't in combat right now
-		if (!pv.combat.active)
+		if (gs.combat_data == nullptr)
 		{
 			#ifdef DEBUG
 				Log::write("ERROR:Tried to alter a combat variable outside of combat!");
@@ -411,91 +417,91 @@ Value* Set_Variable_Expression::evaluate(ScriptingVariables& pv)
 				case Expression_Variable_Combat::player_position_left:
 					if (v->type == Value::Value_Type::Bool)
 					{
-						*(pv.combat.player_position) = CombatData::Position::left;
+						gs.combat_data->player_position =  CombatData::Position::left;
 						correct_type = true;
 					}
 					break;
 				case Expression_Variable_Combat::player_position_right:
 					if (v->type == Value::Value_Type::Bool)
 					{
-						*(pv.combat.player_position) = CombatData::Position::right;
+						gs.combat_data->player_position =  CombatData::Position::right;
 						correct_type = true;
 					}
 					break;
 				case Expression_Variable_Combat::player_position_front:
 					if (v->type == Value::Value_Type::Bool)
 					{
-						*(pv.combat.player_position) = CombatData::Position::front;
+						gs.combat_data->player_position =  CombatData::Position::front;
 						correct_type = true;
 					}
 					break;
 				case Expression_Variable_Combat::player_position_far_front:
 					if (v->type == Value::Value_Type::Bool)
 					{
-						*(pv.combat.player_position) = CombatData::Position::far_front;
+						gs.combat_data->player_position =  CombatData::Position::far_front;
 						correct_type = true;
 					}
 					break;
 				case Expression_Variable_Combat::player_attacking:
 					if (v->type == Value::Value_Type::Bool)
 					{
-						*(pv.combat.player_attacking) = v->bool_val;
+						gs.combat_data->player_attacking = v->bool_val;
 						correct_type = true;
 					}
 					break;
 				case Expression_Variable_Combat::vulnerable_left:
 					if (v->type == Value::Value_Type::Bool)
 					{
-						pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::left] = v->bool_val;
+						gs.combat_data->enemy_vulnerable_sides[(int)CombatData::Position::left] = v->bool_val;
 						correct_type = true;
 					}
 					break;
 				case Expression_Variable_Combat::vulnerable_right:
 					if (v->type == Value::Value_Type::Bool)
 					{
-						pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::right] = v->bool_val;
+						gs.combat_data->enemy_vulnerable_sides[(int)CombatData::Position::right] = v->bool_val;
 						correct_type = true;
 					}
 					break;
 				case Expression_Variable_Combat::vulnerable_front:
 					if (v->type == Value::Value_Type::Bool)
 					{
-						pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::front] = v->bool_val;
+						gs.combat_data->enemy_vulnerable_sides[(int)CombatData::Position::front] = v->bool_val;
 						correct_type = true;
 					}
 					break;
 				case Expression_Variable_Combat::vulnerable_far_front:
 					if (v->type == Value::Value_Type::Bool)
 					{
-						pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::far_front] = v->bool_val;
+						gs.combat_data->enemy_vulnerable_sides[(int)CombatData::Position::far_front] = v->bool_val;
 						correct_type = true;
 					}
 					break;
 				case Expression_Variable_Combat::attacking_left:
 					if (v->type == Value::Value_Type::Bool)
 					{
-						pv.combat.enemy_attacking_sides[(int)CombatData::Position::left] = v->bool_val;
+						gs.combat_data->enemy_attacking_sides[(int)CombatData::Position::left] = v->bool_val;
 						correct_type = true;
 					}
 					break;
 				case Expression_Variable_Combat::attacking_right:
 					if (v->type == Value::Value_Type::Bool)
 					{
-						pv.combat.enemy_attacking_sides[(int)CombatData::Position::right] = v->bool_val;
+						gs.combat_data->enemy_attacking_sides[(int)CombatData::Position::right] = v->bool_val;
 						correct_type = true;
 					}
 					break;
 				case Expression_Variable_Combat::attacking_front:
 					if (v->type == Value::Value_Type::Bool)
 					{
-						pv.combat.enemy_attacking_sides[(int)CombatData::Position::front] = v->bool_val;
+						gs.combat_data->enemy_attacking_sides[(int)CombatData::Position::front] = v->bool_val;
 						correct_type = true;
 					}
 					break;
 				case Expression_Variable_Combat::attacking_far_front:
 					if (v->type == Value::Value_Type::Bool)
 					{
-						pv.combat.enemy_attacking_sides[(int)CombatData::Position::far_front] = v->bool_val;
+						gs.combat_data->enemy_attacking_sides[(int)CombatData::Position::far_front] = v->bool_val;
 						correct_type = true;
 					}
 					break;
@@ -511,42 +517,42 @@ Value* Set_Variable_Expression::evaluate(ScriptingVariables& pv)
 	else
 	{
 		//which object?
-		ObjectMap& om = global_variable == Expression_Variable_Global::caller ? pv.caller : global_variable == Expression_Variable_Global::player ? pv.player : pv.object_iterator;
+		Object* om = global_variable == Expression_Variable_Global::caller ? gs.level->get_object(caller) : global_variable == Expression_Variable_Global::player ? gs.level->get_object(gs.playable_character) : nullptr;//pv.object_iterator;//TODO: fix iteration!
 		
 		//which field?
 		switch (object_variable)
 		{
 			case Expression_Variable_Object::handle:
 				#ifdef DEBUG
-					Log::write("ERROR: Set function tried to set the <object>.hanlde field, which is read-only. Nothing changed.");
+					Log::write("ERROR: Set function tried to set the <object>.handle field, which is read-only. Nothing changed.");
 				#endif
 				break;
 			case Expression_Variable_Object::visible:
 				if (v->type == Value::Value_Type::Bool)
 				{
 					correct_type = true;
-					*(om.visible) = v->bool_val;
+					om->visible = v->bool_val;
 				}
 				break;
 			case Expression_Variable_Object::visible_in_short_description:
 				if (v->type == Value::Value_Type::Bool)
 				{
 					correct_type = true;
-					*(om.visible_in_short_description) = v->bool_val;
+					om->visible_in_short_description = v->bool_val;
 				}
 				break;
 			case Expression_Variable_Object::friendly:
 				if (v->type == Value::Value_Type::Bool)
 				{
 					correct_type = true;
-					*(om.friendly) = v->bool_val;
+					om->friendly = v->bool_val;
 				}
 				break;
 			case Expression_Variable_Object::mobile:
 				if (v->type == Value::Value_Type::Bool)
 				{
 					correct_type = true;
-					*(om.mobile) = v->bool_val;
+					om->mobile = v->bool_val;
 				}
 				break;
 			case Expression_Variable_Object::playable:
@@ -558,56 +564,49 @@ Value* Set_Variable_Expression::evaluate(ScriptingVariables& pv)
 				if (v->type == Value::Value_Type::Bool)
 				{
 					correct_type = true;
-					*(om.open) = v->bool_val;
+					om->open = v->bool_val;
 				}
 				break;
 			case Expression_Variable_Object::holdable:
 				if (v->type == Value::Value_Type::Bool)
 				{
 					correct_type = true;
-					*(om.holdable) = v->bool_val;
+					om->holdable = v->bool_val;
 				}
 				break;
 			case Expression_Variable_Object::hitpoints:
 				if (v->type == Value::Value_Type::Int)
 				{
 					correct_type = true;
-					*(om.hitpoints) = v->int_val;
+					om->hitpoints = v->int_val;
 				}
 				break;
 			case Expression_Variable_Object::attack:
 				if (v->type == Value::Value_Type::Int)
 				{
 					correct_type = true;
-					*(om.attack) = v->int_val;
+					om->attack = v->int_val;
 				}
 				break;
 			case Expression_Variable_Object::hit_chance:
 				if (v->type == Value::Value_Type::Float)
 				{
 					correct_type = true;
-					*(om.hit_chance) = v->float_val;
+					om->hit_chance = v->float_val;
 				}
 				break;
 			case Expression_Variable_Object::description:
 				if (v->type == Value::Value_Type::String)
 				{
 					correct_type = true;
-					*(om.description) = v->string_val;
+					om->description = v->string_val;
 				}
 				break;
 			case Expression_Variable_Object::name:
 				if (v->type == Value::Value_Type::String)
 				{
 					correct_type = true;
-					*(om.name) = v->string_val;
-				}
-				break;
-			case Expression_Variable_Object::destroyed:
-				if (v->type == Value::Value_Type::Bool)
-				{
-					correct_type = true;
-					om.destroyed = v->bool_val;
+					om->name = v->string_val;
 				}
 				break;
 		}
@@ -637,7 +636,7 @@ bool Get_Variable_Expression::construct(std::vector<Expression*> arguments)
 	return well_formed;
 }
 
-Value* Get_Variable_Expression::evaluate(ScriptingVariables& pv)
+Value* Get_Variable_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
 	Value* v = new Value;
 	v->type = Value::Value_Type::Error;//this function should never reach the end before setting the value, but just in case...
@@ -646,55 +645,56 @@ Value* Get_Variable_Expression::evaluate(ScriptingVariables& pv)
 	if (global_variable == Expression_Variable_Global::main_text)
 	{
 		v->type = Value::Value_Type::String;
-		v->string_val = *(pv.main_text);
+		v->string_val = gs.main_text;
 	}
 	//if it's a room variable for the current_room
 	else if (global_variable == Expression_Variable_Global::current_room)
 	{
+		Room* r = gs.level->get_room(gs.level->get_object(gs.playable_character)->room_container);
 		switch (room_variable)
 		{
 			case Expression_Variable_Room::handle:
 				v->type = Value::Value_Type::Int;
-				v->int_val = pv.current_room.handle;
+				v->int_val = r->get_handle();
 				break;
 			case Expression_Variable_Room::description:
 				v->type = Value::Value_Type::String;
-				v->string_val = *(pv.current_room.description);
+				v->string_val = r->get_description();
 				break;
 			case Expression_Variable_Room::short_description:
 				v->type = Value::Value_Type::String;
-				v->string_val = *(pv.current_room.short_description);
+				v->string_val = r->get_short_description();
 				break;
 			case Expression_Variable_Room::minimap_symbol:
 				v->type = Value::Value_Type::String;
-				v->string_val = *(pv.current_room.minimap_symbol);
+				v->string_val = r->get_minimap_symbol();
 				break;
 			case Expression_Variable_Room::visited:
 				v->type = Value::Value_Type::Bool;
-				v->bool_val = *(pv.current_room.visited);
+				v->bool_val = r->get_visited();
 				break;
 			case Expression_Variable_Room::open_n:
 				v->type = Value::Value_Type::Bool;
-				v->bool_val = *(pv.current_room.open_n);
+				v->bool_val = r->get_exit(Room::Exit::NORTH);
 				break;
 			case Expression_Variable_Room::open_e:
 				v->type = Value::Value_Type::Bool;
-				v->bool_val = *(pv.current_room.open_e);
+				v->bool_val = r->get_exit(Room::Exit::EAST);
 				break;
 			case Expression_Variable_Room::open_s:
 				v->type = Value::Value_Type::Bool;
-				v->bool_val = *(pv.current_room.open_s);
+				v->bool_val = r->get_exit(Room::Exit::SOUTH);
 				break;
 			case Expression_Variable_Room::open_w:
 				v->type = Value::Value_Type::Bool;
-				v->bool_val = *(pv.current_room.open_w);
+				v->bool_val = r->get_exit(Room::Exit::WEST);
 				break;
 		}
 	}
 	//if it's a combat variable
 	else if (global_variable == Expression_Variable_Global::combat_data)
 	{
-		if (!pv.combat.active)
+		if (gs.combat_data == nullptr)
 		{
 			#ifdef DEBUG
 				Log::write("ERROR:Tried to access combat variable outside of combat!");
@@ -708,59 +708,59 @@ Value* Get_Variable_Expression::evaluate(ScriptingVariables& pv)
 			{
 				case Expression_Variable_Combat::player_position_left:
 					v->type = Value::Value_Type::Bool;
-					v->bool_val = *(pv.combat.player_position) == CombatData::Position::left;
+					v->bool_val = gs.combat_data->player_position == CombatData::Position::left;
 					break;
 				case Expression_Variable_Combat::player_position_right:
 					v->type = Value::Value_Type::Bool;
-					v->bool_val = *(pv.combat.player_position) == CombatData::Position::right;
+					v->bool_val = gs.combat_data->player_position == CombatData::Position::right;
 					break;
 				case Expression_Variable_Combat::player_position_front:
 					v->type = Value::Value_Type::Bool;
-					v->bool_val = *(pv.combat.player_position) == CombatData::Position::front;
+					v->bool_val = gs.combat_data->player_position == CombatData::Position::front;
 					break;
 				case Expression_Variable_Combat::player_position_far_front:
 					v->type = Value::Value_Type::Bool;
-					v->bool_val = *(pv.combat.player_position) == CombatData::Position::far_front;
+					v->bool_val = gs.combat_data->player_position == CombatData::Position::far_front;
 					break;
 				case Expression_Variable_Combat::player_attacking:
 					v->type = Value::Value_Type::Bool;
-					v->bool_val = *(pv.combat.player_attacking);
+					v->bool_val = gs.combat_data->player_attacking;
 					break;
 				case Expression_Variable_Combat::vulnerable_left:
 					v->type = Value::Value_Type::Bool;
-					v->bool_val = pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::left];
+					v->bool_val = gs.combat_data->enemy_vulnerable_sides[(int)CombatData::Position::left];
 					break;
 				case Expression_Variable_Combat::vulnerable_right:
 					v->type = Value::Value_Type::Bool;
-					v->bool_val = pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::right];
+					v->bool_val = gs.combat_data->enemy_vulnerable_sides[(int)CombatData::Position::right];
 					break;
 				case Expression_Variable_Combat::vulnerable_front:
 					v->type = Value::Value_Type::Bool;
-					v->bool_val = pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::front];
+					v->bool_val = gs.combat_data->enemy_vulnerable_sides[(int)CombatData::Position::front];
 					break;
 				case Expression_Variable_Combat::vulnerable_far_front:
 					v->type = Value::Value_Type::Bool;
-					v->bool_val = pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::far_front];
+					v->bool_val = gs.combat_data->enemy_vulnerable_sides[(int)CombatData::Position::far_front];
 					break;
 				case Expression_Variable_Combat::attacking_left:
 					v->type = Value::Value_Type::Bool;
-					v->bool_val = pv.combat.enemy_attacking_sides[(int)CombatData::Position::left];
+					v->bool_val = gs.combat_data->enemy_attacking_sides[(int)CombatData::Position::left];
 					break;
 				case Expression_Variable_Combat::attacking_right:
 					v->type = Value::Value_Type::Bool;
-					v->bool_val = pv.combat.enemy_attacking_sides[(int)CombatData::Position::right];
+					v->bool_val = gs.combat_data->enemy_attacking_sides[(int)CombatData::Position::right];
 					break;
 				case Expression_Variable_Combat::attacking_front:
 					v->type = Value::Value_Type::Bool;
-					v->bool_val = pv.combat.enemy_attacking_sides[(int)CombatData::Position::front];
+					v->bool_val = gs.combat_data->enemy_attacking_sides[(int)CombatData::Position::front];
 					break;
 				case Expression_Variable_Combat::attacking_far_front:
 					v->type = Value::Value_Type::Bool;
-					v->bool_val = pv.combat.enemy_attacking_sides[(int)CombatData::Position::far_front];
+					v->bool_val = gs.combat_data->enemy_attacking_sides[(int)CombatData::Position::far_front];
 					break;
 				case Expression_Variable_Combat::vulnerable_to_attack:
 					v->type = Value::Value_Type::Bool;
-					v->bool_val = pv.combat.vulnerable_to_attack;
+					v->bool_val = gs.combat_data->vulnerable_to_attack;
 					break;
 			}
 		}
@@ -769,66 +769,62 @@ Value* Get_Variable_Expression::evaluate(ScriptingVariables& pv)
 	else
 	{
 		//which object?
-		ObjectMap& om = global_variable == Expression_Variable_Global::caller ? pv.caller : global_variable == Expression_Variable_Global::player ? pv.player : pv.object_iterator;
+		Object* om = global_variable == Expression_Variable_Global::caller ? gs.level->get_object(caller) : global_variable == Expression_Variable_Global::player ? gs.level->get_object(gs.playable_character) : nullptr;//pv.object_iterator;//TODO: fix iteration!
 		
 		//which field?
 		switch (object_variable)
 		{
 			case Expression_Variable_Object::handle:
 				v->type = Value::Value_Type::Int;
-				v->int_val = om.handle;
+				v->int_val = om->get_handle();
 				break;
 			case Expression_Variable_Object::visible:
 				v->type = Value::Value_Type::Bool;
-				v->bool_val = *(om.visible);
+				v->bool_val = om->visible;
 				break;
 			case Expression_Variable_Object::visible_in_short_description:
 				v->type = Value::Value_Type::Bool;
-				v->bool_val = *(om.visible_in_short_description);
+				v->bool_val = om->visible_in_short_description;
 				break;
 			case Expression_Variable_Object::friendly:
 				v->type = Value::Value_Type::Bool;
-				v->bool_val = *(om.friendly) ;
+				v->bool_val = om->friendly;
 				break;
 			case Expression_Variable_Object::mobile:
 				v->type = Value::Value_Type::Bool;
-				v->bool_val = *(om.mobile);
+				v->bool_val = om->mobile;
 				break;
 			case Expression_Variable_Object::playable:
 				v->type = Value::Value_Type::Bool;
-				v->bool_val = *(om.playable);
+				v->bool_val = om->playable;
 				break;
 			case Expression_Variable_Object::open:
 				v->type = Value::Value_Type::Bool;
-				v->bool_val = *(om.open);
+				v->bool_val = om->open;
 				break;
 			case Expression_Variable_Object::holdable:
 				v->type = Value::Value_Type::Bool;
-				v->bool_val = *(om.holdable);
+				v->bool_val = om->holdable;
 				break;
 			case Expression_Variable_Object::hitpoints:
 				v->type = Value::Value_Type::Int;
-				v->int_val = *(om.hitpoints);
+				v->int_val = om->hitpoints;
 				break;
 			case Expression_Variable_Object::attack:
 				v->type = Value::Value_Type::Int;
-				v->int_val = *(om.attack);
+				v->int_val = om->attack;
 				break;
 			case Expression_Variable_Object::hit_chance:
 				v->type = Value::Value_Type::Float;
-				v->float_val = *(om.hit_chance);
+				v->float_val = om->hit_chance;
 				break;
 			case Expression_Variable_Object::description:
 				v->type = Value::Value_Type::String;
-				v->string_val = *(om.description);
+				v->string_val = om->description;
 				break;
 			case Expression_Variable_Object::name:
 				v->type = Value::Value_Type::String;
-				v->string_val = *(om.name);
-				break;
-			case Expression_Variable_Object::destroyed:
-				v->type = Value::Value_Type::Bool;
-				v->string_val = om.destroyed;
+				v->string_val = om->name;
 				break;
 		}
 	}
@@ -858,15 +854,15 @@ Add_Expression::~Add_Expression()
 	}
 }
 
-Value* Add_Expression::evaluate(ScriptingVariables& pv)
+Value* Add_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
-	Value* l = args[0]->evaluate(pv);
+	Value* l = args[0]->evaluate(gs,caller);
 	
 	if (l->type == Value::Value_Type::Int || l->type == Value::Value_Type::Float)
 	{
 		for (std::size_t i = 1; i < args.size(); ++i)
 		{
-			Value* r = args[i]->evaluate(pv);
+			Value* r = args[i]->evaluate(gs,caller);
 			
 			if (l->type == Value::Value_Type::Int)
 			{
@@ -921,7 +917,7 @@ Value* Add_Expression::evaluate(ScriptingVariables& pv)
 	{
 		for (std::size_t i = 1; i < args.size(); ++i)
 		{
-			Value* r = args[i]->evaluate(pv);
+			Value* r = args[i]->evaluate(gs,caller);
 			
 			if (r->type == Value::Value_Type::Int)
 			{
@@ -992,10 +988,10 @@ Subtract_Expression::~Subtract_Expression()
 	rhs = nullptr;
 }
 
-Value* Subtract_Expression::evaluate(ScriptingVariables& pv)
+Value* Subtract_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
-	Value* l = lhs->evaluate(pv);
-	Value* r = rhs->evaluate(pv);
+	Value* l = lhs->evaluate(gs,caller);
+	Value* r = rhs->evaluate(gs,caller);
 	if ((l->type != Value::Value_Type::Int && l->type != Value::Value_Type::Float) || (r->type != Value::Value_Type::Int && r->type != Value::Value_Type::Float))
 	{
 		#ifdef DEBUG
@@ -1053,10 +1049,10 @@ Multiply_Expression::~Multiply_Expression()
 	rhs = nullptr;
 }
 
-Value* Multiply_Expression::evaluate(ScriptingVariables& pv)
+Value* Multiply_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
-	Value* l = lhs->evaluate(pv);
-	Value* r = rhs->evaluate(pv);
+	Value* l = lhs->evaluate(gs,caller);
+	Value* r = rhs->evaluate(gs,caller);
 	if ((l->type != Value::Value_Type::Int && l->type != Value::Value_Type::Float) || (r->type != Value::Value_Type::Int && r->type != Value::Value_Type::Float))
 	{
 		#ifdef DEBUG
@@ -1114,10 +1110,10 @@ Divide_Expression::~Divide_Expression()
 	rhs = nullptr;
 }
 
-Value* Divide_Expression::evaluate(ScriptingVariables& pv)
+Value* Divide_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
-	Value* l = lhs->evaluate(pv);
-	Value* r = rhs->evaluate(pv);
+	Value* l = lhs->evaluate(gs,caller);
+	Value* r = rhs->evaluate(gs,caller);
 	if ((l->type != Value::Value_Type::Int && l->type != Value::Value_Type::Float) || (r->type != Value::Value_Type::Int && r->type != Value::Value_Type::Float) || (r->type == Value::Value_Type::Int && r->int_val == 0) || (r->type == Value::Value_Type::Float && r->float_val == 0.0f))
 	{
 		#ifdef DEBUG
@@ -1175,10 +1171,10 @@ Power_Expression::~Power_Expression()
 	rhs = nullptr;
 }
 
-Value* Power_Expression::evaluate(ScriptingVariables& pv)
+Value* Power_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
-	Value* l = lhs->evaluate(pv);
-	Value* r = rhs->evaluate(pv);
+	Value* l = lhs->evaluate(gs,caller);
+	Value* r = rhs->evaluate(gs,caller);
 	if ((l->type != Value::Value_Type::Int && l->type != Value::Value_Type::Float) || (r->type != Value::Value_Type::Int && r->type != Value::Value_Type::Float))
 	{
 		#ifdef DEBUG
@@ -1238,15 +1234,15 @@ Min_Expression::~Min_Expression()
 	}
 }
 
-Value* Min_Expression::evaluate(ScriptingVariables& pv)
+Value* Min_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
-	Value* retval = args[0]->evaluate(pv);
+	Value* retval = args[0]->evaluate(gs,caller);
 	
 	if (retval->type == Value::Value_Type::Int || retval->type == Value::Value_Type::Float)
 	{
 		for (unsigned i = 1; i < args.size(); ++i)
 		{
-			Value* a = args[i]->evaluate(pv);
+			Value* a = args[i]->evaluate(gs,caller);
 			
 			if (a->type != Value::Value_Type::Int && a->type != Value::Value_Type::Float)
 			{
@@ -1300,15 +1296,15 @@ Max_Expression::~Max_Expression()
 	}
 }
 
-Value* Max_Expression::evaluate(ScriptingVariables& pv)
+Value* Max_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
-	Value* retval = args[0]->evaluate(pv);
+	Value* retval = args[0]->evaluate(gs,caller);
 	
 	if (retval->type == Value::Value_Type::Int || retval->type == Value::Value_Type::Float)
 	{
 		for (unsigned i = 1; i < args.size(); ++i)
 		{
-			Value* a = args[i]->evaluate(pv);
+			Value* a = args[i]->evaluate(gs,caller);
 			
 			if (a->type != Value::Value_Type::Int && a->type != Value::Value_Type::Float)
 			{
@@ -1363,9 +1359,9 @@ Say_Expression::~Say_Expression()
 	arg = nullptr;
 }
 
-Value* Say_Expression::evaluate(ScriptingVariables& pv)
+Value* Say_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
-	Value* v = arg->evaluate(pv);
+	Value* v = arg->evaluate(gs,caller);
 
 	if (v->type == Value::Value_Type::String)
 	{
@@ -1379,10 +1375,12 @@ Value* Say_Expression::evaluate(ScriptingVariables& pv)
 			s = "asks";
 		}
 		
-		std::string name = *(pv.caller.name);
-		std::string c = *(pv.caller.friendly) ? "<fg=green>" : "<fg=red>";
+		Object* o = gs.level->get_object(caller);
+		std::string name = o->name;
+		std::string c = o->friendly ? "<fg=green>" : "<fg=red>";
 		
-		(*(pv.main_text)) += "\n\n<fg=white>\"" + v->string_val + "\" " + s + " " + c + name + "<fg=white>.";
+		gs.main_text += "\n\n<fg=white>\"" + v->string_val + "\" " + s + " " + c + name + "<fg=white>.";
+		gs.main_text_dirty_flag = true;
 	}
 	else
 	{
@@ -1430,9 +1428,9 @@ If_Expression::~If_Expression()
 	if_true = nullptr;
 }
 
-Value* If_Expression::evaluate(ScriptingVariables& pv)
+Value* If_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
-	Value* c = condition->evaluate(pv);
+	Value* c = condition->evaluate(gs,caller);
 	
 	if (c->type != Value::Value_Type::Bool)
 	{
@@ -1447,12 +1445,12 @@ Value* If_Expression::evaluate(ScriptingVariables& pv)
 	if (c->bool_val)
 	{
 		delete c;
-		return if_true->evaluate(pv);
+		return if_true->evaluate(gs,caller);
 	}
 	else if (if_false != nullptr)
 	{
 		delete c;
-		return if_false->evaluate(pv);
+		return if_false->evaluate(gs,caller);
 	}
 	
 	c->type = Value::Value_Type::Bool;
@@ -1482,11 +1480,11 @@ And_Expression::~And_Expression()
 	}
 }
 
-Value* And_Expression::evaluate(ScriptingVariables& pv)
+Value* And_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
 	for (unsigned i = 0; i < args.size(); ++i)
 	{
-		Value* v = args[i]->evaluate(pv);
+		Value* v = args[i]->evaluate(gs,caller);
 		
 		if (v->type != Value::Value_Type::Bool)
 		{
@@ -1531,9 +1529,9 @@ Not_Expression::~Not_Expression()
 	arg = nullptr;
 }
 
-Value* Not_Expression::evaluate(ScriptingVariables& pv)
+Value* Not_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
-	Value* v = arg->evaluate(pv);
+	Value* v = arg->evaluate(gs,caller);
 	
 	if (v->type != Value::Value_Type::Bool)
 	{
@@ -1573,11 +1571,11 @@ Or_Expression::~Or_Expression()
 	}
 }
 
-Value* Or_Expression::evaluate(ScriptingVariables& pv)
+Value* Or_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
 	for (unsigned i = 0; i < args.size(); ++i)
 	{
-		Value* v = args[i]->evaluate(pv);
+		Value* v = args[i]->evaluate(gs,caller);
 		
 		if (v->type != Value::Value_Type::Bool)
 		{
@@ -1626,10 +1624,10 @@ Xor_Expression::~Xor_Expression()
 	rhs = nullptr;
 }
 
-Value* Xor_Expression::evaluate(ScriptingVariables& pv)
+Value* Xor_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
-	Value* l = lhs->evaluate(pv);
-	Value* r = rhs->evaluate(pv);
+	Value* l = lhs->evaluate(gs,caller);
+	Value* r = rhs->evaluate(gs,caller);
 	
 	if (l->type != r->type || l->type != Value::Value_Type::Bool)
 	{
@@ -1671,10 +1669,10 @@ LessThan_Expression::~LessThan_Expression()
 	rhs = nullptr;
 }
 
-Value* LessThan_Expression::evaluate(ScriptingVariables& pv)
+Value* LessThan_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
-	Value* l = lhs->evaluate(pv);
-	Value* r = rhs->evaluate(pv);
+	Value* l = lhs->evaluate(gs,caller);
+	Value* r = rhs->evaluate(gs,caller);
 	
 	if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Int)
 	{
@@ -1745,10 +1743,10 @@ GreaterThan_Expression::~GreaterThan_Expression()
 	rhs = nullptr;
 }
 
-Value* GreaterThan_Expression::evaluate(ScriptingVariables& pv)
+Value* GreaterThan_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
-	Value* l = lhs->evaluate(pv);
-	Value* r = rhs->evaluate(pv);
+	Value* l = lhs->evaluate(gs,caller);
+	Value* r = rhs->evaluate(gs,caller);
 	
 	if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Int)
 	{
@@ -1819,10 +1817,10 @@ LessThanEqual_Expression::~LessThanEqual_Expression()
 	rhs = nullptr;
 }
 
-Value* LessThanEqual_Expression::evaluate(ScriptingVariables& pv)
+Value* LessThanEqual_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
-	Value* l = lhs->evaluate(pv);
-	Value* r = rhs->evaluate(pv);
+	Value* l = lhs->evaluate(gs,caller);
+	Value* r = rhs->evaluate(gs,caller);
 	
 	if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Int)
 	{
@@ -1893,10 +1891,10 @@ GreaterThanEqual_Expression::~GreaterThanEqual_Expression()
 	rhs = nullptr;
 }
 
-Value* GreaterThanEqual_Expression::evaluate(ScriptingVariables& pv)
+Value* GreaterThanEqual_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
-	Value* l = lhs->evaluate(pv);
-	Value* r = rhs->evaluate(pv);
+	Value* l = lhs->evaluate(gs,caller);
+	Value* r = rhs->evaluate(gs,caller);
 	
 	if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Int)
 	{
@@ -1967,10 +1965,10 @@ Equal_Expression::~Equal_Expression()
 	rhs = nullptr;
 }
 
-Value* Equal_Expression::evaluate(ScriptingVariables& pv)
+Value* Equal_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
-	Value* l = lhs->evaluate(pv);
-	Value* r = rhs->evaluate(pv);
+	Value* l = lhs->evaluate(gs,caller);
+	Value* r = rhs->evaluate(gs,caller);
 	
 	if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Int)
 	{
@@ -2059,10 +2057,10 @@ NotEqual_Expression::~NotEqual_Expression()
 	rhs = nullptr;
 }
 
-Value* NotEqual_Expression::evaluate(ScriptingVariables& pv)
+Value* NotEqual_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
-	Value* l = lhs->evaluate(pv);
-	Value* r = rhs->evaluate(pv);
+	Value* l = lhs->evaluate(gs,caller);
+	Value* r = rhs->evaluate(gs,caller);
 	
 	if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Int)
 	{
@@ -2156,11 +2154,11 @@ Between_Expression::~Between_Expression()
 	upper_limit = nullptr;
 }
 
-Value* Between_Expression::evaluate(ScriptingVariables& pv)
+Value* Between_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
-	Value* v = val->evaluate(pv);
-	Value* l = lower_limit->evaluate(pv);
-	Value* r = upper_limit->evaluate(pv);
+	Value* v = val->evaluate(gs,caller);
+	Value* l = lower_limit->evaluate(gs,caller);
+	Value* r = upper_limit->evaluate(gs,caller);
 	
 	if (l->type == Value::Value_Type::Int && r->type == Value::Value_Type::Int && v->type == Value::Value_Type::Int)
 	{
@@ -2268,21 +2266,22 @@ FEOIR_Expression::~FEOIR_Expression()
 	}
 }
 
-Value* FEOIR_Expression::evaluate(ScriptingVariables& pv)
+Value* FEOIR_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
 	Value* v;
-	for (unsigned i = 0; i < pv.current_room.objects.size(); ++i)
+	Room* r = gs.level->get_room(gs.level->get_object(gs.playable_character)->room_container);
+	for (unsigned i = 0; i < r->objects().size(); ++i)
 	{
-		pv.object_iterator = pv.current_room.objects[i];
+		//pv.object_iterator = pv.current_room.objects[i];
 		
 		for (unsigned j = 0; j < args.size(); ++j)
 		{
-			v = args[j]->evaluate(pv);
+			v = args[j]->evaluate(gs,caller);
 			
 			#ifdef DEBUG
 				if (v->type == Value::Value_Type::Error)
 				{
-					Log::write("Warning: Expression [" + StringUtils::to_string((int)j) + "] returned an error for object " + StringUtils::to_string((int)pv.current_room.objects[i].handle) + ".");
+					Log::write("Warning: Expression [" + StringUtils::to_string((int)j) + "] in FEOIR function returned an error for object " + StringUtils::to_string((int)r->objects()[i]) + ".");
 				}
 			#endif
 		}
@@ -2300,7 +2299,7 @@ bool Attack_Expression::construct(std::vector<Expression*> arguments)
 	if (arguments.size() != 4)
 	{
 		#ifdef DEBUG
-			Log::write("ERROR: incorrect number of arguments for Attack function");
+			Log::write("ERROR: incorrect number of arguments for Attack function.");
 		#endif
 	
 		return false;
@@ -2326,17 +2325,24 @@ Attack_Expression::~Attack_Expression()
 	far_front = nullptr;
 }
 
-Value* Attack_Expression::evaluate(ScriptingVariables& pv)
+Value* Attack_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
-	Value* l = left->evaluate(pv);
-	Value* r = right->evaluate(pv);
-	Value* f = front->evaluate(pv);
-	Value* ff = far_front->evaluate(pv);
+	Value* l = left->evaluate(gs,caller);
+	Value* r = right->evaluate(gs,caller);
+	Value* f = front->evaluate(gs,caller);
+	Value* ff = far_front->evaluate(gs,caller);
 	
-	if (l->type != r->type || l->type != f->type || l->type != ff->type || l->type != Value::Value_Type::Bool)
+	if (l->type != r->type || l->type != f->type || l->type != ff->type || l->type != Value::Value_Type::Bool || gs.combat_data == nullptr)
 	{
 		#ifdef DEBUG
-			Log::write("ERROR: one or more arguments for the Attack function evaluated to non-bool type.");
+			if (gs.combat_data == nullptr)
+			{
+				Log::write("ERROR: Attack function called outside of combat.");
+			}
+			else
+			{
+				Log::write("ERROR: one or more arguments for the Attack function evaluated to non-bool type.");
+			}
 		#endif
 		
 		delete r;
@@ -2348,10 +2354,10 @@ Value* Attack_Expression::evaluate(ScriptingVariables& pv)
 		return l;
 	}
 	
-	pv.combat.enemy_attacking_sides[(int)CombatData::Position::left] = l->bool_val;
-	pv.combat.enemy_attacking_sides[(int)CombatData::Position::right] = r->bool_val;
-	pv.combat.enemy_attacking_sides[(int)CombatData::Position::front] = f->bool_val;
-	pv.combat.enemy_attacking_sides[(int)CombatData::Position::far_front] = ff->bool_val;
+	gs.combat_data->enemy_attacking_sides[(int)CombatData::Position::left] = l->bool_val;
+	gs.combat_data->enemy_attacking_sides[(int)CombatData::Position::right] = r->bool_val;
+	gs.combat_data->enemy_attacking_sides[(int)CombatData::Position::front] = f->bool_val;
+	gs.combat_data->enemy_attacking_sides[(int)CombatData::Position::far_front] = ff->bool_val;
 
 	delete r;
 	delete f;
@@ -2395,17 +2401,24 @@ Defend_Expression::~Defend_Expression()
 	far_front = nullptr;
 }
 
-Value* Defend_Expression::evaluate(ScriptingVariables& pv)
+Value* Defend_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
-	Value* l = left->evaluate(pv);
-	Value* r = right->evaluate(pv);
-	Value* f = front->evaluate(pv);
-	Value* ff = far_front->evaluate(pv);
+	Value* l = left->evaluate(gs,caller);
+	Value* r = right->evaluate(gs,caller);
+	Value* f = front->evaluate(gs,caller);
+	Value* ff = far_front->evaluate(gs,caller);
 	
-	if (l->type != r->type || l->type != f->type || l->type != ff->type || l->type != Value::Value_Type::Bool)
+	if (l->type != r->type || l->type != f->type || l->type != ff->type || l->type != Value::Value_Type::Bool || gs.combat_data == nullptr)
 	{
 		#ifdef DEBUG
-			Log::write("ERROR: one or more arguments for the Defend function evaluated to non-bool type.");
+			if (gs.combat_data == nullptr)
+			{
+				Log::write("ERROR: Defend function called outside of combat.");
+			}
+			else
+			{
+				Log::write("ERROR: one or more arguments for the Defend function evaluated to non-bool type.");
+			}
 		#endif
 		
 		delete r;
@@ -2417,10 +2430,10 @@ Value* Defend_Expression::evaluate(ScriptingVariables& pv)
 		return l;
 	}
 	
-	pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::left] = !l->bool_val;
-	pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::right] = !r->bool_val;
-	pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::front] = !f->bool_val;
-	pv.combat.enemy_vulnerable_sides[(int)CombatData::Position::far_front] = !ff->bool_val;
+	gs.combat_data->enemy_vulnerable_sides[(int)CombatData::Position::left] = !l->bool_val;
+	gs.combat_data->enemy_vulnerable_sides[(int)CombatData::Position::right] = !r->bool_val;
+	gs.combat_data->enemy_vulnerable_sides[(int)CombatData::Position::front] = !f->bool_val;
+	gs.combat_data->enemy_vulnerable_sides[(int)CombatData::Position::far_front] = !ff->bool_val;
 
 	delete r;
 	delete f;
@@ -2429,4 +2442,110 @@ Value* Defend_Expression::evaluate(ScriptingVariables& pv)
 	l->bool_val = true;
 	
 	return l;
+}
+
+
+
+bool Destroy_Expression::construct(std::vector<Expression*> arguments)
+{
+	if (arguments.size() != 1)
+	{
+		#ifdef DEBUG
+			Log::write("ERROR: incorrect number of arguments for Destroy function");
+		#endif
+	
+		return false;
+	}
+	
+	target = arguments[0];
+	
+	return true;
+}
+
+Destroy_Expression::~Destroy_Expression()
+{
+	delete target;
+	target = nullptr;
+}
+
+Value* Destroy_Expression::evaluate(GameState& gs, ECS::Handle caller)
+{
+	Value* t = target->evaluate(gs,caller);
+	
+	if (t->type != Value::Value_Type::Int)
+	{
+		#ifdef DEBUG
+			Log::write("ERROR: The argument for the Destroy function did not evaluate to an integer (handle) type.");
+		#endif
+		
+		t->type = Value::Value_Type::Error;
+		
+		return t;
+	}
+	
+	gs.level->destroy_object((ECS::Handle)t->int_val, false);//schedule it for cleanup, but don't delete it immediately (since the script of that object may be running right now!
+	
+	return t;
+}
+
+
+
+bool Copy_Expression::construct(std::vector<Expression*> arguments)
+{
+	if (arguments.size() != 1)
+	{
+		#ifdef DEBUG
+			Log::write("ERROR: incorrect number of arguments for Copy function");
+		#endif
+	
+		return false;
+	}
+	
+	target = arguments[0];
+	
+	return true;
+}
+
+Copy_Expression::~Copy_Expression()
+{
+	delete target;
+	target = nullptr;
+}
+
+Value* Copy_Expression::evaluate(GameState& gs, ECS::Handle caller)
+{
+	Value* t = target->evaluate(gs,caller);
+	
+	if (t->type != Value::Value_Type::Int)
+	{
+		#ifdef DEBUG
+			Log::write("ERROR: The argument for the Copy function did not evaluate to an integer (handle) type.");
+		#endif
+		
+		t->type = Value::Value_Type::Error;
+		
+		return t;
+	}
+
+	Object* oo = gs.level->get_object(t->int_val);
+	
+	if (oo == nullptr)
+	{
+		#ifdef DEBUG
+			Log::write("ERROR: The Copy function couldn't evaluate because the handle '" + StringUtils::to_string(t->int_val) + "' is not a valid object handle.");
+		#endif
+		
+		t->type = Value::Value_Type::Error;
+		return t;
+	}
+	
+		
+	ECS::Handle new_obj = gs.level->create_object();
+	Object* on = gs.level->get_object(new_obj);
+
+	on->copy(*oo);
+
+	t->int_val = (int)new_obj;
+	
+	return t;
 }

@@ -2,33 +2,39 @@
 #include "Console.hpp"
 #include "GameState.hpp"
 #include <string>
-#include "ScriptingVariables.hpp"
-#include "UIConstants.hpp"
 #include "Serialize.hpp"
+#include "Level.hpp"
+#include "Room.hpp"
+#include "Object.hpp"
+#include "Scripting.hpp"
+#include "CombatData.hpp"
 
 UpdateSystem::UpdateSystem(GameState& gs)
 {
 	current_room = -1;
-	previous_menu = UI_State::Exit;
-	ScriptingVariables sv;
+	previous_menu = -1;
 }
 
 void UpdateSystem::do_work(Console& console, GameState& gs)
 {
-	UI_State current_menu = gs.menu_index;
+	int main_menu_index = console.get_frameset_by_name("main_menu");
+	int new_game_index = console.get_frameset_by_name("new_game");
+	int continue_game_index = console.get_frameset_by_name("continue_game");
+	int in_game_index = console.get_frameset_by_name("in_game");
+	int current_menu = console.get_current_frameset_index();
 	bool menu_transition = current_menu != previous_menu;
 
 	//first off, the menu will be the real defining factor here
-	if (current_menu == UI_State::Exit)//shouldn't ever happen, but better safe than sorry
+	if (current_menu < 0)//shouldn't ever happen, but better safe than sorry
 	{
 		return;
 	}
-	else if (current_menu == UI_State::Main_Menu)
+	else if (current_menu == main_menu_index)
 	{
 		if (menu_transition)
 		{
 			//if we just quit from the game, save it!
-			if (previous_menu == UI_State::In_Game)
+			if (previous_menu == in_game_index)
 			{
 				Serialize::to_file("savedgame.tsf", gs);
 			}
@@ -42,7 +48,7 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 			gs.main_text_dirty_flag = true;
 		}
 	}
-	else if (current_menu == UI_State::New_Game)
+	else if (current_menu == new_game_index)
 	{
 		if (menu_transition)
 		{
@@ -52,25 +58,20 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 			
 			//fill this in later so that the user can create a whole new game
 			Serialize::from_file("newgame.tsf", gs);
-			menu_transition = true;
-			gs.menu_index = UI_State::In_Game;
 			console.switch_to_frameset(console.get_frameset_by_name("in_game"));
 		}
 	}
-	else if (current_menu == UI_State::Load_Game)
+	else if (current_menu == continue_game_index)
 	{
 		//fill this in later so the user can pick a game
 		//menu_transition = false;
 		Serialize::from_file("savedgame.tsf",gs);
-		menu_transition = true;
-		gs.menu_index = UI_State::In_Game;
 		console.switch_to_frameset(console.get_frameset_by_name("in_game"));
 	}
-	else if (current_menu == UI_State::In_Game)//the actual game
+	else if (current_menu == in_game_index)//the actual game
 	{
 		if (menu_transition)
 		{
-			menu_transition = false;
 			console.get_current_frameset().clear();
 			gs.main_text = "<fg=Red>Welcome! <fg=white>Type your command then press ENTER.\n";
 			gs.main_text_dirty_flag = true;
@@ -96,11 +97,6 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 					gs.combat_data = nullptr;
 				}
 				
-				//create a ScriptingVariables object to pass into the objects
-				ScriptingVariables sv;
-				std::string old_main_text = gs.main_text;
-				fill_scripting_variables(gs, sv, cr, player);
-				
 				//call the on_sight function for every object in the room
 				auto &os = cr->objects();
 				for (unsigned i = 0; i < os.size(); ++i)
@@ -108,21 +104,9 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 					//get the object
 					Object* o = gs.level->get_object(os[i]);
 					
-					//fill in the caller variable
-					sv.caller = sv.current_room.objects[i];
-					
 					//call the on_sight script of this object
-					o->scripts.execute_on_sight(sv);
+					o->scripts.execute_on_sight(gs, os[i]);
 				}
-				
-				//mark the dirty flag if anything changed the main_text variable
-				if (old_main_text != gs.main_text)
-				{
-					gs.main_text_dirty_flag = true;
-				}
-				
-				//unfill the scripting variables
-				unfill_scripting_variables(gs,sv,cr);
 				
 				//finally, if there are any enemies they should start attacking
 				if (gs.combat_data != nullptr)
@@ -152,31 +136,29 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 				}
 			}
 			//continue combat if necessary
-			else if (gs.combat_data != nullptr && combat_tick++ == 9)//we only run this once every second or so
+			else if (gs.combat_data != nullptr && combat_tick++ == 9)//we only run this once every two seconds or so
 			{
 				combat_tick = 0;
 			
-				//fill in the scripting variables
-				ScriptingVariables sv;
+				//get the attacker
 				Object* o = gs.level->get_object(gs.combat_data->enemy_queue.back());
-				fill_scripting_variables(gs, sv, cr, o);
 				
 				//reset the attacking/defending stuff
-				sv.combat.enemy_attacking_sides[0] =
-				sv.combat.enemy_attacking_sides[1] =
-				sv.combat.enemy_attacking_sides[2] =
-				sv.combat.enemy_attacking_sides[3] = false;
+				gs.combat_data->vulnerable_to_attack = gs.combat_data->player_attacking && gs.combat_data->enemy_vulnerable_sides[(unsigned)gs.combat_data->player_position];
 				
-				sv.combat.enemy_vulnerable_sides[0] = 
-				sv.combat.enemy_vulnerable_sides[1] = 
-				sv.combat.enemy_vulnerable_sides[2] = 
-				sv.combat.enemy_vulnerable_sides[3] = true;
+				gs.combat_data->enemy_attacking_sides[0] =
+				gs.combat_data->enemy_attacking_sides[1] =
+				gs.combat_data->enemy_attacking_sides[2] =
+				gs.combat_data->enemy_attacking_sides[3] = false;
+				
+				gs.combat_data->enemy_vulnerable_sides[0] = 
+				gs.combat_data->enemy_vulnerable_sides[1] = 
+				gs.combat_data->enemy_vulnerable_sides[2] = 
+				gs.combat_data->enemy_vulnerable_sides[3] = true;
 				
 				//call the attack script of the first (actually last) enemy
-				o->scripts.execute_on_attack_step(sv);
+				o->scripts.execute_on_attack_step(gs, o->get_handle());
 
-				//turn the script variables around and put the values into the 'real' classes
-				unfill_scripting_variables(gs, sv, cr);
 				gs.main_text_dirty_flag = true;
 				
 				//now that the enemy did something, figure out what happened to the enemy
@@ -227,12 +209,16 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 							{
 								gs.combat_data->player_position = CombatData::Position::far_front;
 							}
+							
+							//set the dirty flag
+							gs.main_text_dirty_flag = true;
 						}
 					}
 					//if the player hit an invulnerable side, just display a message
 					else
 					{
 						gs.main_text += "<fg=white><bg=black>\nYour attack bounces off!";
+						gs.main_text_dirty_flag = true;
 					}
 				}
 				
@@ -259,10 +245,14 @@ void UpdateSystem::do_work(Console& console, GameState& gs)
 				}
 			}
 			
+			//call the level's cleanup function to destroy any objects marked for delayed deletion
+			gs.level->cleanup_objects();
+			
 			//check if the player died from anything
 			if (player->hitpoints < 0)
 			{
 				gs.main_text += "<fg=red><bg=black>\n\nYou died. Please quit and start a new game.";
+				gs.main_text_dirty_flag = true;
 			}
 		}
 	}

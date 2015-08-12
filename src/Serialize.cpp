@@ -4,8 +4,11 @@
 #include <vector>
 #include <locale>
 #include "GameState.hpp"
+#include "Level.hpp"
+#include "Room.hpp"
+#include "Object.hpp"
+#include "CombatData.hpp"
 #include "string_utils.hpp"
-#include "UIConstants.hpp"
 
 #ifdef DEBUG
 	#include "Log.hpp"
@@ -26,8 +29,6 @@ void Serialize::from_file(std::string fname, GameState& gs)
 	
 	//first, the GameState stuff
 	gs.frames_elapsed = get_int();
-	gs.menu_index = (UI_State)get_int();
-	gs.menu_transition = get_bool();
 	gs.playable_character = (ECS::Handle)get_int();
 	gs.main_text = get_string();
 	gs.main_text_dirty_flag = get_bool();
@@ -182,8 +183,6 @@ void Serialize::to_file(std::string fname, GameState& gs)
 	
 	//the first lines will be the GameState stuff
 	outfile << gs.frames_elapsed << ESC;
-	outfile << (int)gs.menu_index << ESC;
-	outfile << (int)gs.menu_transition << ESC;
 	outfile << (int)gs.playable_character << ESC;
 	outfile << gs.main_text << ESC;
 	outfile << gs.main_text_dirty_flag << ESC;

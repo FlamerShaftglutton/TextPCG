@@ -12,6 +12,26 @@ class Object
 public:
 	Object(ECS::Handle h) : handle(h) { }
 	
+	void copy(Object& o)
+	{
+		visible = o.visible;
+		visible_in_short_description = o.visible_in_short_description;
+		friendly = o.friendly;
+		mobile = o.mobile;
+		playable = o.playable;
+		open = o.open;
+		holdable = o.holdable;
+		object_container = o.object_container;
+		room_container = o.room_container;
+		hitpoints = o.hitpoints;
+		attack = o.attack;
+		hit_chance = o.hit_chance;
+		objects = o.objects;
+		description = o.description;
+		name = o.name;
+		scripts = o.scripts;
+	}
+	
 	inline ECS::Handle get_handle() { return handle; }
 
 	bool visible;

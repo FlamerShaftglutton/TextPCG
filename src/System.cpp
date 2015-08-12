@@ -1,12 +1,16 @@
 #include "System.hpp"
 #include "GameState.hpp"
 #include "ScriptingVariables.hpp"
+#include "Object.hpp"
+#include "Level.hpp"
+#include "Room.hpp"
+
 #ifdef DEBUG
 	#include "Log.hpp"
 	#include "string_utils.hpp"
 #endif
 
-
+/*
 void System::fill_ObjectMap(Object* o, ObjectMap& om)
 {
 	om.handle = o->get_handle();
@@ -123,3 +127,4 @@ void System::unfill_scripting_variables(GameState& gs, ScriptingVariables& sv, R
 	delete sv.current_room.open_s;
 	delete sv.current_room.open_w;
 }
+*/

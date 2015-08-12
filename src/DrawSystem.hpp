@@ -1,7 +1,5 @@
 #pragma once
 #include "System.hpp"
-#include "Console.hpp"
-#include "GameState.hpp"
 
 class DrawSystem : public System
 {

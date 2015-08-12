@@ -1,6 +1,9 @@
 #include "DrawSystem.hpp"
 #include "Console.hpp"
 #include "GameState.hpp"
+#include "Level.hpp"
+#include "Room.hpp"
+#include "Object.hpp"
 #include "string_utils.hpp"
 #include <string>
 #include <utility>
@@ -13,6 +16,12 @@ void DrawSystem::do_work(Console& console, GameState& gs)
 		minimap_frame = fs.get_frame_index_by_name("minimap"), 
 		NPC_frame = fs.get_frame_index_by_name("NPC"), 
 		inventory_frame = fs.get_frame_index_by_name("inventory");
+	
+	//int main_menu_index = console.get_frameset_by_name("main_menu");
+	//int new_game_index = console.get_frameset_by_name("new_game");
+	//int continue_game_index = console.get_frameset_by_name("continue_game");
+	int in_game_index = console.get_frameset_by_name("in_game");
+	int menu_index = console.get_current_frameset_index();
 	
 
 	//if the main text window got new text, redraw it
@@ -33,7 +42,7 @@ void DrawSystem::do_work(Console& console, GameState& gs)
 	fs.set_bgcolor(Console::Color::Blue);
 	outline_frame(console,lower_bar_frame,true,false,false,false);
 	
-	if (gs.menu_index == UI_State::In_Game)
+	if (menu_index == in_game_index)
 	{
 		//write the frame count for debugging
 		#ifdef DEBUG

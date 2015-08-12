@@ -2,10 +2,11 @@
 #include "Handle.hpp"
 #include <vector>
 #include <string>
-#include "ScriptingVariables.hpp"
+#include "GameState.hpp"
 #include "mymath.hpp"
 #include <cmath>
 #include "string_utils.hpp"
+#include "Expression.hpp"
 
 #ifdef DEBUG
 	#include "Log.hpp"
@@ -344,6 +345,14 @@ Expression* Script::recursively_resolve(std::vector<std::string>& tokens, std::v
 				{
 					retval = new Defend_Expression;
 				}
+				else if (s == "destroy")
+				{
+					retval = new Destroy_Expression;
+				}
+				else if (s == "copy")
+				{
+					retval = new Copy_Expression;
+				}
 				#ifdef DEBUG
 				else
 				{
@@ -636,11 +645,11 @@ std::string Script::to_string()
 	return raw_script;
 }
 
-void Script::evaluate(ScriptingVariables& pv)
+void Script::evaluate(GameState& pv, ECS::Handle caller)
 {
 	for (unsigned i = 0; i < expressions.size(); ++i)
 	{
-		Value* v = expressions[i]->evaluate(pv);
+		Value* v = expressions[i]->evaluate(pv, caller);
 		delete v;
 	}
 }
@@ -709,32 +718,32 @@ void ScriptSet::execute_on_creation()
 {
 	if (on_creation_script != nullptr)
 	{
-		ScriptingVariables pv;
-		on_creation_script->evaluate(pv);
+		GameState pv;
+		on_creation_script->evaluate(pv,-1);
 	}
 }
 
-void ScriptSet::execute_on_sight(ScriptingVariables& pv)
+void ScriptSet::execute_on_sight(GameState& pv, ECS::Handle caller)
 {
 	if (on_sight_script != nullptr)
 	{
-		on_sight_script->evaluate(pv);
+		on_sight_script->evaluate(pv, caller);
 	}
 }
 
-void ScriptSet::execute_on_use(ScriptingVariables& pv)
+void ScriptSet::execute_on_use(GameState& pv, ECS::Handle caller)
 {
 	if (on_use_script != nullptr)
 	{
-		on_use_script->evaluate(pv);
+		on_use_script->evaluate(pv, caller);
 	}
 }
 
-void ScriptSet::execute_on_attack_step(ScriptingVariables& pv)
+void ScriptSet::execute_on_attack_step(GameState& pv, ECS::Handle caller)
 {
 	if (on_attack_step_script != nullptr)
 	{
-		on_attack_step_script->evaluate(pv);
+		on_attack_step_script->evaluate(pv, caller);
 	}
 }
 

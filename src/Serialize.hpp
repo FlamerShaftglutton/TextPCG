@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
-#include "GameState.hpp"
+
+struct GameState;
 
 namespace Serialize
 {

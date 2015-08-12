@@ -3,12 +3,6 @@
 #include <string>
 #include <vector>
 
-//struct Console_Pimpl; //A pimpl is used so that the ncurses C library is
-					  //perfectly encapsulated in the cpp file and can't
-					  //leak out of this header file. This is desired
-					  //since the ncurses library uses a lot of macros,
-					  //global functions, and global variables.
-					  
 
 class Console
 {

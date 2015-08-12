@@ -1,9 +1,12 @@
 #include "InputSystem.hpp"
 #include "Console.hpp"
 #include "GameState.hpp"
+#include "Level.hpp"
+#include "Room.hpp"
+#include "Object.hpp"
+#include "CombatData.hpp"
 #include "string_utils.hpp"
 #include <string>
-#include "UIConstants.hpp"
 
 #ifdef DEBUG
 	#include "Log.hpp"
@@ -138,15 +141,10 @@ void InputSystem::command_use_object(Console& console, GameState& gs, std::strin
 	else
 	{
 		//if we did find something, call the object's on_use function
-		Room* cr = gs.level->get_room(gs.level->get_object(gs.playable_character)->room_container);
+		obj->scripts.execute_on_use(gs, obj->get_handle());
 		
-		//create a ScriptingVariables object to pass into the objects
-		ScriptingVariables sv;
-		fill_scripting_variables(gs,sv,cr,obj);
-		
-		obj->scripts.execute_on_use(sv);
-		
-		unfill_scripting_variables(gs,sv,cr);
+		//then call the cleanup function of the level, because the function may have deleted objects (including itself)
+		gs.level->cleanup_objects();
 	}
 }
 
@@ -270,6 +268,11 @@ Object* InputSystem::find_object(GameState& gs, std::string desc)
 
 void InputSystem::do_work(Console& console, GameState& gs)
 {
+	int main_menu_index = console.get_frameset_by_name("main_menu");
+	int new_game_index = console.get_frameset_by_name("new_game");
+	//int continue_game_index = console.get_frameset_by_name("continue_game");
+	int in_game_index = console.get_frameset_by_name("in_game");
+	int menu_index = console.get_current_frameset_index();
 	std::string input = StringUtils::trim(console.check_for_input());
 	std::string lower_input = StringUtils::to_lowercase(input);
 	
@@ -278,48 +281,39 @@ void InputSystem::do_work(Console& console, GameState& gs)
 	{
 		if (lower_input == "q" || lower_input == "quit")
 		{
-			if (gs.menu_index == UI_State::Main_Menu)
+			if (menu_index == main_menu_index)
 			{
-				gs.menu_index = UI_State::Exit;
-				gs.menu_transition = true;
+				console.switch_to_frameset(-1);
 			}
 			else
 			{
-				gs.menu_index = UI_State::Main_Menu;
-				gs.menu_transition = true;
 				console.switch_to_frameset(console.get_frameset_by_name("main_menu"));
 			}
 		}
-		else if (gs.menu_index == UI_State::Main_Menu)//main menu
+		else if (menu_index == main_menu_index)//main menu
 		{
 			if (lower_input == "1")//New Game
 			{
-				gs.menu_index = UI_State::New_Game;
-				gs.menu_transition = true;
 				console.switch_to_frameset(console.get_frameset_by_name("new_game"));
 			}
 			else if (lower_input == "2") //Continue Game
 			{
-				gs.menu_index = UI_State::Load_Game;
-				gs.menu_transition = true;
 				console.switch_to_frameset(console.get_frameset_by_name("continue_game"));
 			}
 			else if (lower_input == "3") //Restart Game
 			{
-				gs.menu_index = UI_State::New_Game;//change this later
-				gs.menu_transition = true;
-				console.switch_to_frameset(console.get_frameset_by_name("new_game"));
+				console.switch_to_frameset(console.get_frameset_by_name("new_game"));//change this later
 			}
 			else if (lower_input == "4") //Quit
 			{
-				gs.menu_index = UI_State::Exit;
+				console.switch_to_frameset(-1);
 			}
 		}
-		else if (gs.menu_index == UI_State::New_Game)//Game creation screen
+		else if (menu_index == new_game_index)//Game creation screen
 		{
 			
 		}
-		else if (gs.menu_index == UI_State::In_Game)//the actual game
+		else if (menu_index == in_game_index)//the actual game
 		{
 			//first off, get the handle of the room the player's in
 			ECS::Handle current_room_handle = gs.level->get_object(gs.playable_character)->room_container;
@@ -448,7 +442,8 @@ void InputSystem::do_work(Console& console, GameState& gs)
 					e = Room::Exit::SOUTH;
 				
 				#ifdef DEBUG
-					Log::write("\tMovement command recognized as direction " + StringUtils::to_string((int)e));
+					std::string names[] = {"NORTH","EAST","SOUTH","WEST"};
+					Log::write("Movement command recognized as direction " + names[(int)e]);
 				#endif
 				
 				ECS::Handle next_room = gs.level->get_open_neighbor(current_room_handle,e);
