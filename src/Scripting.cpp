@@ -333,10 +333,10 @@ Expression* Script::recursively_resolve(std::vector<std::string>& tokens, std::v
 				{
 					retval = new Between_Expression;
 				}
-				else if (s == "feoir")
+				/*else if (s == "feoir")
 				{
 					retval = new FEOIR_Expression;
-				}
+				}*/
 				else if (s == "attack")
 				{
 					retval = new Attack_Expression;

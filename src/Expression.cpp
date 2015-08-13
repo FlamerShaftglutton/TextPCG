@@ -2246,6 +2246,11 @@ Value* Between_Expression::evaluate(GameState& gs, ECS::Handle caller)
 
 
 
+FEOIR_Expression::FEOIR_Expression(Value* iter_reg)
+{
+	reg = iter_reg;
+}
+
 bool FEOIR_Expression::construct(std::vector<Expression*> arguments)
 {
 	if (arguments.size() < 1)
@@ -2259,6 +2264,9 @@ bool FEOIR_Expression::construct(std::vector<Expression*> arguments)
 
 FEOIR_Expression::~FEOIR_Expression()
 {
+	delete reg;
+	reg = nullptr;
+
 	for (unsigned i = 0; i < args.size(); ++i)
 	{
 		delete args[i];
@@ -2270,11 +2278,14 @@ Value* FEOIR_Expression::evaluate(GameState& gs, ECS::Handle caller)
 {
 	Value* v;
 	Room* r = gs.level->get_room(gs.level->get_object(gs.playable_character)->room_container);
-	for (unsigned i = 0; i < r->objects().size(); ++i)
+	
+	for (std::size_t i = 0; i < r->objects().size(); ++i)
 	{
-		//pv.object_iterator = pv.current_room.objects[i];
+		//fill in the iterator
+		reg->int_val = (int)r->objects()[i];
 		
-		for (unsigned j = 0; j < args.size(); ++j)
+		//for each expression in the list...
+		for (std::size_t j = 0; j < args.size(); ++j)
 		{
 			v = args[j]->evaluate(gs,caller);
 			

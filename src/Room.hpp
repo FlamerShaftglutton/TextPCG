@@ -57,7 +57,7 @@ public:
 	
 	inline std::vector<ECS::Handle>& objects() { return objs; }
 	
-	inline void get_xy(int& xx, int& yy) { xx = x; yy =y; }
+	inline void get_xy(int& xx, int& yy) { xx = x; yy = y; }
 	
 	inline bool get_visited() { return visited; }
 	inline void set_visited(bool b) { visited = b; }

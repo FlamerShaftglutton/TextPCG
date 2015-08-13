@@ -364,8 +364,10 @@ public:
 };
 class FEOIR_Expression : public Expression
 {
+	Value* reg;
  	std::vector<Expression*> args;
 public:
+	FEOIR_Expression(Value* iter_reg);
  	bool construct(std::vector<Expression*> arguments) override;
  	Value* evaluate(GameState& gs, ECS::Handle caller) override;
  	~FEOIR_Expression();

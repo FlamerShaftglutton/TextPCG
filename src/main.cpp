@@ -12,12 +12,17 @@
 #include "Serialize.hpp"
 #include "string_utils.hpp"
 
+#include "mymath.hpp"
+
 #ifdef DEBUG
 	#include "Log.hpp"
 #endif
 
 void init(Console& console)
 {
+	//seed the RNG before we forget!
+	MyMath::start_rng();
+
 	//some all-purpose frames
 	Console::Frame f("text_box",console.get_height() - 2, console.get_width(), 0,0,false, false, true);
 	Console::Frame lower_bar_frame("lower_bar",2,console.get_width(), console.get_height() - 2, 0, true, false, false);
@@ -234,7 +239,7 @@ void game_loop(Console& console)
 		o->description = "An ugly creature with beady bloodthirsty eyes.";
 		
 		o->scripts.construct("(set 0 0);",
-							 "(say \"SCREEE!!!\");",
+							 "(say (choose (random 0 3) \"SCREEE!!!\" \"GEEYAH!!!\" \"Derp?\" \"RAAAH!!!\"));",
 							 "(set main_text (+ (get main_text) \"\n<fg=white><bg=black>You can't use an enemy!\"));",
 							 "file:expressions.txt");
 		r->objects().push_back(o->get_handle());
