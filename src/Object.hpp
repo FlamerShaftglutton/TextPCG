@@ -29,7 +29,7 @@ public:
 		objects = o.objects;
 		description = o.description;
 		name = o.name;
-		scripts = o.scripts;
+		scripts.copy(o.scripts);
 	}
 	
 	inline ECS::Handle get_handle() { return handle; }

@@ -12,7 +12,7 @@ SOURCES=$(wildcard *.cpp $(addsuffix /*.cpp,$(SUBFOLDERS)))
 OBJECTS=$(patsubst %.cpp,$(OBJFOLDER)/%.o,$(notdir $(SOURCES) ) )
 
 all: $(SOURCES) $(OBJFOLDER)/$(EXECUTABLE)
-	
+
 $(OBJFOLDER)/$(EXECUTABLE): $(OBJECTS) 
 	$(CC) $(OBJECTS) -o $@ $(LDFLAGS)
 
@@ -21,7 +21,7 @@ $(OBJFOLDER)/%.o: %.cpp
 
 .PHONY : clean
 clean:
-	rm -f obj/*.o $(EXECUTABLE)
+	rm -f $(OBJFOLDER)/*.o $(OBJFOLDER)/$(EXECUTABLE)
 
 .PHONY : rebuild
 rebuild: clean all

@@ -165,7 +165,7 @@ void Level::cleanup_objects()
 ECS::Handle Level::get_open_neighbor(ECS::Handle room, Room::Exit direction)
 {
 	//first off, just check out if this room has an exit that direction
-	if(get_room(room)->get_exit(direction))
+	if(get_room(room)->get_exit(direction) == Room::Exit_Status::Open)
 	{
 		//if there is, get the room
 		ECS::Handle next_room = get_room(room)->get_special_exit(direction);
@@ -177,7 +177,12 @@ ECS::Handle Level::get_open_neighbor(ECS::Handle room, Room::Exit direction)
 			int x_modifier = direction == Room::Exit::SOUTH || direction == Room::Exit::NORTH ? 0 : direction == Room::Exit::EAST ? 1 : -1;
 			int y_modifier = direction == Room::Exit::EAST || direction == Room::Exit::WEST ? 0 : direction == Room::Exit::SOUTH ? 1 : -1;
 			
-			next_room = get_room(current_room_x + x_modifier, current_room_y + y_modifier)->get_handle();
+			Room* r = get_room(current_room_x + x_modifier, current_room_y + y_modifier);
+			
+			if (r != nullptr)
+			{
+				next_room = r->get_handle();
+			}
 		}
 		
 		#ifdef DEBUG
@@ -192,5 +197,7 @@ ECS::Handle Level::get_open_neighbor(ECS::Handle room, Room::Exit direction)
 		return next_room;
 	}
 	else
+	{
 		return -1;
+	}
 }

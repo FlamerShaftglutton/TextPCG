@@ -24,7 +24,7 @@ void InputSystem::command_look_room(Console& console, GameState& gs, ECS::Handle
 	}
 	else
 	{
-		gs.main_text += r->get_description();
+		gs.main_text += r->get_description_with_doors();
 	}
 	
 	bool has_stuff = false;
@@ -33,7 +33,7 @@ void InputSystem::command_look_room(Console& console, GameState& gs, ECS::Handle
 	for (unsigned i = 0; i < r->objects().size(); ++i)
 	{
 		Object* o = gs.level->get_object(r->objects()[i]);
-		if (!o->playable && (!short_description || o->visible_in_short_description))
+		if (!o->playable && o->visible && (!short_description || o->visible_in_short_description))
 		{
 			has_stuff = true;
 			std::string co = "<fg=white><bg=black>";
@@ -223,7 +223,7 @@ Object* InputSystem::find_object(GameState& gs, std::string desc)
 	{
 		Object* o = gs.level->get_object(oh);
 		
-		if (o->name.find(desc) != std::string::npos)
+		if (o->name.find(desc) != std::string::npos && o->visible)
 		{
 			obj = o;
 			break;
@@ -237,7 +237,7 @@ Object* InputSystem::find_object(GameState& gs, std::string desc)
 		{
 			Object* o = gs.level->get_object(oh);
 			
-			if (StringUtils::to_lowercase(o->name).find(desc) != std::string::npos)
+			if (StringUtils::to_lowercase(o->name).find(desc) != std::string::npos && o->visible)
 			{
 				obj = o;
 				break;
@@ -248,7 +248,7 @@ Object* InputSystem::find_object(GameState& gs, std::string desc)
 				{
 					Object* oo = gs.level->get_object(ooh);
 					
-					if (StringUtils::to_lowercase(oo->name).find(desc) != std::string::npos)
+					if (StringUtils::to_lowercase(oo->name).find(desc) != std::string::npos && oo->visible)
 					{
 						obj = oo;
 						break;

@@ -2,24 +2,9 @@
 #include <string>
 #include "Handle.hpp"
 #include <vector>
-#ifdef DEBUG
-	#include "string_utils.hpp"
-	#include "Log.hpp"
-#endif
 
 class Room
 {
-	int exits = 0;
-	ECS::Handle my_handle;
-	ECS::Handle special_exits[9];//size of the Exit enum
-	std::string short_description;
-	std::string description;
-	int x;
-	int y;
-	std::vector<ECS::Handle> objs;
-	std::string minimap_symbol;
-	bool visited = false;
-	
 public:
 	enum class Exit
 	{
@@ -35,30 +20,55 @@ public:
 		INVALID
 	};
 	
-	Room(ECS::Handle handle, int x_coordinate, int y_coordinate) { my_handle = handle; x = x_coordinate; y = y_coordinate; for(int i=0;i<9;++i){special_exits[i] = -1;} }
-	~Room() { }
+	enum class Exit_Status
+	{
+		Open,
+		Locked,
+		Wall
+	};
 	
-	inline bool get_exit(Exit e) { if (e == Exit::INVALID) { return false; } return ((exits & (1 << static_cast<std::size_t>(e))) != 0); }
-	inline void set_exit(Exit e, bool open) { if (e != Exit::INVALID) { exits ^= ((open ? -1 : 0) ^ exits) & (1 << static_cast<std::size_t>(e)); } }
+	Room(ECS::Handle handle, int x_coordinate, int y_coordinate);
+	~Room();
 	
-	inline ECS::Handle get_special_exit(Exit e) { return special_exits[static_cast<std::size_t>(e)]; }
-	inline void set_special_exit(Exit e, ECS::Handle h) { special_exits[static_cast<std::size_t>(e)] = h; }
+	Exit_Status get_exit(Exit e);
+	void set_exit(Exit e, Exit_Status status);
 	
-	inline ECS::Handle get_handle() { return my_handle; }
+	ECS::Handle get_special_exit(Exit e);
+	void set_special_exit(Exit e, ECS::Handle h);
 	
-	inline std::string get_short_description() { return short_description; }
-	inline void set_short_description(std::string s) { short_description = s; }
+	ECS::Handle get_handle();
 	
-	inline std::string get_minimap_symbol() { return minimap_symbol; }
-	inline void set_minimap_symbol(std::string s) { minimap_symbol = s; }
+	std::string get_short_description();
+	void set_short_description(std::string s);
 	
-	inline std::string get_description() { return description; }
-	inline void set_description(std::string s) { description = s; }
+	std::string get_minimap_symbol();
+	void set_minimap_symbol(std::string s);
 	
-	inline std::vector<ECS::Handle>& objects() { return objs; }
+	std::string get_description();
+	void set_description(std::string s);
+	std::string get_description_with_doors();
 	
-	inline void get_xy(int& xx, int& yy) { xx = x; yy = y; }
+	std::string get_door_description(Exit e);
+	void set_door_description(std::string s, Exit e);
 	
-	inline bool get_visited() { return visited; }
-	inline void set_visited(bool b) { visited = b; }
+	std::vector<ECS::Handle>& objects();
+	
+	void get_xy(int& xx, int& yy);
+	
+	bool get_visited();
+	void set_visited(bool b);
+
+private:
+	ECS::Handle my_handle;
+	Exit_Status exits[(std::size_t)Exit::INVALID];//size of the Exit enum
+	ECS::Handle special_exits[(std::size_t)Exit::INVALID];//size of the Exit enum
+	std::string short_description;
+	std::string description;
+	std::string door_descriptions[(std::size_t)Exit::INVALID];//size of the Exit enum
+	int x;
+	int y;
+	std::vector<ECS::Handle> objs;
+	std::string minimap_symbol;
+	bool visited = false;
+	
 };

@@ -714,6 +714,11 @@ ScriptSet::~ScriptSet()
 	}
 }
 
+void ScriptSet::copy(ScriptSet& rhs)
+{
+	construct(rhs.on_creation_script->to_string(), rhs.on_sight_script->to_string(), rhs.on_use_script->to_string(), rhs.on_attack_step_script->to_string());
+}
+
 void ScriptSet::execute_on_creation()
 {
 	if (on_creation_script != nullptr)

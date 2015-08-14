@@ -291,24 +291,14 @@ int Console::add_frameset(Console::FrameSet fs)
 
 int Console::get_width()
 {
-	int *x = new int,*y = new int;
-	getmaxyx(stdscr,*y,*x);
-	int xx = *x;
-	delete x;
-	delete y;
-	
-	return xx;
+	getmaxyx(stdscr,t_y,t_x);
+	return t_x;
 }
 
 int Console::get_height()
 {
-	int *x = new int,*y = new int;
-	getmaxyx(stdscr,*y,*x);
-	int yy = *y;
-	delete x;
-	delete y;
-	
-	return yy;
+	getmaxyx(stdscr,t_y,t_x);
+	return t_y;
 }
 
 

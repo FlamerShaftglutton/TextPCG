@@ -21,6 +21,11 @@ int MyMath::random_int(int minimum, int maximum)
 	//std::uniform_int_distribution<int> dist(minimum,maximum);
 	//return dist(*rng);
 	
+	if (minimum >= maximum)
+	{
+		return minimum;
+	}
+	
 	//use the XORshift algorithm for RNG
 	uint32_t t = x ^ (x << 11);
     x = y; y = z; z = w;

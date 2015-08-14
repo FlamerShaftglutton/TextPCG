@@ -112,4 +112,5 @@ public:
 private:
 	std::vector<FrameSet> framesets;
 	int frameset_index;
+	int t_x,t_y;
 };

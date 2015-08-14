@@ -95,6 +95,7 @@ void DrawSystem::draw_minimap(Console& console, GameState& gs, int minimap_frame
 		//get the next item
 		auto pos = queue.back();
 		ECS::Handle top = rooms[pos.first][pos.second];
+		Room* top_room = gs.level->get_room(top);
 		queue.pop_back();
 
 		//check all of the surrounding spaces
@@ -116,6 +117,11 @@ void DrawSystem::draw_minimap(Console& console, GameState& gs, int minimap_frame
 				queue.push_back(std::make_pair(pos.first,pos.second - 1));
 			}
 		}
+		else if (pos.second != 0 && top_room->get_exit(Room::Exit::NORTH) == Room::Exit_Status::Locked)
+		{
+			//draw a little locked connector symbol
+			symbols[2 * pos.first][2 * pos.second - 1] = "<fg=red><bg=black>|";
+		}
 		
 		if (e != -1)
 		{
@@ -130,6 +136,12 @@ void DrawSystem::draw_minimap(Console& console, GameState& gs, int minimap_frame
 				queue.push_back(std::make_pair(pos.first + 1,pos.second));
 			}
 		}
+		else if (pos.first != 4 && top_room->get_exit(Room::Exit::EAST) == Room::Exit_Status::Locked)
+		{
+			//draw a little locked connector symbol
+			symbols[2 * pos.first + 1][2 * pos.second] = "<fg=red><bg=black>-";
+		}
+		
 		if (s != -1)
 		{
 			//draw a little connector symbol
@@ -143,6 +155,12 @@ void DrawSystem::draw_minimap(Console& console, GameState& gs, int minimap_frame
 				queue.push_back(std::make_pair(pos.first,pos.second + 1));
 			}
 		}
+		else if (pos.second != 4 && top_room->get_exit(Room::Exit::SOUTH) == Room::Exit_Status::Locked)
+		{
+			//draw a little locked connector symbol
+			symbols[2 * pos.first][2 * pos.second + 1] = "<fg=red><bg=black>|";
+		}
+		
 		if (w != -1)
 		{
 			//draw a little connector symbol
@@ -155,6 +173,11 @@ void DrawSystem::draw_minimap(Console& console, GameState& gs, int minimap_frame
 				rooms[pos.first - 1][pos.second] = w;
 				queue.push_back(std::make_pair(pos.first - 1,pos.second));
 			}
+		}
+		else if (pos.first != 0 && top_room->get_exit(Room::Exit::WEST) == Room::Exit_Status::Locked)
+		{
+			//draw a little locked connector symbol
+			symbols[2 * pos.first - 1][2 * pos.second] = "<fg=red><bg=black>-";
 		}
 	}
 	

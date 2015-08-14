@@ -370,28 +370,28 @@ Value* Set_Variable_Expression::evaluate(GameState& gs, ECS::Handle caller)
 			case Expression_Variable_Room::open_n:
 				if (v->type == Value::Value_Type::Bool)
 				{
-					r->set_exit(Room::Exit::NORTH, v->bool_val);
+					r->set_exit(Room::Exit::NORTH, v->bool_val ? Room::Exit_Status::Open : Room::Exit_Status::Wall);
 					correct_type = true;
 				}
 				break;
 			case Expression_Variable_Room::open_e:
 				if (v->type == Value::Value_Type::Bool)
 				{
-					r->set_exit(Room::Exit::EAST, v->bool_val);
+					r->set_exit(Room::Exit::EAST, v->bool_val ? Room::Exit_Status::Open : Room::Exit_Status::Wall);
 					correct_type = true;
 				}
 				break;
 			case Expression_Variable_Room::open_s:
 				if (v->type == Value::Value_Type::Bool)
 				{
-					r->set_exit(Room::Exit::SOUTH, v->bool_val);
+					r->set_exit(Room::Exit::SOUTH, v->bool_val ? Room::Exit_Status::Open : Room::Exit_Status::Wall);
 					correct_type = true;
 				}
 				break;
 			case Expression_Variable_Room::open_w:
 				if (v->type == Value::Value_Type::Bool)
 				{
-					r->set_exit(Room::Exit::WEST, v->bool_val);
+					r->set_exit(Room::Exit::WEST, v->bool_val ? Room::Exit_Status::Open : Room::Exit_Status::Wall);
 					correct_type = true;
 				}
 				break;
@@ -675,19 +675,19 @@ Value* Get_Variable_Expression::evaluate(GameState& gs, ECS::Handle caller)
 				break;
 			case Expression_Variable_Room::open_n:
 				v->type = Value::Value_Type::Bool;
-				v->bool_val = r->get_exit(Room::Exit::NORTH);
+				v->bool_val = r->get_exit(Room::Exit::NORTH) == Room::Exit_Status::Open;
 				break;
 			case Expression_Variable_Room::open_e:
 				v->type = Value::Value_Type::Bool;
-				v->bool_val = r->get_exit(Room::Exit::EAST);
+				v->bool_val = r->get_exit(Room::Exit::EAST) == Room::Exit_Status::Open;
 				break;
 			case Expression_Variable_Room::open_s:
 				v->type = Value::Value_Type::Bool;
-				v->bool_val = r->get_exit(Room::Exit::SOUTH);
+				v->bool_val = r->get_exit(Room::Exit::SOUTH) == Room::Exit_Status::Open;
 				break;
 			case Expression_Variable_Room::open_w:
 				v->type = Value::Value_Type::Bool;
-				v->bool_val = r->get_exit(Room::Exit::WEST);
+				v->bool_val = r->get_exit(Room::Exit::WEST) == Room::Exit_Status::Open;
 				break;
 		}
 	}
@@ -2550,13 +2550,17 @@ Value* Copy_Expression::evaluate(GameState& gs, ECS::Handle caller)
 		return t;
 	}
 	
-		
+	//create a new object
 	ECS::Handle new_obj = gs.level->create_object();
 	Object* on = gs.level->get_object(new_obj);
-
-	on->copy(*oo);
-
-	t->int_val = (int)new_obj;
 	
+	//copy the old object
+	on->copy(*oo);
+	
+	//plop the new object into the player's room
+	on->room_container = gs.level->get_object(gs.playable_character)->room_container;
+
+	//return the handle of the new object
+	t->int_val = (int)new_obj;
 	return t;
 }

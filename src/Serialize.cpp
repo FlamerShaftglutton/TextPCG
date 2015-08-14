@@ -90,7 +90,7 @@ void Serialize::from_file(std::string fname, GameState& gs)
 			std::string exits = get_string();
 			for (int j = 0; j < 9;++j)
 			{
-				r->set_exit((Room::Exit)j,exits[j] == '1');
+				r->set_exit((Room::Exit)j,exits[j] == '0' ? Room::Exit_Status::Open : exits[j] == '1' ? Room::Exit_Status::Locked : Room::Exit_Status::Wall);
 			}
 
 			//then the special exits
@@ -98,6 +98,12 @@ void Serialize::from_file(std::string fname, GameState& gs)
 			for (int j = 0; j < 9; ++j)
 			{
 				r->set_special_exit((Room::Exit)j,StringUtils::stoi(split_stuff[j]));
+			}
+			
+			//now the door descriptions
+			for (int j = 0; j < 9; ++j)
+			{
+				r->set_door_description(get_string(),static_cast<Room::Exit>(j));
 			}
 			
 			//then the strings
@@ -251,6 +257,12 @@ void Serialize::to_file(std::string fname, GameState& gs)
 				outfile << (int)r->get_special_exit((Room::Exit)j) << ' ';
 			}
 			outfile << ESC;
+			
+			//then the door descriptions
+			for (unsigned j = 0; j < 9; ++j)
+			{
+				outfile << r->get_door_description(static_cast<Room::Exit>(j)) << ESC;
+			}
 			
 			//then the strings
 			outfile << r->get_short_description() << ESC;

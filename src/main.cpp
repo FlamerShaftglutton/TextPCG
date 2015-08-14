@@ -115,38 +115,38 @@ void game_loop(Console& console)
 			}
 		}
 	
-		gs.level->get_room(1,1)->set_exit(Room::Exit::EAST,true);
-		gs.level->get_room(1,1)->set_exit(Room::Exit::SOUTH,true);
+		gs.level->get_room(1,1)->set_exit(Room::Exit::EAST,Room::Exit_Status::Open);
+		gs.level->get_room(1,1)->set_exit(Room::Exit::SOUTH,Room::Exit_Status::Open);
 		gs.level->get_room(1,1)->set_description("<fg=white>Room 1,1.\n<fg=green>Lawful Good!");
 		
-		gs.level->get_room(2,1)->set_exit(Room::Exit::WEST,true);
-		gs.level->get_room(2,1)->set_exit(Room::Exit::SOUTH,true);
+		gs.level->get_room(2,1)->set_exit(Room::Exit::WEST,Room::Exit_Status::Open);
+		gs.level->get_room(2,1)->set_exit(Room::Exit::SOUTH,Room::Exit_Status::Open);
 		gs.level->get_room(2,1)->set_description("<fg=white>Room 2,1.\n<fg=green>Lawful Neutral!");
 		
-		gs.level->get_room(3,1)->set_exit(Room::Exit::SOUTH,true);
+		gs.level->get_room(3,1)->set_exit(Room::Exit::SOUTH,Room::Exit_Status::Open);
 		gs.level->get_room(3,1)->set_description("<fg=white>Room 3,1.\n<fg=green>Lawful Evil!");
 		
-		gs.level->get_room(1,2)->set_exit(Room::Exit::NORTH,true);
-		gs.level->get_room(1,2)->set_exit(Room::Exit::SOUTH,true);
+		gs.level->get_room(1,2)->set_exit(Room::Exit::NORTH,Room::Exit_Status::Open);
+		gs.level->get_room(1,2)->set_exit(Room::Exit::SOUTH,Room::Exit_Status::Open);
 		gs.level->get_room(1,2)->set_description("<fg=white>Room 1,2.\n<fg=yellow>Neutral Good!");
 		
-		gs.level->get_room(2,2)->set_exit(Room::Exit::NORTH,true);
-		gs.level->get_room(2,2)->set_exit(Room::Exit::SOUTH,true);
+		gs.level->get_room(2,2)->set_exit(Room::Exit::NORTH,Room::Exit_Status::Open);
+		gs.level->get_room(2,2)->set_exit(Room::Exit::SOUTH,Room::Exit_Status::Open);
 		gs.level->get_room(2,2)->set_description("<fg=white>Room 2,2.\n<fg=yellow>True neutral!");
 		
-		gs.level->get_room(3,2)->set_exit(Room::Exit::NORTH,true);
-		gs.level->get_room(3,2)->set_exit(Room::Exit::SOUTH,true);
+		gs.level->get_room(3,2)->set_exit(Room::Exit::NORTH,Room::Exit_Status::Open);
+		gs.level->get_room(3,2)->set_exit(Room::Exit::SOUTH,Room::Exit_Status::Open);
 		gs.level->get_room(3,2)->set_description("<fg=white>Room 3,2.\n<fg=yellow>Evil neutral!");
 		
-		gs.level->get_room(1,3)->set_exit(Room::Exit::NORTH,true);
+		gs.level->get_room(1,3)->set_exit(Room::Exit::NORTH,Room::Exit_Status::Open);
 		gs.level->get_room(1,3)->set_description("<fg=white>Room 1,3.\n<fg=red>Chaotic Good!");
 		
-		gs.level->get_room(2,3)->set_exit(Room::Exit::EAST,true);
-		gs.level->get_room(2,3)->set_exit(Room::Exit::NORTH,true);
+		gs.level->get_room(2,3)->set_exit(Room::Exit::EAST,Room::Exit_Status::Open);
+		gs.level->get_room(2,3)->set_exit(Room::Exit::NORTH,Room::Exit_Status::Open);
 		gs.level->get_room(2,3)->set_description("<fg=white>Room 2,3.\n<fg=red>Chaotic Neutral!");
 		
-		gs.level->get_room(3,3)->set_exit(Room::Exit::WEST,true);
-		gs.level->get_room(3,3)->set_exit(Room::Exit::NORTH,true);
+		gs.level->get_room(3,3)->set_exit(Room::Exit::WEST,Room::Exit_Status::Open);
+		gs.level->get_room(3,3)->set_exit(Room::Exit::NORTH,Room::Exit_Status::Open);
 		gs.level->get_room(3,3)->set_exit(Room::Exit::EAST,false);
 		gs.level->get_room(3,3)->set_description("<fg=white>Room 3,3.\n<fg=red>A small, cramped room. On the eastern wall is a locked <fg=green>door<fg=red>.");
 		

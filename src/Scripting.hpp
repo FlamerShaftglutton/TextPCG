@@ -37,6 +37,7 @@ public:
 	ScriptSet();
 	~ScriptSet();
 	void construct(std::string on_creation, std::string on_sight, std::string on_use, std::string on_attack_step);
+	void copy(ScriptSet& rhs);
 	
 	void execute_on_creation();
 	void execute_on_sight(GameState& pv, ECS::Handle caller);
