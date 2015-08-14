@@ -39,7 +39,7 @@ public:
 	~Room() { }
 	
 	inline bool get_exit(Exit e) { if (e == Exit::INVALID) { return false; } return ((exits & (1 << static_cast<std::size_t>(e))) != 0); }
-	inline void set_exit(Exit e, bool open) { if (e != Exit::INVALID) { exits |= ((open ? 1 : 0) << static_cast<std::size_t>(e)); } }
+	inline void set_exit(Exit e, bool open) { if (e != Exit::INVALID) { exits ^= ((open ? -1 : 0) ^ exits) & (1 << static_cast<std::size_t>(e)); } }
 	
 	inline ECS::Handle get_special_exit(Exit e) { return special_exits[static_cast<std::size_t>(e)]; }
 	inline void set_special_exit(Exit e, ECS::Handle h) { special_exits[static_cast<std::size_t>(e)] = h; }

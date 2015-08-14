@@ -11,6 +11,7 @@
 #include "UpdateSystem.hpp"
 #include "Serialize.hpp"
 #include "string_utils.hpp"
+#include "PCG.hpp"
 
 #include "mymath.hpp"
 
@@ -92,11 +93,13 @@ void game_loop(Console& console)
 	
 	//set up the game state
 	GameState gs;
+	PCG::create_world(gs);
+	Serialize::to_file("newgame.tsf",gs);
 	
-	gs.main_text = "";
-	gs.main_text_dirty_flag = true;
-	gs.frames_elapsed = 0;
-	//*
+	//gs.main_text = "";
+	//gs.main_text_dirty_flag = true;
+	//gs.frames_elapsed = 0;
+	/*
 	gs.level = new Level(9,9);
 	
 	//Debugging, create dummy level

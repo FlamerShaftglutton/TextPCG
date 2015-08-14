@@ -6,6 +6,14 @@
 #include "CombatData.hpp"
 #include "Handle.hpp"
 #include "mymath.hpp"
+#include "string_utils.hpp"
+
+#include <vector>
+#include <functional>
+
+#ifdef DEBUG
+	#include "Log.hpp"
+#endif
 
 #include <vector>
 
@@ -37,7 +45,7 @@ struct node
 	{
 		return children[0] == children[1] && children[0] == children[2] && children[0] == children[3] && children[0] == nullptr;
 	}
-}
+};
 
 void PCG::create_world(GameState& gs)
 {
@@ -75,7 +83,7 @@ void PCG::create_world(GameState& gs)
 		}
 		node* n = stack.back();
 		stack.pop_back();
-		Room* r = gs.level->get_room(n.handle);
+		Room* r = gs.level->get_room(n->handle);
 		int rx,ry;
 		r->get_xy(rx,ry);
 		
@@ -84,19 +92,19 @@ void PCG::create_world(GameState& gs)
 		{
 			//first off, find out how many children we can have
 			int max_children = 0;
-			if (ry > 1 && gs.level->get_room(ry-1,rx) == nullptr)
+			if (ry > 1 && gs.level->get_room(rx, ry - 1) == nullptr)
 			{
 				++max_children;
 			}
-			if (rx > 1 && gs.level->get_room(ry,rx-1) == nullptr)
+			if (rx > 1 && gs.level->get_room(rx - 1, ry) == nullptr)
 			{
 				++max_children;
 			}
-			if (rx < (gs.level->get_width() - 2) && gs.level->get_room(ry, rx + 1) == nullptr)
+			if (rx < (gs.level->get_width() - 2) && gs.level->get_room(rx + 1, ry) == nullptr)
 			{
 				++max_children;
 			}
-			if (ry < (gs.level->get_height() - 2) && gs.level->get_room(ry + 1, rx) == nullptr)
+			if (ry < (gs.level->get_height() - 2) && gs.level->get_room(rx, ry + 1) == nullptr)
 			{
 				++max_children;
 			}
@@ -115,9 +123,9 @@ void PCG::create_world(GameState& gs)
 				int dirs[] = {1,2,4,8};
 				for (int j = 0; j < 4; ++j)
 				{
-					int tt = dirs.back();
-					int ss = MyMath::random_int(0,3);
-					dirs.back() = dirs[ss];
+					int tt = dirs[3];
+					int ss = MyMath::random_int(0,2);
+					dirs[3] = dirs[ss];
 					dirs[ss] = tt;
 				}
 				
@@ -129,7 +137,7 @@ void PCG::create_world(GameState& gs)
 					
 					if (ry + y_off > 1 && ry + y_off < (gs.level->get_height() - 2) &&
 						rx + x_off > 1 && rx + x_off < (gs.level->get_width()  - 2) &&
-						gs.level->get_room(ry + y_off, rx + x_off) == nullptr)
+						gs.level->get_room(rx + x_off, ry + y_off) == nullptr)
 					{
 						//update the number of rooms
 						++num_rooms;
@@ -145,6 +153,7 @@ void PCG::create_world(GameState& gs)
 						Room* rr = gs.level->get_room(child->handle);
 						rr->set_short_description("A Small Room");
 						rr->set_description("A <fg=green>leaf<fg=white> node, seemingly.");
+						rr->set_minimap_symbol("<bg=yellow> ");
 						
 						//set exits in the rooms
 						rr->set_exit(dirs[i] == 1 ? Room::Exit::WEST : dirs[i] == 2 ? Room::Exit::EAST : dirs[i] == 4 ? Room::Exit::NORTH : Room::Exit::SOUTH,true);
@@ -183,7 +192,7 @@ void PCG::create_world(GameState& gs)
 	//actually put the key in a random leaf-node room
 	node* random_node = starting_node;
 	
-	while (!random_node->is_leaf())
+	while (!random_node->is_leaf() || random_node == starting_node)
 	{
 		for (int i = 0; i < 4; ++i)
 		{
@@ -195,61 +204,61 @@ void PCG::create_world(GameState& gs)
 		}
 	}
 	ko->room_container = random_node->handle;
+	gs.level->get_room(random_node->handle)->objects().push_back(ko->get_handle());
 	
+	//set up some colors for the doors
+	std::vector<std::string> color_names = { "red", "green", "yellow", "blue", "magenta", "cyan"};
+	
+	//make locks and keys!
 	for (int i = 0; i < 3; ++i)
 	{
 		//figure out which room to lock
-		int steps_up = MyMath::random_int(0,2);
-		for (unsigned i = 0; i < steps_up && random_node->parent != starting_node && random_node->count_children() < 5; ++i)
+		int steps_up = 1;//MyMath::random_int(0,2);
+		for (int i = 0; i < steps_up && random_node->parent != starting_node && random_node->count_children() < 5; ++i)
 		{
 			random_node = random_node->parent;
 		}
 		
 		//lock the door between this room and the parent room
-		random_room->locked = true;
+		random_node->locked = true;
 		int px,py,cx,cy;
-		Room* pr = gs.level->get_room(random_room->parent->handle);
+		Room* pr = gs.level->get_room(random_node->parent->handle);
 		pr->get_xy(px,py);
-		gs.level->get_room(random_room->handle)->get_xy(cx,cy);
+		gs.level->get_room(random_node->handle)->get_xy(cx,cy);
 		int x_off = cx - px,
 			y_off = cy - py;
-		Room::Exit e = x_off == 0 && y_off == -1 ? Room::Exit::NORTH : x_off == 0 && y_off == 1 ? Room::Exit::SOUTH : x_off == -1 ? Room::Exit::West : Room::Exit::East;
+		Room::Exit e = x_off == 0 && y_off == -1 ? Room::Exit::NORTH : x_off == 0 && y_off == 1 ? Room::Exit::SOUTH : x_off == -1 ? Room::Exit::WEST : Room::Exit::EAST;
 		pr->set_exit(e,false);
+		
+		//pick a color for the door
+		std::size_t c_pos = MyMath::random_int(0,color_names.size()-1);
+		std::string door_color = color_names[c_pos];
+		color_names[c_pos] = color_names.back();
+		color_names.pop_back();
 		
 		//update the room's description
 		std::string direction_names[] = {"North","East","South","West"};
-		pr->set_description(pr->get_description() + "\nA <fg=green>door<fg=white> leads to the " + direction_names[(int)e] + ", but it's locked.");
+		pr->set_description(pr->get_description() + "\nA large door leads to the " + direction_names[(int)e] + ", but it's locked. It glows <fg=" + door_color + ">" + door_color + "<fg=white>.");
 		
 		//now place another key!
-		random_node = starting_node;
+		//random_node = starting_node;
+		std::vector<node*> available_leaves;
+		std::function<void(node*)> add_leaves = [&](node* mn) { if (mn->is_leaf()) { available_leaves.push_back(mn); } else { for (int z = 0; z < 4; ++z) { if (mn->children[z] != nullptr && !mn->children[z]->locked) { add_leaves(mn->children[z]); } } } };
 		
-		while (!random_node->is_leaf())
+		add_leaves(starting_node);
+		
+		#ifdef DEBUG
+		if (available_leaves.size() == 0)
 		{
-			//shuffle the directions
-			int dirs[] = {0,1,2,3};
-			for (int j = 0; j < 4; ++j)
-			{
-				int tt = dirs.back();
-				int ss = MyMath::random_int(0,3);
-				dirs.back() = dirs[ss];
-				dirs[ss] = tt;
-			}
-			
-			//go a random direction
-			for (int j = 0; j < 4; ++i)
-			{
-				if (random_node->children[dirs[j]] != nullptr)
-				{
-					random_node = random_node->children[dirs[j]];
-					break;
-				}
-			}
+			Log::write("Derp, no available nodes!");
 		}
+		#endif
+		random_node = available_leaves[MyMath::random_int(0,available_leaves.size() - 1)];
 		
-		//put in a key (color matching???)
+		//make a key
 		kh = gs.level->create_object();
 		ko = gs.level->get_object(kh);
-		ko->visible = false;
+		ko->visible = true;
 		ko->visible_in_short_description = false;
 		ko->friendly = true;
 		ko->mobile = false;
@@ -261,8 +270,34 @@ void PCG::create_world(GameState& gs)
 		ko->hitpoints = -1;
 		ko->attack = 0;
 		ko->hit_chance = 0.0f;
-		ko->name = "A Key";
-		ko->description = "A skeleton key. Find the door it belongs to!";
-		ko->scripts.construct("","","","");//fill in the use script to open the last lock we put in
+		ko->name = "A <fg=" + door_color + ">Key";
+		ko->description = "A skeleton key. It glows <fg=" + door_color + ">" + door_color + "<fg=white>. Find the door it belongs to!";
+		ko->scripts.construct("",
+							  "",
+							  "(if (= (get current_room.handle) " + StringUtils::to_string((int)pr->get_handle()) + ") (+ (set current_room.description \"<fg=white><bg=black>A small, cramped room. To the " + direction_names[(int)e] + " is an unlocked door.\") (set global.main_text (+ (get global.main_text) \"<fg=white><bg=black>\n\nThe key opens a door to the " + direction_names[(int)e] + ".\")) (set current_room.open_" + StringUtils::to_lowercase(direction_names[(int)e].substr(0,1)) + " true) (destroy (get caller.handle))) (set global.main_text (+ (get global.main_text) \"<fg=white><bg=black>\n\nIt does nothing\")));",
+							  "");
+		
+		//put the key in the room
+		gs.level->get_room(ko->room_container)->objects().push_back(ko->get_handle());
 	}
+	
+	//finally, make the player in the first room!
+	gs.playable_character = gs.level->create_object();
+	Object* o = gs.level->get_object(gs.playable_character);
+	o->visible = true;
+	o->visible_in_short_description = true;
+	o->friendly = true;
+	o->mobile = true;
+	o->playable = true;
+	o->open = true;
+	o->holdable = false;
+	o->room_container = sr->get_handle();
+	o->object_container = -1;
+	o->hitpoints = 100;
+	o->attack = 10;
+	o->hit_chance = 0.75f;
+	o->name = "Myself";
+	o->description = "A <fg=red>hideous<fg=white> looking human. Possibly beaten, or possibly just always ugly. Hard to tell.";
+	o->scripts.construct("","","","");
+	sr->objects().push_back(o->get_handle());
 }
