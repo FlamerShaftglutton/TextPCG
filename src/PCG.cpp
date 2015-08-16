@@ -50,7 +50,7 @@ struct node
 void PCG::create_world(GameState& gs)
 {
 	//set up the basic stuff
-	gs.level = new Level(50,50);
+	gs.level = new Level(1000,1000);
 	gs.main_text = "";
 	gs.main_text_dirty_flag = true;
 	gs.frames_elapsed = 0;
@@ -101,7 +101,32 @@ void PCG::create_world(GameState& gs)
 	std::vector<node*> stack;
 	stack.push_back(starting_node);
 	
-	int num_rooms = 1;
+	//int num_rooms = 1;
+	int offsetter = 3;
+	int min_rx, min_ry;
+	sr->get_xy(min_rx, min_ry);
+	int max_rx = min_rx + offsetter,
+		max_ry = min_ry + offsetter;
+	min_rx -= offsetter;
+	min_ry -= offsetter;
+	
+	if (min_rx < 1)
+	{
+		min_rx = 1;
+	}
+	if (min_ry < 1)
+	{
+		min_ry = 1;
+	}
+	if (max_rx > (gs.level->get_width() - 2))
+	{
+		max_rx = (gs.level->get_width() - 2);
+	}
+	if (max_ry > (gs.level->get_height() - 2))
+	{
+		max_ry = (gs.level->get_height() - 2);
+	}
+	
 	
 	//loop until we've made enough rooms
 	while(!stack.empty())
@@ -120,88 +145,87 @@ void PCG::create_world(GameState& gs)
 		int rx,ry;
 		r->get_xy(rx,ry);
 		
-		//now that we have a spot, decide if we're going to add any children
-		if (num_rooms < 20)
+		//first off, find out how many children we can have
+		int max_children = 0;
+		if (ry > min_ry && gs.level->get_room(rx, ry - 1) == nullptr)
 		{
-			//first off, find out how many children we can have
-			int max_children = 0;
-			if (ry > 1 && gs.level->get_room(rx, ry - 1) == nullptr)
+			++max_children;
+		}
+		if (rx > min_rx && gs.level->get_room(rx - 1, ry) == nullptr)
+		{
+			++max_children;
+		}
+		if (rx < max_rx && gs.level->get_room(rx + 1, ry) == nullptr)
+		{
+			++max_children;
+		}
+		if (ry < max_ry && gs.level->get_room(rx, ry + 1) == nullptr)
+		{
+			++max_children;
+		}
+		
+		//if we can have kids...
+		if (max_children > 0)
+		{
+			//if we can have kids, have a random amount!
+			int num_kids = max_children;//MyMath::random_int(1,max_children);
+			
+			//shuffle the list of directions
+			int dirs[] = {1,2,4,8};
+			for (int j = 0; j < 4; ++j)
 			{
-				++max_children;
-			}
-			if (rx > 1 && gs.level->get_room(rx - 1, ry) == nullptr)
-			{
-				++max_children;
-			}
-			if (rx < (gs.level->get_width() - 2) && gs.level->get_room(rx + 1, ry) == nullptr)
-			{
-				++max_children;
-			}
-			if (ry < (gs.level->get_height() - 2) && gs.level->get_room(rx, ry + 1) == nullptr)
-			{
-				++max_children;
+				int tt = dirs[3];
+				int ss = MyMath::random_int(0,2);
+				dirs[3] = dirs[ss];
+				dirs[ss] = tt;
 			}
 			
-			//if we can have kids...
-			if (max_children > 0)
+			//for each kid...
+			for (int i = 0; i < 4; ++i)
 			{
-				//if we can have kids, have a random amount!
-				int num_kids = MyMath::random_int(1,max_children);
+				int x_off = (dirs[i] & 3) == 2 ? -1 : dirs[i] & 3;
+				int y_off = ((dirs[i] >> 2) & 3) == 2 ? -1 : ((dirs[i] >> 2) & 3);
+				int n_x = rx + x_off;
+				int n_y = ry + y_off;
 				
-				//shuffle the list of directions
-				int dirs[] = {1,2,4,8};
-				for (int j = 0; j < 4; ++j)
-				{
-					int tt = dirs[3];
-					int ss = MyMath::random_int(0,2);
-					dirs[3] = dirs[ss];
-					dirs[ss] = tt;
-				}
-				
-				//for each kid...
-				for (int i = 0; i < num_kids; ++i)
-				{
-					int x_off = (dirs[i] & 3) == 2 ? -1 : dirs[i] & 3;
-					int y_off = ((dirs[i] >> 2) & 3) == 2 ? -1 : ((dirs[i] >> 2) & 3);
+				if (n_y >= min_ry && n_y <= max_ry &&
+					n_x >= min_rx && n_x <= max_rx &&
+					gs.level->get_room(n_x, n_y) == nullptr)
+				{	
+					//update the number of rooms
+					//++num_rooms;
+					++num_kids;
 					
-					if (ry + y_off > 1 && ry + y_off < (gs.level->get_height() - 2) &&
-						rx + x_off > 1 && rx + x_off < (gs.level->get_width()  - 2) &&
-						gs.level->get_room(rx + x_off, ry + y_off) == nullptr)
-					{
-						//update the number of rooms
-						++num_rooms;
-						
-						//set stuff in the node
-						node* child = new node;
-						child->handle = gs.level->create_room(rx + x_off, ry + y_off);
-						child->children[0] = child->children[1] = child->children[2] = child->children[3] = nullptr;
-						child->locked = false;
-						child->parent = n;
-						
-						//set stuff in the room
-						Room* rr = gs.level->get_room(child->handle);
-						rr->set_short_description("A Small Room");
-						rr->set_description("A <fg=green>leaf<fg=white> node, seemingly.");
-						rr->set_minimap_symbol("<bg=yellow> ");
-						
-						//set exits in the rooms
-						rr->set_exit(dirs[i] == 1 ? Room::Exit::WEST : dirs[i] == 2 ? Room::Exit::EAST : dirs[i] == 4 ? Room::Exit::NORTH : Room::Exit::SOUTH,Room::Exit_Status::Open);
-						r->set_exit(dirs[i] == 1 ? Room::Exit::EAST : dirs[i] == 2 ? Room::Exit::WEST : dirs[i] == 4 ? Room::Exit::SOUTH : Room::Exit::NORTH,Room::Exit_Status::Open);
-						
-						//set stuff in the parent node
-						n->children[i] = child;
-						
-						//add this child to the stack
-						stack.push_back(child);
-					}
+					//set stuff in the node
+					node* child = new node;
+					child->handle = gs.level->create_room(n_x, n_y);
+					child->children[0] = child->children[1] = child->children[2] = child->children[3] = nullptr;
+					child->locked = false;
+					child->parent = n;
+					
+					//set stuff in the room
+					Room* rr = gs.level->get_room(child->handle);
+					rr->set_short_description("A Small Room");
+					rr->set_description("A <fg=green>leaf<fg=white> node, seemingly.");
+					rr->set_minimap_symbol("<bg=yellow> ");
+					
+					//set exits in the rooms
+					rr->set_exit(dirs[i] == 1 ? Room::Exit::WEST : dirs[i] == 2 ? Room::Exit::EAST : dirs[i] == 4 ? Room::Exit::NORTH : Room::Exit::SOUTH,Room::Exit_Status::Open);
+					r->set_exit(dirs[i] == 1 ? Room::Exit::EAST : dirs[i] == 2 ? Room::Exit::WEST : dirs[i] == 4 ? Room::Exit::SOUTH : Room::Exit::NORTH,Room::Exit_Status::Open);
+					
+					//set stuff in the parent node
+					n->children[i] = child;
+					
+					//add this child to the stack
+					stack.push_back(child);
 				}
-				
-				//if we ended up having any kids, then update the description
-				if (num_kids > 0)
-				{
-					r->set_short_description("A Hallway");
-					r->set_description("A corridor leading to other rooms.");
-				}
+			}
+			
+			//if we ended up having any kids, then update the description
+			if (num_kids > 0)
+			{
+				r->set_short_description("A Hallway");
+				r->set_description("A corridor leading to other rooms.");
 			}
 		}
 	}
@@ -225,7 +249,7 @@ void PCG::create_world(GameState& gs)
 	ko->description = "You won the game!";
 	ko->scripts.construct("","(say \"You have won the game! Nicely done!\");","(say \"You have won the game! Nicely done!\");","");
 
-	//actually put the key in the farthest room from the starting room
+	//put the key in the farthest room from the starting room
 	node* random_node = starting_node;
 	
 	while (!random_node->is_leaf() || random_node == starting_node)

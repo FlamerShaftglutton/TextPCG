@@ -79,107 +79,98 @@ void DrawSystem::draw_minimap(Console& console, GameState& gs, int minimap_frame
 	std::string symbols[9][9];
 	for (int i = 0; i < 81; ++i)
 	{
-		symbols[i/9][i%9] = "<bg=black> ";
+		symbols[i/9][i%9] = "";//"<bg=black> ";
 	}
-	symbols[4][4] = "<bg=black><fg=red>@";
 	
-	ECS::Handle rooms[5][5] = {{-1,-1,-1,-1,-1},{-1,-1,-1,-1,-1},{-1,-1,-1,-1,-1},{-1,-1,-1,-1,-1},{-1,-1,-1,-1,-1}};
-	rooms[2][2] = gs.level->get_object(gs.playable_character)->room_container;
+	int min_x, min_y;
+	gs.level->get_room(gs.level->get_object(gs.playable_character)->room_container)->get_xy(min_x,min_y);
+	min_x -= 2;
+	min_y -= 2;
 	
-	std::vector<std::pair<int,int>> queue;
-	queue.push_back({2,2});
-	
-	//do a flood fill of the minimap
-	while (!queue.empty())
+	for (int y = 0; y < 5; ++y)
 	{
-		//get the next item
-		auto pos = queue.back();
-		ECS::Handle top = rooms[pos.first][pos.second];
-		Room* top_room = gs.level->get_room(top);
-		queue.pop_back();
-
-		//check all of the surrounding spaces
-		ECS::Handle n = pos.second == 0 ? -1 : gs.level->get_open_neighbor(top,Room::Exit::NORTH);
-		ECS::Handle e = pos.first == 4 ? -1 : gs.level->get_open_neighbor(top,Room::Exit::EAST);
-		ECS::Handle s = pos.second == 4 ? -1 : gs.level->get_open_neighbor(top,Room::Exit::SOUTH);
-		ECS::Handle w = pos.first == 0 ? -1 : gs.level->get_open_neighbor(top,Room::Exit::WEST);
-		
-		if (n != -1)
+		for (int x = 0; x < 5; ++x)
 		{
-			//draw a little connector symbol
-			symbols[2 * pos.first][2 * pos.second - 1] = "<fg=white><bg=black>|";
+			Room* top_room = gs.level->get_room(x + min_x, y + min_y);
 			
-			//add the next room to the queue if it hasn't already been done
-			if (rooms[pos.first][pos.second - 1] == -1 && gs.level->get_room(n)->get_visited())
+			if (top_room != nullptr)
 			{
-				symbols[2 * pos.first][2 * pos.second - 2] = gs.level->get_room(n)->get_minimap_symbol();
-				rooms[pos.first][pos.second - 1] = n;
-				queue.push_back(std::make_pair(pos.first,pos.second - 1));
+				//draw this point
+				if (top_room->get_visited())
+				{
+					symbols[2 * x][2 * y] = top_room->get_minimap_symbol();
+				
+					//draw some connections
+					if (x > 0)
+					{
+						std::string& symb = symbols[2 * x - 1][2 * y];
+						if (symb.length() == 0)
+						{
+							Room::Exit_Status es = top_room->get_exit(Room::Exit::WEST);
+							if (es == Room::Exit_Status::Open)//if (gs.level->get_open_neighbor(top_room->get_handle(), Room::Exit::WEST) != -1)
+							{
+								symb = "<fg=white><bg=black>-";
+							}
+							else if (es == Room::Exit_Status::Locked)//else if (top_room->get_exit(Room::Exit::WEST) == Room::Exit_Status::Locked)
+							{
+								symb = "<fg=red><bg=black>-";
+							}
+						}
+					}
+					if (x < 4)
+					{
+						std::string& symb = symbols[2 * x + 1][2 * y];
+						if (symb.length() == 0)
+						{
+							Room::Exit_Status es = top_room->get_exit(Room::Exit::EAST);
+							if (es == Room::Exit_Status::Open)//if (gs.level->get_open_neighbor(top_room->get_handle(), Room::Exit::WEST) != -1)
+							{
+								symb = "<fg=white><bg=black>-";
+							}
+							else if (es == Room::Exit_Status::Locked)//else if (top_room->get_exit(Room::Exit::WEST) == Room::Exit_Status::Locked)
+							{
+								symb = "<fg=red><bg=black>-";
+							}
+						}
+					}
+					if (y > 0)
+					{
+						std::string& symb = symbols[2 * x][2 * y - 1];
+						if (symb.length() == 0)
+						{
+							Room::Exit_Status es = top_room->get_exit(Room::Exit::NORTH);
+							if (es == Room::Exit_Status::Open)//if (gs.level->get_open_neighbor(top_room->get_handle(), Room::Exit::WEST) != -1)
+							{
+								symb = "<fg=white><bg=black>|";
+							}
+							else if (es == Room::Exit_Status::Locked)//else if (top_room->get_exit(Room::Exit::WEST) == Room::Exit_Status::Locked)
+							{
+								symb = "<fg=red><bg=black>|";
+							}
+						}
+					}
+					if (y < 4)
+					{
+						std::string& symb = symbols[2 * x][2 * y + 1];
+						if (symb.length() == 0)
+						{
+							Room::Exit_Status es = top_room->get_exit(Room::Exit::SOUTH);
+							if (es == Room::Exit_Status::Open)//if (gs.level->get_open_neighbor(top_room->get_handle(), Room::Exit::WEST) != -1)
+							{
+								symb = "<fg=white><bg=black>|";
+							}
+							else if (es == Room::Exit_Status::Locked)//else if (top_room->get_exit(Room::Exit::WEST) == Room::Exit_Status::Locked)
+							{
+								symb = "<fg=red><bg=black>|";
+							}
+						}
+					}
+				}
 			}
-		}
-		else if (pos.second != 0 && top_room->get_exit(Room::Exit::NORTH) == Room::Exit_Status::Locked)
-		{
-			//draw a little locked connector symbol
-			symbols[2 * pos.first][2 * pos.second - 1] = "<fg=red><bg=black>|";
-		}
-		
-		if (e != -1)
-		{
-			//draw a little connector symbol
-			symbols[2 * pos.first + 1][2 * pos.second] = "<fg=white><bg=black>-";
-			
-			//add the next room to the queue if it hasn't already been done
-			if (rooms[pos.first + 1][pos.second] == -1 && gs.level->get_room(e)->get_visited())
-			{
-				symbols[2 * pos.first + 2][2 * pos.second] = gs.level->get_room(e)->get_minimap_symbol();
-				rooms[pos.first + 1][pos.second] = e;
-				queue.push_back(std::make_pair(pos.first + 1,pos.second));
-			}
-		}
-		else if (pos.first != 4 && top_room->get_exit(Room::Exit::EAST) == Room::Exit_Status::Locked)
-		{
-			//draw a little locked connector symbol
-			symbols[2 * pos.first + 1][2 * pos.second] = "<fg=red><bg=black>-";
-		}
-		
-		if (s != -1)
-		{
-			//draw a little connector symbol
-			symbols[2 * pos.first][2 * pos.second + 1] = "<fg=white><bg=black>|";
-			
-			//add the next room to the queue if it hasn't already been done
-			if (rooms[pos.first][pos.second + 1] == -1 && gs.level->get_room(s)->get_visited())
-			{
-				symbols[2 * pos.first][2 * pos.second + 2] = gs.level->get_room(s)->get_minimap_symbol();
-				rooms[pos.first][pos.second + 1] = s;
-				queue.push_back(std::make_pair(pos.first,pos.second + 1));
-			}
-		}
-		else if (pos.second != 4 && top_room->get_exit(Room::Exit::SOUTH) == Room::Exit_Status::Locked)
-		{
-			//draw a little locked connector symbol
-			symbols[2 * pos.first][2 * pos.second + 1] = "<fg=red><bg=black>|";
-		}
-		
-		if (w != -1)
-		{
-			//draw a little connector symbol
-			symbols[2 * pos.first - 1][2 * pos.second] = "<fg=white><bg=black>-";
-			
-			//add the next room to the queue if it hasn't already been done
-			if (rooms[pos.first - 1][pos.second] == -1 && gs.level->get_room(w)->get_visited())
-			{
-				symbols[2 * pos.first - 2][2 * pos.second] = gs.level->get_room(w)->get_minimap_symbol();
-				rooms[pos.first - 1][pos.second] = w;
-				queue.push_back(std::make_pair(pos.first - 1,pos.second));
-			}
-		}
-		else if (pos.first != 0 && top_room->get_exit(Room::Exit::WEST) == Room::Exit_Status::Locked)
-		{
-			//draw a little locked connector symbol
-			symbols[2 * pos.first - 1][2 * pos.second] = "<fg=red><bg=black>-";
 		}
 	}
+	
+	symbols[4][4] = "<bg=black><fg=red>@";
 	
 	//now arrange the data into a drawable string
 	std::string mm = "";
@@ -187,14 +178,18 @@ void DrawSystem::draw_minimap(Console& console, GameState& gs, int minimap_frame
 	{
 		for (int j = 0; j < 9; ++j)
 		{
-			mm += symbols[j][i];
+			if (symbols[j][i].length() == 0)
+			{
+				mm += "<bg=black> ";
+			}
+			else
+			{
+				mm += symbols[j][i];
+			}
 		}
-		
-		if (i < 8)
-		{
-			mm += "\n";
-		}
+		mm += "\n";
 	}
+	mm.pop_back();
 	
 	//actually draw the minimap
 	Console::FrameSet& fs = console.get_current_frameset();
