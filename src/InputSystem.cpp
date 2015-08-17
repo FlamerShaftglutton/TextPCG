@@ -565,6 +565,37 @@ void InputSystem::do_work(Console& console, GameState& gs)
 				}
 			}
 			*/
+			#ifdef DEBUG
+			//we have extra commands if we're cheating...
+			else if (lower_input.substr(0,8) == "teleport")
+			{
+				std::size_t pos = lower_input.rfind(' ');
+				int x = StringUtils::stoi(lower_input.substr(9,pos - 9));
+				int y = StringUtils::stoi(lower_input.substr(pos + 1));
+				
+				Log::write("Teleporting to " + StringUtils::to_string(x) + ", " + StringUtils::to_string(y) + "...");
+				
+				//remove the player from the old room
+				std::vector<ECS::Handle>& cro = gs.level->get_room(current_room_handle)->objects();
+				for (unsigned i = 0; i < cro.size(); ++i)
+				{
+					if (cro[i] == gs.playable_character)
+					{
+						cro[i] = cro.back();
+						cro.pop_back();
+						break;
+					}
+				}
+				
+				//then add it to the new room
+				Room* next_room = gs.level->get_room(x,y);
+				next_room->objects().push_back(gs.playable_character);
+				gs.level->get_object(gs.playable_character)->room_container = next_room->get_handle();
+				
+				//get the description of the room
+				command_look_room(console,gs,next_room->get_handle(),false);
+			}
+			#endif
 			else
 			{
 				gs.main_text += "\n<fg=white>Command not recognized.";

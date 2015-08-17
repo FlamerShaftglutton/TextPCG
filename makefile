@@ -1,7 +1,7 @@
 CC=g++
-CFLAGS=-c -Wall -std=c++11 -g
+CFLAGS=-c -Wall -std=c++11 -DDEBUG
 #add -DDEBUG to CFLAGS for debugging messages
-LDFLAGS=-lncurses -g
+LDFLAGS=-lncurses
 SUBFOLDERS=src
 OBJFOLDER=obj
 EXECUTABLE=test.exe

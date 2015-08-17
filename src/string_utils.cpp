@@ -48,7 +48,7 @@ std::string StringUtils::trim(std::string input)
 int StringUtils::stoi(std::string input)
 {
 	std::stringstream s(input);
-	int output;
+	int output = 0;
 	s >> output;
 	
 	return output;
@@ -57,7 +57,7 @@ int StringUtils::stoi(std::string input)
 float StringUtils::stof(std::string input)
 {
 	std::stringstream s(input);
-	float output;
+	float output = 0.0f;
 	s >> output;
 	
 	return output;

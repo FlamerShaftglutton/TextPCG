@@ -40,3 +40,8 @@ float MyMath::random_float(float minimum, float maximum)
 	
 	return (float)MyMath::random_int(0,8388607) / 8388607.0f;
 }
+
+bool MyMath::between(int a, int minimum, int maximum)
+{
+	return (a >= minimum && a <= maximum);
+}

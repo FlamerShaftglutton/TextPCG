@@ -17,12 +17,27 @@
 
 #include <vector>
 
+struct Dungeon
+{
+	int width;
+	int height;
+	int x;
+	int y;
+	
+	int entrance_x;
+	int entrance_y;
+	
+	ECS::Handle mcguffin;
+};
+
 struct node
 {
 	ECS::Handle handle;
 	
 	node* children[4];
 	node* parent;
+	int x;
+	int y;
 	
 	bool locked;
 	
@@ -47,68 +62,13 @@ struct node
 	}
 };
 
-void PCG::create_world(GameState& gs)
+void create_dungeon(GameState& gs, ECS::Handle enemy_1, Dungeon dungeon_stats)
 {
-	//set up the basic stuff
-	gs.level = new Level(1000,1000);
-	gs.main_text = "";
-	gs.main_text_dirty_flag = true;
-	gs.frames_elapsed = 0;
-	
-	//create a couple generic enemies
-	ECS::Handle enemy_1 = gs.level->create_object();
-	Object* enemy_object = gs.level->get_object(enemy_1);
-	enemy_object->visible = true;
-	enemy_object->visible_in_short_description = true;
-	enemy_object->friendly = false;
-	enemy_object->mobile = true;
-	enemy_object->playable = false;
-	enemy_object->open = false;
-	enemy_object->holdable = false;
-	enemy_object->room_container = -1;
-	enemy_object->object_container = -1;
-	enemy_object->hitpoints = 12;
-	enemy_object->attack = 1;
-	enemy_object->hit_chance = 0.0f;
-	enemy_object->name = "An Evil Goblin";
-	enemy_object->description = "An ugly creature with beady bloodthirsty eyes.";
-
-	enemy_object->scripts.construct("(set 0 0);",
-						 "(say (choose (random 0 3) \"SCREEE!!!\" \"GEEYAH!!!\" \"Derp?\" \"RAAAH!!!\"));",
-						 "(set main_text (+ (get main_text) \"\n<fg=white><bg=black>You can't use an enemy!\"));",
-						 "(if (get combat.vulnerable_to_attack) (+ \"\" (set 0 2) (set main_text (+ (get main_text) \"<fg=green><bg=black>\nThe goblin reels back from your attack!\")) (set combat.player_position_far_front true) ) (+ \"\" (if (get combat.player_attacking) (set 0 3)) (choose (get 0) (if (get combat.player_position_front) (+ \"\" (set main_text (+ (get main_text) \"<fg=white><bg=black>\nThe goblin raises his sword over his head!\")) (set 0 1) (defend false false true true)) (+ \"\" (set main_text (+ (get main_text) \"<fg=white><bg=black>\n\" (if (get combat.player_position_far_front) \"The goblin stalks towards you!\" \"The goblin turns towards you!\"))) (set combat.player_position_front true) (defend true true true true) (attack false false false false)))  (if (or (get combat.player_position_front) (get combat.player_position_far_front)) (+ \"\" (set 0 0) (attack false false true true) (set main_text (+ (get main_text) \"<fg=white><bg=black>\nThe goblin slashes you with its sword!\")) (defend true true true true)) (+ \"\" (set 0 0) (set main_text (+ (get main_text) \"<fg=white><bg=black>\nThe goblin's sword clinks to the ground where you used to be standing!\")) (defend false false true true)))  (+ \"\" (set 0 0) (set main_text (+ (get main_text) \"<fg=white><bg=black>\nThe goblin recovers and holds his sword in a defensive position.\")) (defend true true true true)) (+ \"\" (set 0 0) (set main_text (+ (get main_text) \"<fg=white><bg=black>\nThe goblin blocks your attack!\")) (defend true true true true))))); ");
-	/*
-	ECS::Handle enemy_1_spawner = gs.level->create_object();
-	Object* spawner = gs.level->get_object(enemy_1_spawner);
-	spawner->visible = false;
-	spawner->visible_in_short_description = false;
-	*/
-	
-	//create a helper lambda
-	std::function<void(node*, std::vector<node*>&)> add_leaves = [&](node* mn, std::vector<node*>& al) { if (mn->is_leaf()) { al.push_back(mn); } else { for (int z = 0; z < 4; ++z) { if (mn->children[z] != nullptr && !mn->children[z]->locked) { add_leaves(mn->children[z],al); } } } };
-	
-	//start filling it in
-	node* starting_node = new node;
-	starting_node->parent = nullptr;
-	starting_node->children[0] = starting_node->children[1] = starting_node->children[2] = starting_node->children[3] = nullptr;
-	starting_node->locked = false;
-	starting_node->handle = gs.level->create_room(gs.level->get_width() / 2, gs.level->get_height() / 2);
-	Room* sr = gs.level->get_room(starting_node->handle);
-	//sr->set_description("A small room with unremarkable features. Seems like a good place to start.");
-	//sr->set_short_description("Starting Room");
-	sr->set_minimap_symbol("<bg=green> ");
-	
-	std::vector<node*> stack;
-	stack.push_back(starting_node);
-	
-	//int num_rooms = 1;
-	int offsetter = 3;
-	int min_rx, min_ry;
-	sr->get_xy(min_rx, min_ry);
-	int max_rx = min_rx + offsetter,
-		max_ry = min_ry + offsetter;
-	min_rx -= offsetter;
-	min_ry -= offsetter;
+	//get the upper and lower bounds
+	int min_rx = dungeon_stats.x;
+	int min_ry = dungeon_stats.y;
+	int max_rx = min_rx + dungeon_stats.width - 1;
+	int max_ry = min_ry + dungeon_stats.height - 1;
 	
 	if (min_rx < 1)
 	{
@@ -127,9 +87,34 @@ void PCG::create_world(GameState& gs)
 		max_ry = (gs.level->get_height() - 2);
 	}
 	
+	#ifdef DEBUG
+		if (max_rx <= min_rx || max_ry <= min_ry)
+		{
+			Log::write("Error: dungeon dimensions are invalid.");
+		}
+		
+		if (dungeon_stats.entrance_x < min_rx || dungeon_stats.entrance_x > max_rx || dungeon_stats.entrance_y < min_ry || dungeon_stats.entrance_y > min_rx)
+		{
+			Log::write("Error: dungeon entrance is outside of the dungeon.");
+		}
+	#endif
+
+	//create a helper lambda
+	std::function<void(node*, std::vector<node*>&)> add_leaves = [&](node* mn, std::vector<node*>& al) { if (mn->is_leaf()) { al.push_back(mn); } else { for (int z = 0; z < 4; ++z) { if (mn->children[z] != nullptr && !mn->children[z]->locked) { add_leaves(mn->children[z],al); } } } };
 	
-	//loop until we've made enough rooms
-	while(!stack.empty())
+	//create a starting point for the dungeon
+	node* starting_node = new node;
+	starting_node->x = dungeon_stats.entrance_x;//min_rx + width / 2;
+	starting_node->y = dungeon_stats.entrance_y;//min_ry + height - 1;
+	starting_node->parent = starting_node->children[0] = starting_node->children[1] = starting_node->children[2] = starting_node->children[3] = nullptr;
+	starting_node->locked = false;
+	starting_node->handle = -1;
+	
+	std::vector<node*> stack;
+	stack.push_back(starting_node);
+	
+	//loop until we've filled up the dungeon
+	while (!stack.empty())
 	{
 		//grab a random spot
 		unsigned spot = (unsigned)MyMath::random_int(0,(int)stack.size() - 1);
@@ -141,117 +126,88 @@ void PCG::create_world(GameState& gs)
 		}
 		node* n = stack.back();
 		stack.pop_back();
-		Room* r = gs.level->get_room(n->handle);
-		int rx,ry;
-		r->get_xy(rx,ry);
 		
-		//first off, find out how many children we can have
-		int max_children = 0;
-		if (ry > min_ry && gs.level->get_room(rx, ry - 1) == nullptr)
+		//now check if it's already a room
+		if (gs.level->get_room(n->x, n->y) != nullptr)
 		{
-			++max_children;
-		}
-		if (rx > min_rx && gs.level->get_room(rx - 1, ry) == nullptr)
-		{
-			++max_children;
-		}
-		if (rx < max_rx && gs.level->get_room(rx + 1, ry) == nullptr)
-		{
-			++max_children;
-		}
-		if (ry < max_ry && gs.level->get_room(rx, ry + 1) == nullptr)
-		{
-			++max_children;
+			continue;
 		}
 		
-		//if we can have kids...
-		if (max_children > 0)
+		//now check if it's an invalid spot for a room
+		if (n->x < min_rx || n->x > max_rx || n->y < min_ry || n->y > max_ry)
 		{
-			//if we can have kids, have a random amount!
-			int num_kids = max_children;//MyMath::random_int(1,max_children);
-			
-			//shuffle the list of directions
-			int dirs[] = {1,2,4,8};
-			for (int j = 0; j < 4; ++j)
-			{
-				int tt = dirs[3];
-				int ss = MyMath::random_int(0,2);
-				dirs[3] = dirs[ss];
-				dirs[ss] = tt;
-			}
-			
-			//for each kid...
-			for (int i = 0; i < 4; ++i)
-			{
-				int x_off = (dirs[i] & 3) == 2 ? -1 : dirs[i] & 3;
-				int y_off = ((dirs[i] >> 2) & 3) == 2 ? -1 : ((dirs[i] >> 2) & 3);
-				int n_x = rx + x_off;
-				int n_y = ry + y_off;
-				
-				if (n_y >= min_ry && n_y <= max_ry &&
-					n_x >= min_rx && n_x <= max_rx &&
-					gs.level->get_room(n_x, n_y) == nullptr)
-				{	
-					//update the number of rooms
-					//++num_rooms;
-					++num_kids;
-					
-					//set stuff in the node
-					node* child = new node;
-					child->handle = gs.level->create_room(n_x, n_y);
-					child->children[0] = child->children[1] = child->children[2] = child->children[3] = nullptr;
-					child->locked = false;
-					child->parent = n;
-					
-					//set stuff in the room
-					Room* rr = gs.level->get_room(child->handle);
-					rr->set_short_description("A Small Room");
-					rr->set_description("A <fg=green>leaf<fg=white> node, seemingly.");
-					rr->set_minimap_symbol("<bg=yellow> ");
-					
-					//set exits in the rooms
-					rr->set_exit(dirs[i] == 1 ? Room::Exit::WEST : dirs[i] == 2 ? Room::Exit::EAST : dirs[i] == 4 ? Room::Exit::NORTH : Room::Exit::SOUTH,Room::Exit_Status::Open);
-					r->set_exit(dirs[i] == 1 ? Room::Exit::EAST : dirs[i] == 2 ? Room::Exit::WEST : dirs[i] == 4 ? Room::Exit::SOUTH : Room::Exit::NORTH,Room::Exit_Status::Open);
-					
-					//set stuff in the parent node
-					n->children[i] = child;
-					
-					//add this child to the stack
-					stack.push_back(child);
-				}
-			}
-			
-			//if we ended up having any kids, then update the description
-			if (num_kids > 0)
-			{
-				r->set_short_description("A Hallway");
-				r->set_description("A corridor leading to other rooms.");
-			}
+			continue;
 		}
+		
+		//if it's a valid spot, create a new room!
+		Room* nr = gs.level->get_room(gs.level->create_room(n->x, n->y));
+		n->handle = nr->get_handle();
+		nr->set_short_description("A Small Room");
+		nr->set_description("A <fg=green>leaf<fg=white> node, seemingly.");
+		nr->set_minimap_symbol("<bg=yellow> ");
+		nr->set_visited(false);
+		
+		//if this room has a parent, open a doorway between the two and update the parent
+		if (n->parent != nullptr)
+		{
+			//get the parent object
+			Room* pr = gs.level->get_room(n->parent->handle);
+			
+			//make the doors
+			Room::Exit pcd = n->parent->y > n->y ? Room::Exit::NORTH : n->parent->y < n->y ? Room::Exit::SOUTH : n->parent->x > n->x ? Room::Exit::WEST : Room::Exit::EAST;
+			Room::Exit cpd = pcd == Room::Exit::NORTH ? Room::Exit::SOUTH : pcd == Room::Exit::SOUTH ? Room::Exit::NORTH : pcd == Room::Exit::WEST ? Room::Exit::EAST : Room::Exit::WEST;
+			pr->set_exit(pcd, Room::Exit_Status::Open);
+			nr->set_exit(cpd, Room::Exit_Status::Open);
+		
+			//update the tree
+			n->parent->children[static_cast<std::size_t>(pcd)] = n;
+			
+			//update the room object
+			pr->set_short_description("A Hallway");
+			pr->set_description("A corridor leading to other rooms.");
+		}
+		
+		//create some children for this room!
+		node* nn = new node;
+		nn->x = n->x - 0;
+		nn->y = n->y - 1;
+		nn->locked = false;
+		nn->parent = n;
+		nn->handle = -1;
+		nn->children[0] = nn->children[1] = nn->children[2] = nn->children[3] = nullptr;
+		stack.push_back(nn);
+		
+		node* en = new node;
+		en->x = n->x + 1;
+		en->y = n->y - 0;
+		en->locked = false;
+		en->parent = n;
+		en->handle = -1;
+		en->children[0] = en->children[1] = en->children[2] = en->children[3] = nullptr;
+		stack.push_back(en);
+		
+		node* sn = new node;
+		sn->x = n->x - 0;
+		sn->y = n->y + 1;
+		sn->locked = false;
+		sn->parent = n;
+		sn->handle = -1;
+		sn->children[0] = sn->children[1] = sn->children[2] = sn->children[3] = nullptr;
+		stack.push_back(sn);
+		
+		node* wn = new node;
+		wn->x = n->x - 1;
+		wn->y = n->y - 0;
+		wn->locked = false;
+		wn->parent = n;
+		wn->handle = -1;
+		wn->children[0] = wn->children[1] = wn->children[2] = wn->children[3] = nullptr;
+		stack.push_back(wn);
 	}
-	
-	//At this point we should have a map full of rooms and a tree full of nodes. Time to start placing locks and keys.
-	//create the last key
-	ECS::Handle kh = gs.level->create_object();
-	Object* ko = gs.level->get_object(kh);
-	ko->visible = false;
-	ko->visible_in_short_description = false;
-	ko->friendly = true;
-	ko->mobile = false;
-	ko->playable = false;
-	ko->open = false;
-	ko->holdable = true;
-	ko->object_container = -1;
-	ko->hitpoints = -1;
-	ko->attack = 0;
-	ko->hit_chance = 0.0f;
-	ko->name = "God";
-	ko->description = "You won the game!";
-	ko->scripts.construct("","(say \"You have won the game! Nicely done!\");","(say \"You have won the game! Nicely done!\");","");
 
-	//put the key in the farthest room from the starting room
+	//At this point we should have a map full of rooms and a tree full of nodes. Time to start placing locks and keys.
+	//put the McGuffin in the farthest room from the starting room
 	node* random_node = starting_node;
-	
 	while (!random_node->is_leaf() || random_node == starting_node)
 	{
 		int most_kids = 0;
@@ -274,18 +230,21 @@ void PCG::create_world(GameState& gs)
 			random_node = best_kid;
 		}
 	}
+	ECS::Handle kh = dungeon_stats.mcguffin
+	Object* ko = gs.level->get_object(kh);
 	ko->room_container = random_node->handle;
-	gs.level->get_room(random_node->handle)->objects().push_back(ko->get_handle());
+	gs.level->get_room(random_node->handle)->objects().push_back(kh);
 	
 	//set up some colors for the doors
 	std::vector<std::string> color_names = { "red", "green", "yellow"/*, "blue"*/, "magenta", "cyan"};
 	
 	//make locks and keys!
-	for (int k = 0; k < 3; ++k)
+	for (int k = 3; k > 0; --k)
 	{
 		//figure out which room to lock
-		int steps_up = 1;//MyMath::random_int(1,3);
-		for (int i = 0; i < steps_up && random_node->parent != starting_node && random_node->count_children() < 5; ++i)
+		int max_rooms_to_lock = MyMath::random_int(1,(starting_node->count_children() - 1) / k);
+		while (random_node->parent != starting_node && random_node->parent->count_children() <= max_rooms_to_lock)
+		//for (int i = 0; i < steps_up && random_node->parent != starting_node && random_node->count_children() < 5; ++i)
 		{
 			random_node = random_node->parent;
 		}
@@ -320,7 +279,7 @@ void PCG::create_world(GameState& gs)
 			#endif
 			
 			random_node = starting_node;
-			k = 10000;
+			k = -10000;
 		}
 		else
 		{
@@ -383,28 +342,8 @@ void PCG::create_world(GameState& gs)
 		}
 	}
 	
-	//make the player in the first room!
-	gs.playable_character = gs.level->create_object();
-	Object* o = gs.level->get_object(gs.playable_character);
-	o->visible = true;
-	o->visible_in_short_description = true;
-	o->friendly = true;
-	o->mobile = true;
-	o->playable = true;
-	o->open = true;
-	o->holdable = false;
-	o->room_container = sr->get_handle();
-	o->object_container = -1;
-	o->hitpoints = 100;
-	o->attack = 10;
-	o->hit_chance = 0.75f;
-	o->name = "Myself";
-	o->description = "A <fg=red>hideous<fg=white> looking human. Possibly beaten, or possibly just always ugly. Hard to tell.";
-	o->scripts.construct("","","","");
-	sr->objects().push_back(o->get_handle());
-	
 	//also, put a weird painting in a random room
-	o = gs.level->get_object(gs.level->create_object());
+	Object* o = gs.level->get_object(gs.level->create_object());
 	o->visible = true;
 	o->visible_in_short_description = false;
 	o->friendly = true;
@@ -443,4 +382,257 @@ void PCG::create_world(GameState& gs)
 		//delete it
 		delete nn;
 	}
+}
+
+void create_overworld(GameState& gs, ECS::Handle enemy_1)
+{
+	//create a starting space and 3 dungeons
+	node* starting_node = new node;
+	starting_node->x = 100;
+	starting_node->y = 150;
+	
+	node* d1;
+	d1->x = 80;
+	d1->y = 150;
+	d1->locked = false;
+	d1->parent = starting_node;
+	d1->children[0] = d1->children[1] = d1->children[2] = d1->children[3];
+	
+	node* d2;
+	d2->x = 110;
+	d2->y = 150;
+	d2->locked = false;
+	d2->parent = starting_node;
+	d2->children[0] = d2->children[1] = d2->children[2] = d2->children[3];
+	
+	node* d3;
+	d3->x = 100;
+	d3->y = 130;
+	d3->locked = false;
+	d3->parent = starting_node;
+	d3->children[0] = d3->children[1] = d3->children[2] = d3->children[3];
+	
+	starting_node->children[0] = d1;
+	starting_node->children[1] = d2;
+	starting_node->children[2] = d3;
+	
+	//create the last mcguffin
+	ECS::Handle mcguffin = -1;
+	mcguffin = gs.level->create_object();
+	Object* ko = gs.level->get_object(mcguffin);
+	ko->visible = false;
+	ko->visible_in_short_description = false;
+	ko->friendly = true;
+	ko->mobile = false;
+	ko->playable = false;
+	ko->open = false;
+	ko->holdable = true;
+	ko->object_container = -1;
+	ko->hitpoints = -1;
+	ko->attack = 0;
+	ko->hit_chance = 0.0f;
+	ko->name = "God";
+	ko->description = "You won the game!";
+	ko->scripts.construct("","(say \"You have won the game! Nicely done!\");","(say \"You have won the game! Nicely done!\");","");
+	
+	while (starting_node->count_children() > 1)
+	{
+		//pick a random (unlocked) node to put the mcguffin in
+		node* random_node = nullptr;
+		if (!starting_node->children[0]->locked && MyMath::random_int(0,2) == 0)
+		{
+			random_node = starting_node->children[0];
+		}
+		else if (!starting_node->children[1]->locked && MyMath::random_int(0,1) == 0)
+		{
+			random_node = starting_node->children[1];
+		}
+		else
+		{
+			random_node = starting_node->children[2];
+		}
+		
+		//jam the mcguffin in there and create the dungeon!
+		Dungeon d;
+		d.mcguffin = mcguffin;
+		d.width = MyMath::random_int(2,7);
+		d.height = MyMath::random_int(1 + 16 / d.width, 49 / d.width);
+		d.x = random_node->x;
+		d.y = random_node->y;
+		d.entrance_x = d.x + d.width / 2;
+		d.entrance_y = d.y + d.height - 1;
+		
+		create_dungeon(gs, enemy_1, d);
+		
+		//now lock it
+		random_node->locked = true;
+		
+		else
+		{
+			mcguffin = gs.level->create_object();
+			Object* ko = gs.level->get_object(mcguffin);
+			ko->visible = true;
+			ko->visible_in_short_description = false;
+			ko->friendly = true;
+			ko->mobile = false;
+			ko->playable = false;
+			ko->open = true;
+			ko->holdable = true;
+			ko->object_container = -1;
+			ko->hitpoints = -1;
+			ko->attack = 0;
+			ko->hit_chance = 0.0f;
+			ko->name = "Key";
+			ko->description = "You won the game!";
+			ko->scripts.construct("","(say \"You have won the game! Nicely done!\");","(say \"You have won the game! Nicely done!\");","");
+		}
+	}
+	
+	//fill in everything but the dungeons TODO: fix this to accomodate all the dungeons
+	/*
+	for (int x = 1; x < gs.level->get_width() - 1; ++x)
+	{
+		for (int y = 1; y < gs.level->get_height() - 1; ++y)
+		{
+			if (gs.level->get_room(x,y) == nullptr)
+			{
+				Room* ro = gs.level->get_room(gs.level->create_room(x,y));
+				
+				ro->set_short_description("Outside");
+				ro->set_description("A sunny, grassey field.");
+				ro->set_minimap_symbol("<fg=white><bg=green>#");
+				ro->set_visited(true);
+				
+				if (y > 1 && ((y - d.y - d.height) != 0 || !MyMath::between(x, d.x, d.x + d.width - 1)))
+				{
+					ro->set_exit(Room::Exit::NORTH, Room::Exit_Status::Open);
+				}
+				if (x < (gs.level->get_width() - 2) && ((d.x - x) != 1 || !MyMath::between(y, d.y, d.y + d.height -1)))
+				{
+					ro->set_exit(Room::Exit::EAST, Room::Exit_Status::Open);
+				}
+				if (y < (gs.level->get_height() - 2) && ((d.y - y) != 1 || !MyMath::between(x, d.x, d.x + d.width - 1)))
+				{
+					ro->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
+				}
+				if (x > 1 && ((x - d.x - d.width) != 0 || !MyMath::between(y, d.y, d.y + d.height -1)))
+				{
+					ro->set_exit(Room::Exit::WEST, Room::Exit_Status::Open);
+				}
+			}
+		}
+	}
+	*/
+	
+	//create a map object that displays a crude map of the world on_use
+	
+}
+
+void PCG::create_world(GameState& gs)
+{
+	//set up the basic stuff
+	gs.level = new Level(200,200);
+	gs.main_text = "";
+	gs.main_text_dirty_flag = true;
+	gs.frames_elapsed = 0;
+	
+	//create a couple generic enemies
+	ECS::Handle enemy_1 = gs.level->create_object();
+	Object* enemy_object = gs.level->get_object(enemy_1);
+	enemy_object->visible = true;
+	enemy_object->visible_in_short_description = true;
+	enemy_object->friendly = false;
+	enemy_object->mobile = true;
+	enemy_object->playable = false;
+	enemy_object->open = false;
+	enemy_object->holdable = false;
+	enemy_object->room_container = -1;
+	enemy_object->object_container = -1;
+	enemy_object->hitpoints = 12;
+	enemy_object->attack = 1;
+	enemy_object->hit_chance = 0.0f;
+	enemy_object->name = "An Evil Goblin";
+	enemy_object->description = "An ugly creature with beady bloodthirsty eyes.";
+
+	enemy_object->scripts.construct("(set 0 0);",
+									"(say (choose (random 0 3) \"SCREEE!!!\" \"GEEYAH!!!\" \"Derp?\" \"RAAAH!!!\"));",
+									"(set main_text (+ (get main_text) \"\n<fg=white><bg=black>You can't use an enemy!\"));",
+									"(if (get combat.vulnerable_to_attack) (+ \"\" (set 0 2) (set main_text (+ (get main_text) \"<fg=green><bg=black>\nThe goblin reels back from your attack!\")) (set combat.player_position_far_front true) ) (+ \"\" (if (get combat.player_attacking) (set 0 3)) (choose (get 0) (if (get combat.player_position_front) (+ \"\" (set main_text (+ (get main_text) \"<fg=white><bg=black>\nThe goblin raises his sword over his head!\")) (set 0 1) (defend false false true true)) (+ \"\" (set main_text (+ (get main_text) \"<fg=white><bg=black>\n\" (if (get combat.player_position_far_front) \"The goblin stalks towards you!\" \"The goblin turns towards you!\"))) (set combat.player_position_front true) (defend true true true true) (attack false false false false)))  (if (or (get combat.player_position_front) (get combat.player_position_far_front)) (+ \"\" (set 0 0) (attack false false true true) (set main_text (+ (get main_text) \"<fg=white><bg=black>\nThe goblin slashes you with its sword!\")) (defend true true true true)) (+ \"\" (set 0 0) (set main_text (+ (get main_text) \"<fg=white><bg=black>\nThe goblin's sword clinks to the ground where you used to be standing!\")) (defend false false true true)))  (+ \"\" (set 0 0) (set main_text (+ (get main_text) \"<fg=white><bg=black>\nThe goblin recovers and holds his sword in a defensive position.\")) (defend true true true true)) (+ \"\" (set 0 0) (set main_text (+ (get main_text) \"<fg=white><bg=black>\nThe goblin blocks your attack!\")) (defend true true true true))))); ");
+	/*
+	ECS::Handle enemy_1_spawner = gs.level->create_object();
+	Object* spawner = gs.level->get_object(enemy_1_spawner);
+	spawner->visible = false;
+	spawner->visible_in_short_description = false;
+	*/
+	/*
+	//create a dungeon
+	Dungeon d;
+	d.x = 50;
+	d.y = 50;
+	d.width = 7;
+	d.height = 7;
+	d.entrance_x = d.x + d.width / 2;
+	d.entrance_y = d.y + d.height - 1;
+	create_dungeon(gs, enemy_1, d);
+	
+	//fill in everything but the dungeon
+	for (int x = 1; x < gs.level->get_width() - 1; ++x)
+	{
+		for (int y = 1; y < gs.level->get_height() - 1; ++y)
+		{
+			if (gs.level->get_room(x,y) == nullptr)
+			{
+				Room* ro = gs.level->get_room(gs.level->create_room(x,y));
+				
+				ro->set_short_description("Outside");
+				ro->set_description("A sunny, grassey field.");
+				ro->set_minimap_symbol("<fg=white><bg=green>#");
+				ro->set_visited(true);
+				
+				if (y > 1 && ((y - d.y - d.height) != 0 || !MyMath::between(x, d.x, d.x + d.width - 1)))
+				{
+					ro->set_exit(Room::Exit::NORTH, Room::Exit_Status::Open);
+				}
+				if (x < (gs.level->get_width() - 2) && ((d.x - x) != 1 || !MyMath::between(y, d.y, d.y + d.height -1)))
+				{
+					ro->set_exit(Room::Exit::EAST, Room::Exit_Status::Open);
+				}
+				if (y < (gs.level->get_height() - 2) && ((d.y - y) != 1 || !MyMath::between(x, d.x, d.x + d.width - 1)))
+				{
+					ro->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
+				}
+				if (x > 1 && ((x - d.x - d.width) != 0 || !MyMath::between(y, d.y, d.y + d.height -1)))
+				{
+					ro->set_exit(Room::Exit::WEST, Room::Exit_Status::Open);
+				}
+			}
+		}
+	}
+	*/
+	create_overworld(gs,enemy_1);
+	
+	//make the player just outside the entrance
+	Room* sr = gs.level->get_room(d.entrance_x, d.entrance_y + 1);
+	gs.playable_character = gs.level->create_object();
+	Object* o = gs.level->get_object(gs.playable_character);
+	o->visible = true;
+	o->visible_in_short_description = true;
+	o->friendly = true;
+	o->mobile = true;
+	o->playable = true;
+	o->open = true;
+	o->holdable = false;
+	o->room_container = sr->get_handle();
+	o->object_container = -1;
+	o->hitpoints = 100;
+	o->attack = 10;
+	o->hit_chance = 0.75f;
+	o->name = "Myself";
+	o->description = "A <fg=red>hideous<fg=white> looking human. Possibly beaten, or possibly just always ugly. Hard to tell.";
+	o->scripts.construct("","","","");
+	sr->objects().push_back(o->get_handle());
+	
+	//update the entrance to connect to the outside
+	sr->set_exit(Room::Exit::NORTH, Room::Exit_Status::Open);
+	gs.level->get_room(d.entrance_x, d.entrance_y)->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
 }
