@@ -230,7 +230,7 @@ void create_dungeon(GameState& gs, ECS::Handle enemy_1, Dungeon dungeon_stats)
 			random_node = best_kid;
 		}
 	}
-	ECS::Handle kh = dungeon_stats.mcguffin
+	ECS::Handle kh = dungeon_stats.mcguffin;
 	Object* ko = gs.level->get_object(kh);
 	ko->room_container = random_node->handle;
 	gs.level->get_room(random_node->handle)->objects().push_back(kh);
@@ -313,7 +313,7 @@ void create_dungeon(GameState& gs, ECS::Handle enemy_1, Dungeon dungeon_stats)
 		ko->description = "A skeleton key. It glows <fg=" + door_color + ">" + door_color + "<fg=white>. Find the door it belongs to!";
 		ko->scripts.construct("",
 							  "",
-							  "(if (= (get current_room.handle) " + StringUtils::to_string((int)pr->get_handle()) + ") (+ (set current_room.description \"<fg=white><bg=black>A small, cramped room. To the " + direction_names[(int)e] + " is an unlocked door.\") (set global.main_text (+ (get global.main_text) \"<fg=white><bg=black>\n\nThe key opens a door to the " + direction_names[(int)e] + ".\")) (set current_room.open_" + StringUtils::to_lowercase(direction_names[(int)e].substr(0,1)) + " true) (destroy (get caller.handle))) (set global.main_text (+ (get global.main_text) \"<fg=white><bg=black>\n\nIt does nothing\")));",
+							  "(if (= (get current_room.handle) " + StringUtils::to_string((int)pr->get_handle()) + ") (+ (set global.main_text (+ (get global.main_text) \"<fg=white><bg=black>\n\nThe key opens a door to the " + direction_names[(int)e] + ".\")) (set current_room.open_" + StringUtils::to_lowercase(direction_names[(int)e].substr(0,1)) + " true) (destroy (get caller.handle))) (set global.main_text (+ (get global.main_text) \"<fg=white><bg=black>\n\nIt does nothing\")));",
 							  "");
 		neo->objects.push_back(kh);
 	}
@@ -382,6 +382,8 @@ void create_dungeon(GameState& gs, ECS::Handle enemy_1, Dungeon dungeon_stats)
 		//delete it
 		delete nn;
 	}
+	
+	gs.level->get_room(dungeon_stats.entrance_x, dungeon_stats.entrance_y)->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
 }
 
 void create_overworld(GameState& gs, ECS::Handle enemy_1)
@@ -391,30 +393,31 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 	starting_node->x = 100;
 	starting_node->y = 150;
 	
-	node* d1;
+	node* d1 = new node;
 	d1->x = 80;
 	d1->y = 150;
 	d1->locked = false;
 	d1->parent = starting_node;
-	d1->children[0] = d1->children[1] = d1->children[2] = d1->children[3];
+	d1->children[0] = d1->children[1] = d1->children[2] = d1->children[3] = nullptr;
 	
-	node* d2;
+	node* d2 = new node;
 	d2->x = 110;
 	d2->y = 150;
 	d2->locked = false;
 	d2->parent = starting_node;
-	d2->children[0] = d2->children[1] = d2->children[2] = d2->children[3];
+	d2->children[0] = d2->children[1] = d2->children[2] = d2->children[3] = nullptr;
 	
-	node* d3;
+	node* d3 = new node;
 	d3->x = 100;
 	d3->y = 130;
 	d3->locked = false;
 	d3->parent = starting_node;
-	d3->children[0] = d3->children[1] = d3->children[2] = d3->children[3];
+	d3->children[0] = d3->children[1] = d3->children[2] = d3->children[3] = nullptr;
 	
 	starting_node->children[0] = d1;
 	starting_node->children[1] = d2;
 	starting_node->children[2] = d3;
+	starting_node->children[3] = nullptr;
 	
 	//create the last mcguffin
 	ECS::Handle mcguffin = -1;
@@ -435,7 +438,7 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 	ko->description = "You won the game!";
 	ko->scripts.construct("","(say \"You have won the game! Nicely done!\");","(say \"You have won the game! Nicely done!\");","");
 	
-	while (starting_node->count_children() > 1)
+	while (starting_node->count_children() > 0)
 	{
 		//pick a random (unlocked) node to put the mcguffin in
 		node* random_node = nullptr;
@@ -464,10 +467,12 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 		
 		create_dungeon(gs, enemy_1, d);
 		
-		//now lock it
-		random_node->locked = true;
+		//update the exit
+		gs.level->get_room(d.entrance_x, d.entrance_y)->set_exit(Room::Exit::NORTH, starting_node->count_children() > 0 ? Room::Exit_Status::Open : Room::Exit_Status::Locked);
 		
-		else
+		//now lock it and make a new key
+		random_node->locked = true;
+		if (starting_node->count_children() > 0)
 		{
 			mcguffin = gs.level->create_object();
 			Object* ko = gs.level->get_object(mcguffin);
@@ -476,20 +481,23 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 			ko->friendly = true;
 			ko->mobile = false;
 			ko->playable = false;
-			ko->open = true;
+			ko->open = false;
 			ko->holdable = true;
 			ko->object_container = -1;
+			ko->room_container = -1;
 			ko->hitpoints = -1;
 			ko->attack = 0;
 			ko->hit_chance = 0.0f;
-			ko->name = "Key";
-			ko->description = "You won the game!";
-			ko->scripts.construct("","(say \"You have won the game! Nicely done!\");","(say \"You have won the game! Nicely done!\");","");
+			ko->name = "A Massive Key";
+			ko->description = "A huge key. Find the dungeon it belongs to!";
+			ko->scripts.construct("",
+								  "",//well poop, how do we reference a room that hasn't been created yet? Now we need to initiate each room before starting, which'll throw everything off!
+								  "(if (= (get current_room.handle) " + StringUtils::to_string((int)rrr->get_handle()) + ") (+ (set global.main_text (+ (get global.main_text) \"<fg=white><bg=black>\n\nThe huge doors of the dungeon swing open.\")) (set current_room.open_n true) (destroy (get caller.handle))) (set global.main_text (+ (get global.main_text) \"<fg=white><bg=black>\n\nIt does nothing\")));",
+								  "");
 		}
 	}
 	
-	//fill in everything but the dungeons TODO: fix this to accomodate all the dungeons
-	/*
+	//fill in everything but the dungeons
 	for (int x = 1; x < gs.level->get_width() - 1; ++x)
 	{
 		for (int y = 1; y < gs.level->get_height() - 1; ++y)
@@ -503,26 +511,61 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 				ro->set_minimap_symbol("<fg=white><bg=green>#");
 				ro->set_visited(true);
 				
-				if (y > 1 && ((y - d.y - d.height) != 0 || !MyMath::between(x, d.x, d.x + d.width - 1)))
+				if (y > 1 && (gs.level->get_room(x, y - 1) == nullptr || gs.level->get_room(x, y - 1)->get_exit(Room::Exit::SOUTH) == Room::Exit_Status::Open))
+				//if (y > 1 && ((y - d.y - d.height) != 0 || !MyMath::between(x, d.x, d.x + d.width - 1)))
 				{
 					ro->set_exit(Room::Exit::NORTH, Room::Exit_Status::Open);
 				}
-				if (x < (gs.level->get_width() - 2) && ((d.x - x) != 1 || !MyMath::between(y, d.y, d.y + d.height -1)))
+				if (x < (gs.level->get_width() - 2) && (gs.level->get_room(x + 1, y) == nullptr || gs.level->get_room(x + 1, y)->get_exit(Room::Exit::WEST) == Room::Exit_Status::Open))
+				//if (x < (gs.level->get_width() - 2) && ((d.x - x) != 1 || !MyMath::between(y, d.y, d.y + d.height -1)))
 				{
 					ro->set_exit(Room::Exit::EAST, Room::Exit_Status::Open);
 				}
-				if (y < (gs.level->get_height() - 2) && ((d.y - y) != 1 || !MyMath::between(x, d.x, d.x + d.width - 1)))
+				if (y < (gs.level->get_height() - 2) && (gs.level->get_room(x, y + 1) == nullptr || gs.level->get_room(x, y + 1)->get_exit(Room::Exit::NORTH) == Room::Exit_Status::Open))
+				//if (y < (gs.level->get_height() - 2) && ((d.y - y) != 1 || !MyMath::between(x, d.x, d.x + d.width - 1)))
 				{
 					ro->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
 				}
-				if (x > 1 && ((x - d.x - d.width) != 0 || !MyMath::between(y, d.y, d.y + d.height -1)))
+				if (x > 1 && (gs.level->get_room(x - 1, y) == nullptr || gs.level->get_room(x - 1, y)->get_exit(Room::Exit::EAST) == Room::Exit_Status::Open))
+				//if (x > 1 && ((x - d.x - d.width) != 0 || !MyMath::between(y, d.y, d.y + d.height -1)))
 				{
 					ro->set_exit(Room::Exit::WEST, Room::Exit_Status::Open);
+				}
+				
+				if (gs.level->get_room(x, y - 1) != nullptr && gs.level->get_room(x, y - 1)->get_exit(Room::Exit::SOUTH) == Room::Exit_Status::Locked)
+				{
+					ro->set_exit(Room::Exit::NORTH, Room::Exit_Status::Locked);
+					gs.level->get_room(x, y - 1)->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
 				}
 			}
 		}
 	}
-	*/
+	
+	//update the starting node slightly
+	Room* sr = gs.level->get_room(starting_node->x, starting_node->y);
+	sr->set_short_description("Your Home");
+	sr->set_description("A patch of dirt. The remains of a campfire smolder here.");
+	sr->set_minimap_symbol("<fg=red><bg=yellow>%");
+
+	//put the player object at the starting location
+	gs.playable_character = gs.level->create_object();
+	Object* o = gs.level->get_object(gs.playable_character);
+	o->visible = true;
+	o->visible_in_short_description = true;
+	o->friendly = true;
+	o->mobile = true;
+	o->playable = true;
+	o->open = true;
+	o->holdable = false;
+	o->room_container = sr->get_handle();
+	o->object_container = -1;
+	o->hitpoints = 100;
+	o->attack = 10;
+	o->hit_chance = 0.75f;
+	o->name = "Myself";
+	o->description = "A <fg=red>hideous<fg=white> looking human. Possibly beaten, or possibly just always ugly. Hard to tell.";
+	o->scripts.construct("","","","");
+	sr->objects().push_back(o->get_handle());
 	
 	//create a map object that displays a crude map of the world on_use
 	
@@ -612,27 +655,8 @@ void PCG::create_world(GameState& gs)
 	create_overworld(gs,enemy_1);
 	
 	//make the player just outside the entrance
-	Room* sr = gs.level->get_room(d.entrance_x, d.entrance_y + 1);
-	gs.playable_character = gs.level->create_object();
-	Object* o = gs.level->get_object(gs.playable_character);
-	o->visible = true;
-	o->visible_in_short_description = true;
-	o->friendly = true;
-	o->mobile = true;
-	o->playable = true;
-	o->open = true;
-	o->holdable = false;
-	o->room_container = sr->get_handle();
-	o->object_container = -1;
-	o->hitpoints = 100;
-	o->attack = 10;
-	o->hit_chance = 0.75f;
-	o->name = "Myself";
-	o->description = "A <fg=red>hideous<fg=white> looking human. Possibly beaten, or possibly just always ugly. Hard to tell.";
-	o->scripts.construct("","","","");
-	sr->objects().push_back(o->get_handle());
 	
 	//update the entrance to connect to the outside
-	sr->set_exit(Room::Exit::NORTH, Room::Exit_Status::Open);
-	gs.level->get_room(d.entrance_x, d.entrance_y)->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
+	//sr->set_exit(Room::Exit::NORTH, Room::Exit_Status::Open);
+	//gs.level->get_room(d.entrance_x, d.entrance_y)->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
 }
