@@ -22,7 +22,7 @@
 void init(Console& console)
 {
 	//seed the RNG before we forget!
-	MyMath::start_rng();
+	MyMath::start_rng(1558332593);
 
 	//some all-purpose frames
 	Console::Frame f("text_box",console.get_height() - 2, console.get_width(), 0,0,false, false, true);

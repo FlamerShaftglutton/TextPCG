@@ -16,6 +16,14 @@ void MyMath::start_rng()
 	z = (uint32_t)rd();
 }
 
+void MyMath::start_rng(int seed)
+{
+	w = seed & 0x000000FF;
+	x = seed & 0x0000FF00;
+	y = seed & 0x00FF0000;
+	z = seed & 0xFF000000;
+}
+
 int MyMath::random_int(int minimum, int maximum)
 {
 	//std::uniform_int_distribution<int> dist(minimum,maximum);

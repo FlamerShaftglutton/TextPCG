@@ -356,7 +356,7 @@ Expression* Script::recursively_resolve(std::vector<std::string>& tokens, std::v
 				#ifdef DEBUG
 				else
 				{
-					Log::write("ERROR: invalid function name");
+					Log::write("ERROR: invalid function name '" + s + "'.");
 				}
 				#endif
 				

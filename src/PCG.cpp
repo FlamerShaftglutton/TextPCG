@@ -17,6 +17,7 @@
 
 #include <vector>
 
+
 struct Dungeon
 {
 	int width;
@@ -28,6 +29,40 @@ struct Dungeon
 	int entrance_y;
 	
 	ECS::Handle mcguffin;
+};
+
+struct Zone
+{
+	Dungeon d;
+	ECS::Handle mcguffin;
+	Zone* mcguffin_opens = nullptr;
+	
+	std::vector<Zone*> children;
+	Zone* parent;
+	int x;//needed?
+	int y;//needed?
+	
+	bool locked;
+	
+	int count_children()
+	{
+		int count = 1;
+		
+		for (std::size_t i = 0; i < children.size(); ++i)
+		{
+			if (!children[i]->locked)
+			{
+				count += children[i]->count_children();
+			}
+		}
+		
+		return count;
+	}
+	
+	bool is leaf()
+	{
+		return children.empty();
+	}
 };
 
 struct node
@@ -93,7 +128,7 @@ void create_dungeon(GameState& gs, ECS::Handle enemy_1, Dungeon dungeon_stats)
 			Log::write("Error: dungeon dimensions are invalid.");
 		}
 		
-		if (dungeon_stats.entrance_x < min_rx || dungeon_stats.entrance_x > max_rx || dungeon_stats.entrance_y < min_ry || dungeon_stats.entrance_y > min_rx)
+		if (dungeon_stats.entrance_x < min_rx || dungeon_stats.entrance_x > max_rx || dungeon_stats.entrance_y < min_ry || dungeon_stats.entrance_y > max_ry)
 		{
 			Log::write("Error: dungeon entrance is outside of the dungeon.");
 		}
@@ -236,7 +271,7 @@ void create_dungeon(GameState& gs, ECS::Handle enemy_1, Dungeon dungeon_stats)
 	gs.level->get_room(random_node->handle)->objects().push_back(kh);
 	
 	//set up some colors for the doors
-	std::vector<std::string> color_names = { "red", "green", "yellow"/*, "blue"*/, "magenta", "cyan"};
+	std::vector<std::string> color_names = { "red", "green", "yellow"/*, "blue"*/, "magenta", "cyan"};//blue is too hard to read
 	
 	//make locks and keys!
 	for (int k = 3; k > 0; --k)
@@ -381,13 +416,77 @@ void create_dungeon(GameState& gs, ECS::Handle enemy_1, Dungeon dungeon_stats)
 		
 		//delete it
 		delete nn;
+		nn = nullptr;
 	}
 	
+	//open the dungeon to the outside world
 	gs.level->get_room(dungeon_stats.entrance_x, dungeon_stats.entrance_y)->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
 }
 
 void create_overworld(GameState& gs, ECS::Handle enemy_1)
 {
+	//create a starting zones
+	Zone* starting_zone = new Zone;
+	std::vector<Zone*> stack;
+	stack.push_back(starting_zone);
+	
+	//create a tree of zones
+	for (int i = 0; i < 7; ++i)
+	{
+		Zone* z = stack[MyMath::random_int(0, stack.size() - 1)];//TODO: use a modified priority queue to get results that are a bit better
+		Zone* c = new Zone;
+		z->children.push_back(c);
+		c->parent = z;
+	}
+	
+	//create a helper lambda
+	std::function<void(Zone*, std::vector<Zone*>&)> add_leaves = [&](Zone* mn, std::vector<Zone*>& al) { if (mn->count_children() == 1) { al.push_back(mn); } else { for (std::size_t z = 0; z < mn->children.size(); ++z) { if (mn->children[z] != nullptr && !mn->children[z]->locked) { add_leaves(mn->children[z],al); } } } };
+	/*
+	//now that we have a tree, fill in the puzzle aspect
+	//create the last mcguffin
+	ECS::Handle mcguffin = -1;
+	mcguffin = gs.level->create_object();
+	Object* ko = gs.level->get_object(mcguffin);
+	ko->visible = true;
+	ko->visible_in_short_description = true;
+	ko->friendly = true;
+	ko->mobile = true;
+	ko->playable = false;
+	ko->open = true;
+	ko->holdable = false;
+	ko->object_container = -1;
+	ko->hitpoints = -1;
+	ko->attack = 0;
+	ko->hit_chance = 0.0f;
+	ko->name = "Princess xXx_SS5_Seph0r0th213_xXx";
+	ko->description = "A beautiful princess. She wears a pink dress, white gloves, and looks strangely familiar...";
+	ko->scripts.construct("(set 0 0);","(say (choose (get 0) \"Thank you for saving me brave warrior! You have my eternal thanks (and you won the game)!\" \"Thanks again (you can quit the game any time).\")); (set 0 1);","(say \"How dare you!\");","");
+	*/
+	//prime the pump
+	Zone* random_zone = starting_zone;
+	Zone* previous_zone = nullptr;
+	while (!random_node->is_leaf())
+	{
+		//travel in a random direction
+		random_zone = random_zone->children[MyMath::random_int(0,random_zone->children.size())];
+	}
+	
+	//loop until every zone has a 'key' and a lock
+	while (starting_zone->count_children() > 1)//the starting node counts itself, so we have to use 1 instead of 0
+	{
+		//slap the mcguffin into it
+		random_zone->mcguffin_opens = previous_zone;
+		
+		//lock it
+		random_zone->locked = true;
+		
+		//pick a random (unlocked) zone with no unlocked children to put the next mcguffin in
+		std::vector<Zone*> available_leaves;
+		add_leaves(starting_zone, available_leaves);
+		Zone* random_zone = available_leaves[MyMath::random_int(0,available_leaves.size())];
+		
+	}
+/*
 	//create a starting space and 3 dungeons
 	node* starting_node = new node;
 	starting_node->x = 100;
@@ -423,22 +522,22 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 	ECS::Handle mcguffin = -1;
 	mcguffin = gs.level->create_object();
 	Object* ko = gs.level->get_object(mcguffin);
-	ko->visible = false;
-	ko->visible_in_short_description = false;
+	ko->visible = true;
+	ko->visible_in_short_description = true;
 	ko->friendly = true;
-	ko->mobile = false;
+	ko->mobile = true;
 	ko->playable = false;
-	ko->open = false;
-	ko->holdable = true;
+	ko->open = true;
+	ko->holdable = false;
 	ko->object_container = -1;
 	ko->hitpoints = -1;
 	ko->attack = 0;
 	ko->hit_chance = 0.0f;
-	ko->name = "God";
-	ko->description = "You won the game!";
-	ko->scripts.construct("","(say \"You have won the game! Nicely done!\");","(say \"You have won the game! Nicely done!\");","");
+	ko->name = "Princess xXx_SS5_Seph0r0th213_xXx";
+	ko->description = "A beautiful princess. She wears a pink dress, white gloves, and looks strangely familiar...";
+	ko->scripts.construct("(set 0 0);","(say (choose (get 0) \"Thank you for saving me brave warrior! You have my eternal thanks (and you won the game)!\" \"Thanks again (you can quit the game any time).\")); (set 0 1);","(say \"How dare you!\");","");
 	
-	while (starting_node->count_children() > 0)
+	while (starting_node->count_children() > 1)//the starting node counts itself, so we have to use 1 instead of 0
 	{
 		//pick a random (unlocked) node to put the mcguffin in
 		node* random_node = nullptr;
@@ -455,7 +554,7 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 			random_node = starting_node->children[2];
 		}
 		
-		//jam the mcguffin in there and create the dungeon!
+		//jam the McGuffin in there and create the dungeon!
 		Dungeon d;
 		d.mcguffin = mcguffin;
 		d.width = MyMath::random_int(2,7);
@@ -467,13 +566,22 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 		
 		create_dungeon(gs, enemy_1, d);
 		
-		//update the exit
-		gs.level->get_room(d.entrance_x, d.entrance_y)->set_exit(Room::Exit::NORTH, starting_node->count_children() > 0 ? Room::Exit_Status::Open : Room::Exit_Status::Locked);
+		//create the landing space out front
+		Room* rrr = gs.level->get_room(gs.level->create_room(d.entrance_x, d.entrance_y + 1));
+		rrr->set_short_description("Outside");
+		rrr->set_description("A grassey field sitting in the shade of the looming stone dungeon walls.");
+		rrr->set_minimap_symbol("<fg=yellow><bg=green>#");
+		rrr->set_visited(true);
+		rrr->set_door_description("a massive stone door", Room::Exit::NORTH);
+		rrr->set_exit(Room::Exit::EAST, Room::Exit_Status::Open);
+		rrr->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
+		rrr->set_exit(Room::Exit::WEST, Room::Exit_Status::Open);
 		
 		//now lock it and make a new key
 		random_node->locked = true;
-		if (starting_node->count_children() > 0)
+		if (starting_node->count_children() > 1)
 		{
+			rrr->set_exit(Room::Exit::NORTH, Room::Exit_Status::Locked);
 			mcguffin = gs.level->create_object();
 			Object* ko = gs.level->get_object(mcguffin);
 			ko->visible = true;
@@ -491,9 +599,13 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 			ko->name = "A Massive Key";
 			ko->description = "A huge key. Find the dungeon it belongs to!";
 			ko->scripts.construct("",
-								  "",//well poop, how do we reference a room that hasn't been created yet? Now we need to initiate each room before starting, which'll throw everything off!
+								  "",
 								  "(if (= (get current_room.handle) " + StringUtils::to_string((int)rrr->get_handle()) + ") (+ (set global.main_text (+ (get global.main_text) \"<fg=white><bg=black>\n\nThe huge doors of the dungeon swing open.\")) (set current_room.open_n true) (destroy (get caller.handle))) (set global.main_text (+ (get global.main_text) \"<fg=white><bg=black>\n\nIt does nothing\")));",
 								  "");
+		}
+		else
+		{
+			rrr->set_exit(Room::Exit::NORTH, Room::Exit_Status::Open);
 		}
 	}
 	
@@ -512,30 +624,20 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 				ro->set_visited(true);
 				
 				if (y > 1 && (gs.level->get_room(x, y - 1) == nullptr || gs.level->get_room(x, y - 1)->get_exit(Room::Exit::SOUTH) == Room::Exit_Status::Open))
-				//if (y > 1 && ((y - d.y - d.height) != 0 || !MyMath::between(x, d.x, d.x + d.width - 1)))
 				{
 					ro->set_exit(Room::Exit::NORTH, Room::Exit_Status::Open);
 				}
 				if (x < (gs.level->get_width() - 2) && (gs.level->get_room(x + 1, y) == nullptr || gs.level->get_room(x + 1, y)->get_exit(Room::Exit::WEST) == Room::Exit_Status::Open))
-				//if (x < (gs.level->get_width() - 2) && ((d.x - x) != 1 || !MyMath::between(y, d.y, d.y + d.height -1)))
 				{
 					ro->set_exit(Room::Exit::EAST, Room::Exit_Status::Open);
 				}
 				if (y < (gs.level->get_height() - 2) && (gs.level->get_room(x, y + 1) == nullptr || gs.level->get_room(x, y + 1)->get_exit(Room::Exit::NORTH) == Room::Exit_Status::Open))
-				//if (y < (gs.level->get_height() - 2) && ((d.y - y) != 1 || !MyMath::between(x, d.x, d.x + d.width - 1)))
 				{
 					ro->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
 				}
 				if (x > 1 && (gs.level->get_room(x - 1, y) == nullptr || gs.level->get_room(x - 1, y)->get_exit(Room::Exit::EAST) == Room::Exit_Status::Open))
-				//if (x > 1 && ((x - d.x - d.width) != 0 || !MyMath::between(y, d.y, d.y + d.height -1)))
 				{
 					ro->set_exit(Room::Exit::WEST, Room::Exit_Status::Open);
-				}
-				
-				if (gs.level->get_room(x, y - 1) != nullptr && gs.level->get_room(x, y - 1)->get_exit(Room::Exit::SOUTH) == Room::Exit_Status::Locked)
-				{
-					ro->set_exit(Room::Exit::NORTH, Room::Exit_Status::Locked);
-					gs.level->get_room(x, y - 1)->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
 				}
 			}
 		}
@@ -569,6 +671,26 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 	
 	//create a map object that displays a crude map of the world on_use
 	
+	
+	//clean up the tree
+	std::vector<node*> to_delete;
+	to_delete.push_back(starting_node);
+	while (!to_delete.empty())
+	{
+		node* td = to_delete.back();
+		to_delete.pop_back();
+		for (std::size_t i = 0; i < 4; ++i)
+		{
+			if (td->children[i] != nullptr)
+			{
+				to_delete.push_back(td->children[i]);
+			}
+		}
+		
+		delete td;
+		td = nullptr;
+	}
+*/
 }
 
 void PCG::create_world(GameState& gs)
@@ -579,6 +701,31 @@ void PCG::create_world(GameState& gs)
 	gs.main_text_dirty_flag = true;
 	gs.frames_elapsed = 0;
 	
+	//create a couple generic enemies
+	/*
+	ECS::Handle enemy_1 = gs.level->create_object();
+	Object* enemy_object = gs.level->get_object(enemy_1);
+	enemy_object->visible = true;
+	enemy_object->visible_in_short_description = true;
+	enemy_object->friendly = false;
+	enemy_object->mobile = true;
+	enemy_object->playable = false;
+	enemy_object->open = false;
+	enemy_object->holdable = false;
+	enemy_object->room_container = -1;
+	enemy_object->object_container = -1;
+	enemy_object->hitpoints = 12;
+	enemy_object->attack = 1;
+	enemy_object->hit_chance = 0.0f;
+	enemy_object->name = "Colin, the Bear";
+	enemy_object->description = "A dancing creature.";
+
+	enemy_object->scripts.construct("(set 0 0);",
+									"(say (choose (random 0 3) \"Thanks for nothing!\" \"Thanks for nothing!\" \"Thanks for nothing!\" \"Thanks for nothing!\"));",
+									"(set main_text (+ (get main_text) \"\n<fg=white><bg=black>You can't use an enemy!\"));",
+									"(if (get combat.vulnerable_to_attack) (+ \"\" (set 0 2) (set main_text (+ (get main_text) \"<fg=green><bg=black>\nThe bear reels back from your attack!\")) (set combat.player_position_far_front true) ) (+ \"\" (if (get combat.player_attacking) (set 0 3)) (choose (get 0) (if (get combat.player_position_front) (+ \"\" (set main_text (+ (get main_text) \"<fg=white><bg=black>\nThe bear starts waving its mighty paws!\")) (set 0 1) (defend false false true true)) (+ \"\" (set main_text (+ (get main_text) \"<fg=white><bg=black>\n\" (if (get combat.player_position_far_front) \"The bear dances towards you!\" \"The goblin wiggles in your direction!\"))) (set combat.player_position_front true) (defend true true true true) (attack false false false false)))  (if (or (get combat.player_position_front) (get combat.player_position_far_front)) (+ \"\" (set 0 0) (attack false false true true) (set main_text (+ (get main_text) \"<fg=white><bg=black>\nThe bear slashes you while gyrating!\")) (defend true true true true)) (+ \"\" (set 0 0) (set main_text (+ (get main_text) \"<fg=white><bg=black>\nThe bear lands where you were standing!\")) (defend false false true true)))  (+ \"\" (set 0 0) (set main_text (+ (get main_text) \"<fg=white><bg=black>\nThe bear recovers and resumes dancing.\")) (defend true true true true)) (+ \"\" (set 0 0) (set main_text (+ (get main_text) \"<fg=white><bg=black>\nThe bear seems unaffected by your attack!\")) (defend true true true true))))); ");
+	
+	*/
 	//create a couple generic enemies
 	ECS::Handle enemy_1 = gs.level->create_object();
 	Object* enemy_object = gs.level->get_object(enemy_1);
@@ -607,56 +754,6 @@ void PCG::create_world(GameState& gs)
 	spawner->visible = false;
 	spawner->visible_in_short_description = false;
 	*/
-	/*
-	//create a dungeon
-	Dungeon d;
-	d.x = 50;
-	d.y = 50;
-	d.width = 7;
-	d.height = 7;
-	d.entrance_x = d.x + d.width / 2;
-	d.entrance_y = d.y + d.height - 1;
-	create_dungeon(gs, enemy_1, d);
 	
-	//fill in everything but the dungeon
-	for (int x = 1; x < gs.level->get_width() - 1; ++x)
-	{
-		for (int y = 1; y < gs.level->get_height() - 1; ++y)
-		{
-			if (gs.level->get_room(x,y) == nullptr)
-			{
-				Room* ro = gs.level->get_room(gs.level->create_room(x,y));
-				
-				ro->set_short_description("Outside");
-				ro->set_description("A sunny, grassey field.");
-				ro->set_minimap_symbol("<fg=white><bg=green>#");
-				ro->set_visited(true);
-				
-				if (y > 1 && ((y - d.y - d.height) != 0 || !MyMath::between(x, d.x, d.x + d.width - 1)))
-				{
-					ro->set_exit(Room::Exit::NORTH, Room::Exit_Status::Open);
-				}
-				if (x < (gs.level->get_width() - 2) && ((d.x - x) != 1 || !MyMath::between(y, d.y, d.y + d.height -1)))
-				{
-					ro->set_exit(Room::Exit::EAST, Room::Exit_Status::Open);
-				}
-				if (y < (gs.level->get_height() - 2) && ((d.y - y) != 1 || !MyMath::between(x, d.x, d.x + d.width - 1)))
-				{
-					ro->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
-				}
-				if (x > 1 && ((x - d.x - d.width) != 0 || !MyMath::between(y, d.y, d.y + d.height -1)))
-				{
-					ro->set_exit(Room::Exit::WEST, Room::Exit_Status::Open);
-				}
-			}
-		}
-	}
-	*/
 	create_overworld(gs,enemy_1);
-	
-	//make the player just outside the entrance
-	
-	//update the entrance to connect to the outside
-	//sr->set_exit(Room::Exit::NORTH, Room::Exit_Status::Open);
-	//gs.level->get_room(d.entrance_x, d.entrance_y)->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
 }

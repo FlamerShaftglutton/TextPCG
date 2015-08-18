@@ -10,6 +10,7 @@
 
 #ifdef DEBUG
 	#include "Log.hpp"
+	#include "Scripting.hpp"
 #endif
 
 void InputSystem::command_look_room(Console& console, GameState& gs, ECS::Handle room, bool short_description)
@@ -569,31 +570,55 @@ void InputSystem::do_work(Console& console, GameState& gs)
 			//we have extra commands if we're cheating...
 			else if (lower_input.substr(0,8) == "teleport")
 			{
+				//teleporting!
+				Room* next_room = nullptr;
 				std::size_t pos = lower_input.rfind(' ');
-				int x = StringUtils::stoi(lower_input.substr(9,pos - 9));
-				int y = StringUtils::stoi(lower_input.substr(pos + 1));
-				
-				Log::write("Teleporting to " + StringUtils::to_string(x) + ", " + StringUtils::to_string(y) + "...");
-				
-				//remove the player from the old room
-				std::vector<ECS::Handle>& cro = gs.level->get_room(current_room_handle)->objects();
-				for (unsigned i = 0; i < cro.size(); ++i)
+				if (pos == lower_input.find(' '))
 				{
-					if (cro[i] == gs.playable_character)
-					{
-						cro[i] = cro.back();
-						cro.pop_back();
-						break;
-					}
+					ECS::Handle h = (ECS::Handle)StringUtils::stoi(lower_input.substr(9));
+					next_room = gs.level->get_room(h);
+					Log::write("Teleporting to room " + StringUtils::to_string((int)h) + "...");
+				}
+				else
+				{
+					int x = StringUtils::stoi(lower_input.substr(9,pos - 9));
+					int y = StringUtils::stoi(lower_input.substr(pos + 1));
+					next_room = gs.level->get_room(x,y);
+					Log::write("Teleporting to " + StringUtils::to_string(x) + ", " + StringUtils::to_string(y) + "...");
 				}
 				
-				//then add it to the new room
-				Room* next_room = gs.level->get_room(x,y);
-				next_room->objects().push_back(gs.playable_character);
-				gs.level->get_object(gs.playable_character)->room_container = next_room->get_handle();
-				
-				//get the description of the room
-				command_look_room(console,gs,next_room->get_handle(),false);
+				if (next_room == nullptr)
+				{
+					Log::write("Warning: Tried teleporting to an invalid location or handle.");
+				}
+				else
+				{
+					//remove the player from the old room
+					std::vector<ECS::Handle>& cro = gs.level->get_room(current_room_handle)->objects();
+					for (unsigned i = 0; i < cro.size(); ++i)
+					{
+						if (cro[i] == gs.playable_character)
+						{
+							cro[i] = cro.back();
+							cro.pop_back();
+							break;
+						}
+					}
+					
+					//then add it to the new room
+					next_room->objects().push_back(gs.playable_character);
+					gs.level->get_object(gs.playable_character)->room_container = next_room->get_handle();
+					
+					//get the description of the room
+					command_look_room(console,gs,next_room->get_handle(),false);
+				}
+			}
+			else if (lower_input[0] == '(')
+			{
+				//running arbitrary scripts!
+				ScriptSet s;
+				s.construct("","",input,"");
+				s.execute_on_use(gs, gs.playable_character);
 			}
 			#endif
 			else
