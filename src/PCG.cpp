@@ -433,10 +433,16 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 	//create a tree of zones
 	for (int i = 0; i < 7; ++i)
 	{
-		Zone* z = stack[MyMath::random_int(0, stack.size() - 1)];//TODO: use a modified priority queue to get results that are a bit better
+		int index = MyMath::random_int(0, stack.size() - 1);
+		Zone* z = stack[index];//TODO: use a modified priority queue to get results that are a bit better
 		Zone* c = new Zone;
 		z->children.push_back(c);
 		c->parent = z;
+		
+		if (z->count_children() == 2)
+		{
+			stack.erase(stack.begin() + index);
+		}
 	}
 	
 	//create a helper lambda
@@ -484,8 +490,52 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 		std::vector<Zone*> available_leaves;
 		add_leaves(starting_zone, available_leaves);
 		Zone* random_zone = available_leaves[MyMath::random_int(0,available_leaves.size())];
-		
 	}
+	
+	//position each zone
+	float angles[] = { 0.0f, 1.0471975512f, 1.0471975512f * 2.0f, 1.0471975512f * 3.0f, 1.0471975512f * 4.0f, 1.0471975512f * 5.0f };
+	int zone_radius = 7;
+	std::vector<Zone*> complete_zones;
+	starting_node->x = starting_node->y = 0;
+	completed_zones.push_back(starting_node);
+	std::vector<Zone*> incomplete_zones;
+	for (std::size_t i = 0; i < starting_node->children.size(); ++i)
+	{
+		incomplete_zones.push_back(starting_node->children[i]);
+	}
+	
+	while (!incomplete_zones.empty())
+	{
+		//grab the top thing on the stack
+		Zone* z = incomplete_zones.back();
+		incomplete_zones.pop_back();
+		
+		//shuffle the list of directions
+		for (int i = 5; i > 0; --i)
+		{
+			int p = MyMath::random_int(0, i - 1);
+			float f = angles[i];
+			angles[i] = angles[p];
+			angles[p] = f;
+		}
+		
+		//figure out where to put this zone
+		for (int i = 0; i < 6; ++i)
+		{
+			//figure out where this spot would be
+			
+			
+			
+		}
+		
+		//add all of this zone's children to the stack
+		for (std::size_t i = 0; i < z->children.size(); ++i)
+		{
+			incomplete_zones.push_back(z->children[i]);
+		}
+	}
+	
+	//now that the skeleton of the overworld is set up, start adding meat to it
 /*
 	//create a starting space and 3 dungeons
 	node* starting_node = new node;
