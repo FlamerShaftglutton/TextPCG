@@ -8,11 +8,13 @@
 #include "mymath.hpp"
 #include "string_utils.hpp"
 
+#include <cmath>
 #include <vector>
 #include <functional>
 
 #ifdef DEBUG
 	#include "Log.hpp"
+	#include <fstream>
 #endif
 
 #include <vector>
@@ -39,8 +41,11 @@ struct Zone
 	
 	std::vector<Zone*> children;
 	Zone* parent;
-	int x;//needed?
-	int y;//needed?
+	int x;
+	int y;
+	
+	int entrance_x;
+	int entrance_y;
 	
 	bool locked;
 	
@@ -59,7 +64,7 @@ struct Zone
 		return count;
 	}
 	
-	bool is leaf()
+	bool is_leaf()
 	{
 		return children.empty();
 	}
@@ -431,15 +436,17 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 	stack.push_back(starting_zone);
 	
 	//create a tree of zones
-	for (int i = 0; i < 7; ++i)
+	int num_zones = 6;
+	for (int i = 0; i < num_zones; ++i)
 	{
 		int index = MyMath::random_int(0, stack.size() - 1);
 		Zone* z = stack[index];//TODO: use a modified priority queue to get results that are a bit better
 		Zone* c = new Zone;
 		z->children.push_back(c);
 		c->parent = z;
+		stack.push_back(c);
 		
-		if (z->count_children() == 2)
+		if (z->count_children() > 2)
 		{
 			stack.erase(stack.begin() + index);
 		}
@@ -471,10 +478,10 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 	//prime the pump
 	Zone* random_zone = starting_zone;
 	Zone* previous_zone = nullptr;
-	while (!random_node->is_leaf())
+	while (!random_zone->is_leaf())
 	{
 		//travel in a random direction
-		random_zone = random_zone->children[MyMath::random_int(0,random_zone->children.size())];
+		random_zone = random_zone->children[MyMath::random_int(0,random_zone->children.size() - 1)];
 	}
 	
 	//loop until every zone has a 'key' and a lock
@@ -489,21 +496,22 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 		//pick a random (unlocked) zone with no unlocked children to put the next mcguffin in
 		std::vector<Zone*> available_leaves;
 		add_leaves(starting_zone, available_leaves);
-		Zone* random_zone = available_leaves[MyMath::random_int(0,available_leaves.size())];
+		random_zone = available_leaves[MyMath::random_int(0,available_leaves.size() - 1)];
 	}
 	
 	//position each zone
 	float angles[] = { 0.0f, 1.0471975512f, 1.0471975512f * 2.0f, 1.0471975512f * 3.0f, 1.0471975512f * 4.0f, 1.0471975512f * 5.0f };
 	int zone_radius = 7;
 	std::vector<Zone*> complete_zones;
-	starting_node->x = starting_node->y = 0;
-	completed_zones.push_back(starting_node);
+	starting_zone->x = starting_zone->y = 0;
+	complete_zones.push_back(starting_zone);
 	std::vector<Zone*> incomplete_zones;
-	for (std::size_t i = 0; i < starting_node->children.size(); ++i)
+	for (std::size_t i = 0; i < starting_zone->children.size(); ++i)
 	{
-		incomplete_zones.push_back(starting_node->children[i]);
+		incomplete_zones.push_back(starting_zone->children[i]);
 	}
-	
+	int tries = 0;
+	auto distance_between_points = [](int x1, int y1, int x2, int y2){float diff_x = float(x1 - x2), diff_y = float(y1 - y2); return (int)(std::sqrt(diff_x * diff_x + diff_y * diff_y)); };
 	while (!incomplete_zones.empty())
 	{
 		//grab the top thing on the stack
@@ -513,29 +521,437 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 		//shuffle the list of directions
 		for (int i = 5; i > 0; --i)
 		{
-			int p = MyMath::random_int(0, i - 1);
+			int p = MyMath::random_int(0, i);
 			float f = angles[i];
 			angles[i] = angles[p];
 			angles[p] = f;
 		}
 		
 		//figure out where to put this zone
+		bool placed = false;
 		for (int i = 0; i < 6; ++i)
 		{
 			//figure out where this spot would be
+			float f = angles[i];
+			int x = z->parent->x + (int)(std::cos(f) * 2.0f * (float)(zone_radius + 2));
+			int y = z->parent->y + (int)(std::sin(f) * -2.0f * (float)(zone_radius + 2));
 			
+			//figure out if that touches any other zone (besides the parent)
+			bool touches = false;
+			for (Zone* oz : complete_zones)
+			{
+				if (oz != z->parent)
+				{
+					int dis = distance_between_points(x, y, oz->x, oz->y);
+					
+					if (dis < (2 * zone_radius + 1))
+					{
+						touches = true;
+						break;
+					}
+				}
+			}
 			
-			
+			//if it doesn't touch, place it!
+			if (!touches)
+			{
+				z->x = x;
+				z->y = y;
+				complete_zones.push_back(z);
+				placed = true;
+				break;
+			}
 		}
 		
-		//add all of this zone's children to the stack
-		for (std::size_t i = 0; i < z->children.size(); ++i)
+		//if we couldn't place the zone, scrap the whole overworld and try again
+		if (!placed)
 		{
-			incomplete_zones.push_back(z->children[i]);
+			//increment the try counter
+			++tries;
+			
+			//if we've tried too many times, blow up
+			if (tries > 4)
+			{
+				#ifdef DEBUG
+					Log::write("ERROR: Couldn't generate an overworld after 5 tries. Blowing up now.");
+				#endif
+				return;
+			}
+			else
+			{
+				//reset everything
+				complete_zones.clear();
+				incomplete_zones.clear();
+				complete_zones.push_back(starting_zone);
+				for (std::size_t i = 0; i < starting_zone->children.size(); ++i)
+				{
+					incomplete_zones.push_back(starting_zone->children[i]);
+				}
+			}
+		}
+		else
+		{
+			//add all of this zone's children to the stack
+			for (std::size_t i = 0; i < z->children.size(); ++i)
+			{
+				incomplete_zones.push_back(z->children[i]);
+			}
 		}
 	}
 	
+	//now go through and reposition everybody
+	int min_x =  100000;
+	int min_y =  100000;
+	int max_x = -100000;
+	int max_y = -100000;
+	for (Zone* z : complete_zones)
+	{
+		if (z->x < min_x)
+		{
+			min_x = z->x;
+		}
+		if (z->y < min_y)
+		{
+			min_y = z->y;
+		}
+		if (z->x > max_x)
+		{
+			max_x = z->x;
+		}
+		if (z->y > max_y)
+		{
+			max_y = z->y;
+		}
+	}
+	min_x -= 6 + zone_radius;
+	min_y -= 6 + zone_radius;
+	max_x += 7 + zone_radius;
+	max_y += 7 + zone_radius;
+	int width = max_x - min_x;
+	int height = max_y - min_y;
+	
+	
+	for (Zone* z : complete_zones)
+	{
+		z->x -= min_x;
+		z->y -= min_y;
+	}
+	
 	//now that the skeleton of the overworld is set up, start adding meat to it
+	gs.level = new Level(width, height);
+	std::string themes[] = {"Volcano","Forest","Plains","Desert","Mountains","Tundra","Urban"};
+	std::string descriptions[] = {"A hot, unforgiving patch of blacked dirt.",
+								  "A small clearing surrounded by trees and shrubs.",
+								  "A wide open clearing of grass and flowers.",
+								  "A dune of sand with a few sharp rocks and even sharper plants.",
+								  "A small plateau amidst jagged rocks and cliffs.",
+								  "A flat expanse of snow and ice. Wind whips at you mercilessly.",
+								  "A patch of dirt road between shacks."};
+	std::string minimap_symbols[] = {"<fg=yellow><bg=red>;",
+								   "<fg=white><bg=green>T",
+								   "<bg=green> ",
+								   "<bg=yellow><fg=red>.",
+								   "<fg=magenta><bg=yellow>^",
+								   "<fg=cyan><bg=white>.",
+								   "<fg=yellow><bg=red>H"};
+	int indexes[] = {0,1,2,3,4,5,6};
+	for (int i = 6; i > 0; --i)
+	{
+		int p = MyMath::random_int(0, i);
+		int t = indexes[i];
+		indexes[i] = indexes[p];
+		indexes[p] = t;
+	}
+	
+	for (std::size_t i = 0; i < complete_zones.size(); ++i)
+	{
+		//get a random theme
+		int index = indexes[i];
+		
+		//just fill up every square for now
+		for (int x = -zone_radius; x <= zone_radius; ++x)
+		{
+			for (int y = -zone_radius; y <= zone_radius; ++y)
+			{
+				int fx = x + complete_zones[i]->x,
+					fy = y + complete_zones[i]->y;
+				if (distance_between_points(0,0,x,y) <= zone_radius && gs.level->get_room(fx,fy) == nullptr)
+				{
+					Room* r = gs.level->get_room(gs.level->create_room(fx, fy));
+					r->set_description(descriptions[index]);
+					r->set_short_description("A " + themes[index] + " Region");
+					r->set_minimap_symbol(minimap_symbols[index]);
+					r->set_visited(true);
+					
+					if (distance_between_points(0,0,x,y-1) <= zone_radius)
+					{
+						r->set_exit(Room::Exit::NORTH, Room::Exit_Status::Open);
+					}
+					if (distance_between_points(0,0,x+1,y) <= zone_radius)
+					{
+						r->set_exit(Room::Exit::EAST, Room::Exit_Status::Open);
+					}
+					if (distance_between_points(0,0,x,y+1) <= zone_radius)
+					{
+						r->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
+					}
+					if (distance_between_points(0,0,x-1,y) <= zone_radius)
+					{
+						r->set_exit(Room::Exit::WEST, Room::Exit_Status::Open);
+					}
+				}
+				#ifdef DEBUG
+				else if (gs.level->get_room(fx,fy) != nullptr)
+				{
+					Log::write("Warning: Overlapping rooms!");
+				}
+				#endif
+			}
+		}
+	}
+	
+	//now connect each zone with its children
+	stack.clear();
+	stack.push_back(starting_zone);
+	
+	while (!stack.empty())
+	{
+		Zone* z = stack.back();
+		stack.pop_back();
+		
+		//for each child...
+		for (Zone* c : z->children)
+		{
+			//before making bridges, add this child to the stack!
+			stack.push_back(c);
+		
+			//find a starting point
+			int best_x = -1;
+			int best_y = -1;
+			int closest_distance = 1000000;
+			for (int x = -zone_radius; x <= zone_radius; ++x)
+			{
+				for (int y = -zone_radius; y <= zone_radius; ++y)
+				{
+					if (distance_between_points(0,0,x,y) == zone_radius)
+					{
+						int dis = distance_between_points(z->x + x, z->y + y, c->x, c->y);
+						if (dis < closest_distance)
+						{
+							closest_distance = dis;
+							best_x = z->x + x;
+							best_y = z->y + y;
+						}
+					}
+				}
+			}
+			
+			int previous_x = best_x;
+			int previous_y = best_y;
+			
+			//now move one spot out from that point
+			if (gs.level->get_room(best_x + 1, best_y) == nullptr)
+			{
+				++best_x;
+			}
+			else if (gs.level->get_room(best_x - 1, best_y) == nullptr)
+			{
+				--best_x;
+			}
+			else if (gs.level->get_room(best_x, best_y + 1) == nullptr)
+			{
+				++best_y;
+			}
+			else if (gs.level->get_room(best_x, best_y - 1) == nullptr)
+			{
+				--best_y;
+			}
+			#ifdef DEBUG
+			else
+			{
+				Log::write("Error: Next room wasn't available!?");
+			}
+			#endif
+		
+			//use a heavily modified pathfinding algorithm
+			while (best_x != c->x && best_y != c->y)
+			{
+				//first, check if this room touches the child zone
+				Room* tr = gs.level->get_room(best_x, best_y);
+				Room* pr = gs.level->get_room(previous_x, previous_y);
+				bool made_it = tr != nullptr;
+				
+				if (!made_it)
+				{
+					tr = gs.level->get_room(gs.level->create_room(best_x, best_y));
+				}
+				
+				//fill in the exits between these two areas
+				if (best_x > previous_x)
+				{
+					tr->set_exit(Room::Exit::WEST, Room::Exit_Status::Open);
+					pr->set_exit(Room::Exit::EAST, Room::Exit_Status::Open);
+				}
+				else if (best_x < previous_x)
+				{
+					tr->set_exit(Room::Exit::EAST, Room::Exit_Status::Open);
+					pr->set_exit(Room::Exit::WEST, Room::Exit_Status::Open);
+				}
+				else if (best_y > previous_y)
+				{
+					tr->set_exit(Room::Exit::NORTH, Room::Exit_Status::Open);
+					pr->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
+				}
+				else if (best_y < previous_y)
+				{
+					tr->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
+					pr->set_exit(Room::Exit::NORTH, Room::Exit_Status::Open);
+				}
+				#ifdef DEBUG
+				else
+				{
+					Log::write("Error: Uh, previous node and best node are equivalent?");
+				}
+				#endif
+				
+				//if this was a room in the child zone, we're done!
+				if (made_it)
+				{
+					
+					
+					break;
+				}
+				else
+				{
+					//otherwise, fill in this room a bit more
+					tr->set_description("A bridge leading between realms.");
+					tr->set_short_description("A Bridge");
+					tr->set_minimap_symbol("<fg=black><bg=white>#");
+					tr->set_visited(true);
+					
+					//and then figure out where the next room would be
+					closest_distance = 100000;
+					int nbx,nby;
+					if (distance_between_points(best_x, best_y - 1, c->x, c->y) < closest_distance)
+					{
+						closest_distance = distance_between_points(best_x, best_y - 1, c->x, c->y);
+						nbx = best_x;
+						nby = best_y - 1;
+					}
+					if (distance_between_points(best_x + 1, best_y, c->x, c->y) < closest_distance)
+					{
+						closest_distance = distance_between_points(best_x + 1, best_y, c->x, c->y);
+						nbx = best_x + 1;
+						nby = best_y;
+					}
+					if (distance_between_points(best_x, best_y + 1, c->x, c->y) < closest_distance)
+					{
+						closest_distance = distance_between_points(best_x, best_y + 1, c->x, c->y);
+						nbx = best_x;
+						nby = best_y + 1;
+					}
+					if (distance_between_points(best_x - 1, best_y, c->x, c->y) < closest_distance)
+					{
+						closest_distance = distance_between_points(best_x - 1, best_y, c->x, c->y);
+						nbx = best_x - 1;
+						nby = best_y;
+					}
+					
+					previous_x = best_x;
+					previous_y = best_y;
+					
+					best_x = nbx;
+					best_y = nby;
+				}
+			}
+		}
+	}
+	
+	//now fill up every spot not already taken up with water
+	for (int x = 0; x < width; ++x)
+	{
+		for (int y = 0; y < height; ++y)
+		{
+			if (gs.level->get_room(x,y) == nullptr)
+			{
+				Room* r = gs.level->get_room(gs.level->create_room(x,y));
+				r->set_description("So much water!");
+				r->set_short_description("An Ocean of Water");
+				r->set_minimap_symbol("<fg=white><bg=blue>~");
+				r->set_visited(true);
+			}
+		}
+	}
+	
+	//put the player object in the starting zone
+	Room* sr = gs.level->get_room(starting_zone->x, starting_zone->y);
+	gs.playable_character = gs.level->create_object();
+	Object* o = gs.level->get_object(gs.playable_character);
+	o->visible = true;
+	o->visible_in_short_description = true;
+	o->friendly = true;
+	o->mobile = true;
+	o->playable = true;
+	o->open = true;
+	o->holdable = false;
+	o->room_container = sr->get_handle();
+	o->object_container = -1;
+	o->hitpoints = 100;
+	o->attack = 10;
+	o->hit_chance = 0.75f;
+	o->name = "Myself";
+	o->description = "A <fg=red>hideous<fg=white> looking human. Possibly beaten, or possibly just always ugly. Hard to tell.";
+	o->scripts.construct("","","","");
+	sr->objects().push_back(o->get_handle());
+	
+	//make a map object and put it in the player's spot
+	std::string ms = "";
+	for (int y = 0; y < height; ++y)
+	{
+		for (int x = 0; x < width; ++x)
+		{
+			ms += gs.level->get_room(x,y)->get_minimap_symbol();
+		}
+		ms += "<fg=white><bg=black>\n";
+	}
+	o = gs.level->get_object(gs.level->create_object());
+	o->visible = true;
+	o->visible_in_short_description = false;
+	o->friendly = true;
+	o->mobile = false;
+	o->playable = false;
+	o->open = true;
+	o->holdable = true;
+	o->room_container = sr->get_handle();
+	o->object_container = -1;
+	o->hitpoints = -1;
+	o->attack = 0;
+	o->hit_chance = 0.0f;
+	o->name = "A Map";
+	o->description = "A map of all " + StringUtils::to_string(num_zones) + " realms.";
+	o->scripts.construct("","","(set main_text (+ (get main_text) \"<fg=white><bg=black>\n" + ms + "\"));","");
+	sr->objects().push_back(o->get_handle());
+	
+	//clean up the tree
+	for (std::size_t i = 0; i < complete_zones.size(); ++i)
+	{
+		delete complete_zones[i];
+		complete_zones[i] = nullptr;
+	}
+	complete_zones.clear();
+	
+	//print out a map of the overworld
+	#ifdef DEBUG
+		std::ofstream outfile("derp.txt");
+		for (int y = 0; y < height; ++y)
+		{
+			for (int x = 0; x < width; ++x)
+			{
+				outfile << (gs.level->get_room(x,y)->get_minimap_symbol().back());
+			}
+			outfile << std::endl;
+		}
+	#endif
 /*
 	//create a starting space and 3 dungeons
 	node* starting_node = new node;
@@ -746,7 +1162,7 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 void PCG::create_world(GameState& gs)
 {
 	//set up the basic stuff
-	gs.level = new Level(200,200);
+	//gs.level = new Level(200,200);
 	gs.main_text = "";
 	gs.main_text_dirty_flag = true;
 	gs.frames_elapsed = 0;
@@ -777,6 +1193,7 @@ void PCG::create_world(GameState& gs)
 	
 	*/
 	//create a couple generic enemies
+	/*
 	ECS::Handle enemy_1 = gs.level->create_object();
 	Object* enemy_object = gs.level->get_object(enemy_1);
 	enemy_object->visible = true;
@@ -798,6 +1215,7 @@ void PCG::create_world(GameState& gs)
 									"(say (choose (random 0 3) \"SCREEE!!!\" \"GEEYAH!!!\" \"Derp?\" \"RAAAH!!!\"));",
 									"(set main_text (+ (get main_text) \"\n<fg=white><bg=black>You can't use an enemy!\"));",
 									"(if (get combat.vulnerable_to_attack) (+ \"\" (set 0 2) (set main_text (+ (get main_text) \"<fg=green><bg=black>\nThe goblin reels back from your attack!\")) (set combat.player_position_far_front true) ) (+ \"\" (if (get combat.player_attacking) (set 0 3)) (choose (get 0) (if (get combat.player_position_front) (+ \"\" (set main_text (+ (get main_text) \"<fg=white><bg=black>\nThe goblin raises his sword over his head!\")) (set 0 1) (defend false false true true)) (+ \"\" (set main_text (+ (get main_text) \"<fg=white><bg=black>\n\" (if (get combat.player_position_far_front) \"The goblin stalks towards you!\" \"The goblin turns towards you!\"))) (set combat.player_position_front true) (defend true true true true) (attack false false false false)))  (if (or (get combat.player_position_front) (get combat.player_position_far_front)) (+ \"\" (set 0 0) (attack false false true true) (set main_text (+ (get main_text) \"<fg=white><bg=black>\nThe goblin slashes you with its sword!\")) (defend true true true true)) (+ \"\" (set 0 0) (set main_text (+ (get main_text) \"<fg=white><bg=black>\nThe goblin's sword clinks to the ground where you used to be standing!\")) (defend false false true true)))  (+ \"\" (set 0 0) (set main_text (+ (get main_text) \"<fg=white><bg=black>\nThe goblin recovers and holds his sword in a defensive position.\")) (defend true true true true)) (+ \"\" (set 0 0) (set main_text (+ (get main_text) \"<fg=white><bg=black>\nThe goblin blocks your attack!\")) (defend true true true true))))); ");
+	*/
 	/*
 	ECS::Handle enemy_1_spawner = gs.level->create_object();
 	Object* spawner = gs.level->get_object(enemy_1_spawner);
@@ -805,5 +1223,5 @@ void PCG::create_world(GameState& gs)
 	spawner->visible_in_short_description = false;
 	*/
 	
-	create_overworld(gs,enemy_1);
+	create_overworld(gs,-1);
 }
