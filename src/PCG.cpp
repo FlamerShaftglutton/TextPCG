@@ -19,16 +19,19 @@
 
 #include <vector>
 
+struct Position
+{
+	int x;
+	int y;
+};
 
 struct Dungeon
 {
 	int width;
 	int height;
-	int x;
-	int y;
+	Position pos;
 	
-	int entrance_x;
-	int entrance_y;
+	Position entrance;
 	
 	ECS::Handle mcguffin;
 };
@@ -40,12 +43,9 @@ struct Zone
 	Zone* mcguffin_opens = nullptr;
 	
 	std::vector<Zone*> children;
+	std::vector<Position> exits;
 	Zone* parent;
-	int x;
-	int y;
-	
-	int entrance_x;
-	int entrance_y;
+	Position pos;
 	
 	bool locked;
 	
@@ -76,8 +76,7 @@ struct node
 	
 	node* children[4];
 	node* parent;
-	int x;
-	int y;
+	Position pos;
 	
 	bool locked;
 	
@@ -105,8 +104,8 @@ struct node
 void create_dungeon(GameState& gs, ECS::Handle enemy_1, Dungeon dungeon_stats)
 {
 	//get the upper and lower bounds
-	int min_rx = dungeon_stats.x;
-	int min_ry = dungeon_stats.y;
+	int min_rx = dungeon_stats.pos.x;
+	int min_ry = dungeon_stats.pos.y;
 	int max_rx = min_rx + dungeon_stats.width - 1;
 	int max_ry = min_ry + dungeon_stats.height - 1;
 	
@@ -133,7 +132,7 @@ void create_dungeon(GameState& gs, ECS::Handle enemy_1, Dungeon dungeon_stats)
 			Log::write("Error: dungeon dimensions are invalid.");
 		}
 		
-		if (dungeon_stats.entrance_x < min_rx || dungeon_stats.entrance_x > max_rx || dungeon_stats.entrance_y < min_ry || dungeon_stats.entrance_y > max_ry)
+		if (dungeon_stats.entrance.x < min_rx || dungeon_stats.entrance.x > max_rx || dungeon_stats.entrance.y < min_ry || dungeon_stats.entrance.y > max_ry)
 		{
 			Log::write("Error: dungeon entrance is outside of the dungeon.");
 		}
@@ -144,8 +143,8 @@ void create_dungeon(GameState& gs, ECS::Handle enemy_1, Dungeon dungeon_stats)
 	
 	//create a starting point for the dungeon
 	node* starting_node = new node;
-	starting_node->x = dungeon_stats.entrance_x;//min_rx + width / 2;
-	starting_node->y = dungeon_stats.entrance_y;//min_ry + height - 1;
+	starting_node->pos.x = dungeon_stats.entrance.x;//min_rx + width / 2;
+	starting_node->pos.y = dungeon_stats.entrance.y;//min_ry + height - 1;
 	starting_node->parent = starting_node->children[0] = starting_node->children[1] = starting_node->children[2] = starting_node->children[3] = nullptr;
 	starting_node->locked = false;
 	starting_node->handle = -1;
@@ -168,19 +167,19 @@ void create_dungeon(GameState& gs, ECS::Handle enemy_1, Dungeon dungeon_stats)
 		stack.pop_back();
 		
 		//now check if it's already a room
-		if (gs.level->get_room(n->x, n->y) != nullptr)
+		if (gs.level->get_room(n->pos.x, n->pos.y) != nullptr)
 		{
 			continue;
 		}
 		
 		//now check if it's an invalid spot for a room
-		if (n->x < min_rx || n->x > max_rx || n->y < min_ry || n->y > max_ry)
+		if (n->pos.x < min_rx || n->pos.x > max_rx || n->pos.y < min_ry || n->pos.y > max_ry)
 		{
 			continue;
 		}
 		
 		//if it's a valid spot, create a new room!
-		Room* nr = gs.level->get_room(gs.level->create_room(n->x, n->y));
+		Room* nr = gs.level->get_room(gs.level->create_room(n->pos.x, n->pos.y));
 		n->handle = nr->get_handle();
 		nr->set_short_description("A Small Room");
 		nr->set_description("A <fg=green>leaf<fg=white> node, seemingly.");
@@ -194,7 +193,7 @@ void create_dungeon(GameState& gs, ECS::Handle enemy_1, Dungeon dungeon_stats)
 			Room* pr = gs.level->get_room(n->parent->handle);
 			
 			//make the doors
-			Room::Exit pcd = n->parent->y > n->y ? Room::Exit::NORTH : n->parent->y < n->y ? Room::Exit::SOUTH : n->parent->x > n->x ? Room::Exit::WEST : Room::Exit::EAST;
+			Room::Exit pcd = n->parent->pos.y > n->pos.y ? Room::Exit::NORTH : n->parent->pos.y < n->pos.y ? Room::Exit::SOUTH : n->parent->pos.x > n->pos.x ? Room::Exit::WEST : Room::Exit::EAST;
 			Room::Exit cpd = pcd == Room::Exit::NORTH ? Room::Exit::SOUTH : pcd == Room::Exit::SOUTH ? Room::Exit::NORTH : pcd == Room::Exit::WEST ? Room::Exit::EAST : Room::Exit::WEST;
 			pr->set_exit(pcd, Room::Exit_Status::Open);
 			nr->set_exit(cpd, Room::Exit_Status::Open);
@@ -209,8 +208,8 @@ void create_dungeon(GameState& gs, ECS::Handle enemy_1, Dungeon dungeon_stats)
 		
 		//create some children for this room!
 		node* nn = new node;
-		nn->x = n->x - 0;
-		nn->y = n->y - 1;
+		nn->pos.x = n->pos.x - 0;
+		nn->pos.y = n->pos.y - 1;
 		nn->locked = false;
 		nn->parent = n;
 		nn->handle = -1;
@@ -218,8 +217,8 @@ void create_dungeon(GameState& gs, ECS::Handle enemy_1, Dungeon dungeon_stats)
 		stack.push_back(nn);
 		
 		node* en = new node;
-		en->x = n->x + 1;
-		en->y = n->y - 0;
+		en->pos.x = n->pos.x + 1;
+		en->pos.y = n->pos.y - 0;
 		en->locked = false;
 		en->parent = n;
 		en->handle = -1;
@@ -227,8 +226,8 @@ void create_dungeon(GameState& gs, ECS::Handle enemy_1, Dungeon dungeon_stats)
 		stack.push_back(en);
 		
 		node* sn = new node;
-		sn->x = n->x - 0;
-		sn->y = n->y + 1;
+		sn->pos.x = n->pos.x - 0;
+		sn->pos.y = n->pos.y + 1;
 		sn->locked = false;
 		sn->parent = n;
 		sn->handle = -1;
@@ -236,8 +235,8 @@ void create_dungeon(GameState& gs, ECS::Handle enemy_1, Dungeon dungeon_stats)
 		stack.push_back(sn);
 		
 		node* wn = new node;
-		wn->x = n->x - 1;
-		wn->y = n->y - 0;
+		wn->pos.x = n->pos.x - 1;
+		wn->pos.y = n->pos.y - 0;
 		wn->locked = false;
 		wn->parent = n;
 		wn->handle = -1;
@@ -425,7 +424,7 @@ void create_dungeon(GameState& gs, ECS::Handle enemy_1, Dungeon dungeon_stats)
 	}
 	
 	//open the dungeon to the outside world
-	gs.level->get_room(dungeon_stats.entrance_x, dungeon_stats.entrance_y)->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
+	gs.level->get_room(dungeon_stats.entrance.x, dungeon_stats.entrance.y)->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
 }
 
 void create_overworld(GameState& gs, ECS::Handle enemy_1)
@@ -471,7 +470,7 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 	ko->hitpoints = -1;
 	ko->attack = 0;
 	ko->hit_chance = 0.0f;
-	ko->name = "Princess xXx_SS5_Seph0r0th213_xXx";
+	ko->name = "Princess xXx_SS5_Seph0r0th69_xXx";
 	ko->description = "A beautiful princess. She wears a pink dress, white gloves, and looks strangely familiar...";
 	ko->scripts.construct("(set 0 0);","(say (choose (get 0) \"Thank you for saving me brave warrior! You have my eternal thanks (and you won the game)!\" \"Thanks again (you can quit the game any time).\")); (set 0 1);","(say \"How dare you!\");","");
 	*/
@@ -503,7 +502,7 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 	float angles[] = { 0.0f, 1.0471975512f, 1.0471975512f * 2.0f, 1.0471975512f * 3.0f, 1.0471975512f * 4.0f, 1.0471975512f * 5.0f };
 	int zone_radius = 7;
 	std::vector<Zone*> complete_zones;
-	starting_zone->x = starting_zone->y = 0;
+	starting_zone->pos.x = starting_zone->pos.y = 0;
 	complete_zones.push_back(starting_zone);
 	std::vector<Zone*> incomplete_zones;
 	for (std::size_t i = 0; i < starting_zone->children.size(); ++i)
@@ -533,8 +532,8 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 		{
 			//figure out where this spot would be
 			float f = angles[i];
-			int x = z->parent->x + (int)(std::cos(f) * 2.0f * (float)(zone_radius + 2));
-			int y = z->parent->y + (int)(std::sin(f) * -2.0f * (float)(zone_radius + 2));
+			int x = z->parent->pos.x + (int)(std::cos(f) * 2.0f * (float)(zone_radius + 2));
+			int y = z->parent->pos.y + (int)(std::sin(f) * -2.0f * (float)(zone_radius + 2));
 			
 			//figure out if that touches any other zone (besides the parent)
 			bool touches = false;
@@ -542,7 +541,7 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 			{
 				if (oz != z->parent)
 				{
-					int dis = distance_between_points(x, y, oz->x, oz->y);
+					int dis = distance_between_points(x, y, oz->pos.x, oz->pos.y);
 					
 					if (dis < (2 * zone_radius + 1))
 					{
@@ -555,8 +554,8 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 			//if it doesn't touch, place it!
 			if (!touches)
 			{
-				z->x = x;
-				z->y = y;
+				z->pos.x = x;
+				z->pos.y = y;
 				complete_zones.push_back(z);
 				placed = true;
 				break;
@@ -606,21 +605,21 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 	int max_y = -100000;
 	for (Zone* z : complete_zones)
 	{
-		if (z->x < min_x)
+		if (z->pos.x < min_x)
 		{
-			min_x = z->x;
+			min_x = z->pos.x;
 		}
-		if (z->y < min_y)
+		if (z->pos.y < min_y)
 		{
-			min_y = z->y;
+			min_y = z->pos.y;
 		}
-		if (z->x > max_x)
+		if (z->pos.x > max_x)
 		{
-			max_x = z->x;
+			max_x = z->pos.x;
 		}
-		if (z->y > max_y)
+		if (z->pos.y > max_y)
 		{
-			max_y = z->y;
+			max_y = z->pos.y;
 		}
 	}
 	min_x -= 6 + zone_radius;
@@ -633,8 +632,8 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 	
 	for (Zone* z : complete_zones)
 	{
-		z->x -= min_x;
-		z->y -= min_y;
+		z->pos.x -= min_x;
+		z->pos.y -= min_y;
 	}
 	
 	//now that the skeleton of the overworld is set up, start adding meat to it
@@ -673,8 +672,8 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 		{
 			for (int y = -zone_radius; y <= zone_radius; ++y)
 			{
-				int fx = x + complete_zones[i]->x,
-					fy = y + complete_zones[i]->y;
+				int fx = x + complete_zones[i]->pos.x,
+					fy = y + complete_zones[i]->pos.y;
 				if (distance_between_points(0,0,x,y) <= zone_radius && gs.level->get_room(fx,fy) == nullptr)
 				{
 					Room* r = gs.level->get_room(gs.level->create_room(fx, fy));
@@ -726,8 +725,9 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 			stack.push_back(c);
 		
 			//find a starting point
-			int best_x = -1;
-			int best_y = -1;
+			Position best;
+			best.x = -1;
+			best.y = -1;
 			int closest_distance = 1000000;
 			for (int x = -zone_radius; x <= zone_radius; ++x)
 			{
@@ -735,36 +735,41 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 				{
 					if (distance_between_points(0,0,x,y) == zone_radius)
 					{
-						int dis = distance_between_points(z->x + x, z->y + y, c->x, c->y);
+						int dis = distance_between_points(z->pos.x + x, z->pos.y + y, c->pos.x, c->pos.y);
 						if (dis < closest_distance)
 						{
 							closest_distance = dis;
-							best_x = z->x + x;
-							best_y = z->y + y;
+							best.x = z->pos.x + x;
+							best.y = z->pos.y + y;
 						}
 					}
 				}
 			}
 			
-			int previous_x = best_x;
-			int previous_y = best_y;
+			Position previous;
+			previous.x = best.x;
+			previous.y = best.y;
+			Position pp;
+			pp.x = previous.x;
+			pp.y = previous.y;
+			z->exits.push_back(pp);
 			
 			//now move one spot out from that point
-			if (gs.level->get_room(best_x + 1, best_y) == nullptr)
+			if (gs.level->get_room(best.x + 1, best.y) == nullptr)
 			{
-				++best_x;
+				++best.x;
 			}
-			else if (gs.level->get_room(best_x - 1, best_y) == nullptr)
+			else if (gs.level->get_room(best.x - 1, best.y) == nullptr)
 			{
-				--best_x;
+				--best.x;
 			}
-			else if (gs.level->get_room(best_x, best_y + 1) == nullptr)
+			else if (gs.level->get_room(best.x, best.y + 1) == nullptr)
 			{
-				++best_y;
+				++best.y;
 			}
-			else if (gs.level->get_room(best_x, best_y - 1) == nullptr)
+			else if (gs.level->get_room(best.x, best.y - 1) == nullptr)
 			{
-				--best_y;
+				--best.y;
 			}
 			#ifdef DEBUG
 			else
@@ -774,35 +779,35 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 			#endif
 		
 			//use a heavily modified pathfinding algorithm
-			while (best_x != c->x && best_y != c->y)
+			while (best.x != c->pos.x && best.y != c->pos.y)
 			{
 				//first, check if this room touches the child zone
-				Room* tr = gs.level->get_room(best_x, best_y);
-				Room* pr = gs.level->get_room(previous_x, previous_y);
+				Room* tr = gs.level->get_room(best.x, best.y);
+				Room* pr = gs.level->get_room(previous.x, previous.y);
 				bool made_it = tr != nullptr;
 				
 				if (!made_it)
 				{
-					tr = gs.level->get_room(gs.level->create_room(best_x, best_y));
+					tr = gs.level->get_room(gs.level->create_room(best.x, best.y));
 				}
 				
 				//fill in the exits between these two areas
-				if (best_x > previous_x)
+				if (best.x > previous.x)
 				{
 					tr->set_exit(Room::Exit::WEST, Room::Exit_Status::Open);
 					pr->set_exit(Room::Exit::EAST, Room::Exit_Status::Open);
 				}
-				else if (best_x < previous_x)
+				else if (best.x < previous.x)
 				{
 					tr->set_exit(Room::Exit::EAST, Room::Exit_Status::Open);
 					pr->set_exit(Room::Exit::WEST, Room::Exit_Status::Open);
 				}
-				else if (best_y > previous_y)
+				else if (best.y > previous.y)
 				{
 					tr->set_exit(Room::Exit::NORTH, Room::Exit_Status::Open);
 					pr->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
 				}
-				else if (best_y < previous_y)
+				else if (best.y < previous.y)
 				{
 					tr->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
 					pr->set_exit(Room::Exit::NORTH, Room::Exit_Status::Open);
@@ -817,7 +822,10 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 				//if this was a room in the child zone, we're done!
 				if (made_it)
 				{
-					
+					Position ppp;
+					ppp.x = best.x;
+					ppp.y = best.y;
+					c->exits.push_back(ppp);
 					
 					break;
 				}
@@ -832,36 +840,36 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 					//and then figure out where the next room would be
 					closest_distance = 100000;
 					int nbx,nby;
-					if (distance_between_points(best_x, best_y - 1, c->x, c->y) < closest_distance)
+					if (distance_between_points(best.x, best.y - 1, c->pos.x, c->pos.y) < closest_distance)
 					{
-						closest_distance = distance_between_points(best_x, best_y - 1, c->x, c->y);
-						nbx = best_x;
-						nby = best_y - 1;
+						closest_distance = distance_between_points(best.x, best.y - 1, c->pos.x, c->pos.y);
+						nbx = best.x;
+						nby = best.y - 1;
 					}
-					if (distance_between_points(best_x + 1, best_y, c->x, c->y) < closest_distance)
+					if (distance_between_points(best.x + 1, best.y, c->pos.x, c->pos.y) < closest_distance)
 					{
-						closest_distance = distance_between_points(best_x + 1, best_y, c->x, c->y);
-						nbx = best_x + 1;
-						nby = best_y;
+						closest_distance = distance_between_points(best.x + 1, best.y, c->pos.x, c->pos.y);
+						nbx = best.x + 1;
+						nby = best.y;
 					}
-					if (distance_between_points(best_x, best_y + 1, c->x, c->y) < closest_distance)
+					if (distance_between_points(best.x, best.y + 1, c->pos.x, c->pos.y) < closest_distance)
 					{
-						closest_distance = distance_between_points(best_x, best_y + 1, c->x, c->y);
-						nbx = best_x;
-						nby = best_y + 1;
+						closest_distance = distance_between_points(best.x, best.y + 1, c->pos.x, c->pos.y);
+						nbx = best.x;
+						nby = best.y + 1;
 					}
-					if (distance_between_points(best_x - 1, best_y, c->x, c->y) < closest_distance)
+					if (distance_between_points(best.x - 1, best.y, c->pos.x, c->pos.y) < closest_distance)
 					{
-						closest_distance = distance_between_points(best_x - 1, best_y, c->x, c->y);
-						nbx = best_x - 1;
-						nby = best_y;
+						closest_distance = distance_between_points(best.x - 1, best.y, c->pos.x, c->pos.y);
+						nbx = best.x - 1;
+						nby = best.y;
 					}
 					
-					previous_x = best_x;
-					previous_y = best_y;
+					previous.x = best.x;
+					previous.y = best.y;
 					
-					best_x = nbx;
-					best_y = nby;
+					best.x = nbx;
+					best.y = nby;
 				}
 			}
 		}
@@ -884,7 +892,7 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 	}
 	
 	//put the player object in the starting zone
-	Room* sr = gs.level->get_room(starting_zone->x, starting_zone->y);
+	Room* sr = gs.level->get_room(starting_zone->pos.x, starting_zone->pos.y);
 	gs.playable_character = gs.level->create_object();
 	Object* o = gs.level->get_object(gs.playable_character);
 	o->visible = true;
@@ -1027,13 +1035,13 @@ void create_overworld(GameState& gs, ECS::Handle enemy_1)
 		d.height = MyMath::random_int(1 + 16 / d.width, 49 / d.width);
 		d.x = random_node->x;
 		d.y = random_node->y;
-		d.entrance_x = d.x + d.width / 2;
-		d.entrance_y = d.y + d.height - 1;
+		d.entrance.x = d.x + d.width / 2;
+		d.entrance.y = d.y + d.height - 1;
 		
 		create_dungeon(gs, enemy_1, d);
 		
 		//create the landing space out front
-		Room* rrr = gs.level->get_room(gs.level->create_room(d.entrance_x, d.entrance_y + 1));
+		Room* rrr = gs.level->get_room(gs.level->create_room(d.entrance.x, d.entrance.y + 1));
 		rrr->set_short_description("Outside");
 		rrr->set_description("A grassey field sitting in the shade of the looming stone dungeon walls.");
 		rrr->set_minimap_symbol("<fg=yellow><bg=green>#");
