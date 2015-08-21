@@ -39,7 +39,7 @@ struct Zone
 	std::vector<Zone*> children;
 	std::map<Zone*,Position> exits;
 	Zone* parent;
-	Position pos;
+	//Position pos;
 	
 	bool locked;
 	
@@ -607,7 +607,7 @@ void create_overworld(GameState& gs)
 		angles[i] = 6.28318530718f * (float)i / (float)num_angles;
 	}
 	std::vector<Zone*> complete_zones;
-	starting_zone->pos.x = starting_zone->pos.y = 0;
+	//starting_zone->pos.x = starting_zone->pos.y = 0;
 	complete_zones.push_back(starting_zone);
 	std::vector<Zone*> incomplete_zones;
 	for (std::size_t i = 0; i < starting_zone->children.size(); ++i)
@@ -637,8 +637,8 @@ void create_overworld(GameState& gs)
 			//figure out where this spot would be
 			float f = angles[i];
 			Position op;
-			op.x = z->parent->pos.x + (int)(std::cos(f) * 2.0f * (float)(zone_radius + 3));
-			op.y = z->parent->pos.y + (int)(std::sin(f) * -2.0f * (float)(zone_radius + 3));
+			op.x = z->parent->bitmask.get_offset().x + (z->parent->bitmask.get_width()  - z->bitmask.get_width() ) / 2 + (int)(std::cos(f) *  2.0f * (float)(zone_radius + 3));
+			op.y = z->parent->bitmask.get_offset().y + (z->parent->bitmask.get_height() - z->bitmask.get_height()) / 2 + (int)(std::sin(f) * -2.0f * (float)(zone_radius + 3));
 			z->bitmask.set_offset(op.x - zone_radius, op.y - zone_radius);
 			
 			//figure out if that touches any other zone (besides the parent)
@@ -652,23 +652,15 @@ void create_overworld(GameState& gs)
 						touches = true;
 						break;
 					}
-					/*
-					int dis = distance_between_points(x, y, oz->pos.x, oz->pos.y);
-					
-					if (dis < (2 * zone_radius + 1))
-					{
-						touches = true;
-						break;
-					}
-					*/
 				}
 			}
 			
 			//if it doesn't touch, place it!
 			if (!touches)
 			{
-				z->pos.x = op.x;
-				z->pos.y = op.y;
+				//z->bitmask.set_offset(op.x,op.y);
+				//z->bitmask.get_offset().x = op.x;
+				//z->bitmask.get_offset().y = op.y;
 				complete_zones.push_back(z);
 				placed = true;
 				break;
@@ -745,8 +737,8 @@ void create_overworld(GameState& gs)
 	
 	for (Zone* z : complete_zones)
 	{
-		z->pos.x -= min_x;
-		z->pos.y -= min_y;
+		//z->bitmask.get_offset().x -= min_x;
+		//z->bitmask.get_offset().y -= min_y;
 		
 		Position zp = z->bitmask.get_offset();
 		z->bitmask.set_offset(zp.x - min_x, zp.y - min_y);
@@ -797,22 +789,6 @@ void create_overworld(GameState& gs)
 		
 		//fill in the zone definition
 		Zone* z  = complete_zones[i];
-		/*
-		Position p;
-		p.x = z->pos.x - zone_radius;
-		p.y = z->pos.y - zone_radius;
-		z->bitmask = Bitmask(zone_radius * 2 + 1, zone_radius * 2 + 1, p);
-		for (int x = -zone_radius; x <= zone_radius; ++x)
-		{
-			for (int y = -zone_radius; y <= zone_radius; ++y)
-			{
-				if (distance_between_points(x,y,0,0) <= zone_radius)
-				{
-					z->bitmask.set(x + z->pos.x, y + z->pos.y, true);
-				}
-			}
-		}
-		*/
 		
 		//actually create the zone
 		create_zone(gs, enemy_1, z, index);
@@ -838,6 +814,27 @@ void create_overworld(GameState& gs)
 			best.x = -1;
 			best.y = -1;
 			int closest_distance = 1000000;
+			Position sp = z->bitmask.get_offset();
+			int mx = sp.x + z->bitmask.get_width();
+			int my = sp.y + z->bitmask.get_height();
+			for (int x = sp.x; x < mx; ++x)
+			{
+				for (int y = sp.y; y < my; ++y)
+				{
+					if (z->bitmask(x,y))
+					{
+						int dis = distance_between_points(x,y,c->bitmask.get_offset().x + c->bitmask.get_width() / 2,c->bitmask.get_offset().y + c->bitmask.get_height() / 2);
+						
+						if (dis < closest_distance)
+						{
+							closest_distance = dis;
+							best.x = x;
+							best.y = y;
+						}
+					}
+				}
+			}
+			/*
 			for (int x = -zone_radius; x <= zone_radius; ++x)
 			{
 				for (int y = -zone_radius; y <= zone_radius; ++y)
@@ -854,6 +851,7 @@ void create_overworld(GameState& gs)
 					}
 				}
 			}
+			*/
 			
 			Position previous;
 			previous.x = best.x;
@@ -896,7 +894,7 @@ void create_overworld(GameState& gs)
 			#endif
 		
 			//use a heavily modified pathfinding algorithm
-			while (best.x != c->pos.x && best.y != c->pos.y)
+			while (best.x != c->bitmask.get_offset().x && best.y != c->bitmask.get_offset().y)
 			{
 				//first, check if this room touches the child zone
 				Room* tr = gs.level->get_room(best.x, best.y);
@@ -969,27 +967,27 @@ void create_overworld(GameState& gs)
 					//and then figure out where the next room would be
 					closest_distance = 100000;
 					int nbx,nby;
-					if (distance_between_points(best.x, best.y - 1, c->pos.x, c->pos.y) < closest_distance)
+					if (distance_between_points(best.x, best.y - 1, c->bitmask.get_offset().x + c->bitmask.get_width() / 2, c->bitmask.get_offset().y + c->bitmask.get_height() / 2) < closest_distance)
 					{
-						closest_distance = distance_between_points(best.x, best.y - 1, c->pos.x, c->pos.y);
+						closest_distance = distance_between_points(best.x, best.y - 1, c->bitmask.get_offset().x + c->bitmask.get_width() / 2, c->bitmask.get_offset().y + c->bitmask.get_height() / 2);
 						nbx = best.x;
 						nby = best.y - 1;
 					}
-					if (distance_between_points(best.x + 1, best.y, c->pos.x, c->pos.y) < closest_distance)
+					if (distance_between_points(best.x + 1, best.y, c->bitmask.get_offset().x + c->bitmask.get_width() / 2, c->bitmask.get_offset().y + c->bitmask.get_height() / 2) < closest_distance)
 					{
-						closest_distance = distance_between_points(best.x + 1, best.y, c->pos.x, c->pos.y);
+						closest_distance = distance_between_points(best.x + 1, best.y, c->bitmask.get_offset().x + c->bitmask.get_width() / 2, c->bitmask.get_offset().y + c->bitmask.get_height() / 2);
 						nbx = best.x + 1;
 						nby = best.y;
 					}
-					if (distance_between_points(best.x, best.y + 1, c->pos.x, c->pos.y) < closest_distance)
+					if (distance_between_points(best.x, best.y + 1, c->bitmask.get_offset().x + c->bitmask.get_width() / 2, c->bitmask.get_offset().y + c->bitmask.get_height() / 2) < closest_distance)
 					{
-						closest_distance = distance_between_points(best.x, best.y + 1, c->pos.x, c->pos.y);
+						closest_distance = distance_between_points(best.x, best.y + 1, c->bitmask.get_offset().x + c->bitmask.get_width() / 2, c->bitmask.get_offset().y + c->bitmask.get_height() / 2);
 						nbx = best.x;
 						nby = best.y + 1;
 					}
-					if (distance_between_points(best.x - 1, best.y, c->pos.x, c->pos.y) < closest_distance)
+					if (distance_between_points(best.x - 1, best.y, c->bitmask.get_offset().x + c->bitmask.get_width() / 2, c->bitmask.get_offset().y + c->bitmask.get_height() / 2) < closest_distance)
 					{
-						closest_distance = distance_between_points(best.x - 1, best.y, c->pos.x, c->pos.y);
+						closest_distance = distance_between_points(best.x - 1, best.y, c->bitmask.get_offset().x + c->bitmask.get_width() / 2, c->bitmask.get_offset().y + c->bitmask.get_height() / 2);
 						nbx = best.x - 1;
 						nby = best.y;
 					}
@@ -1080,7 +1078,7 @@ void create_overworld(GameState& gs)
 	}
 	
 	//put the player object in the starting zone
-	Room* sr = gs.level->get_room(starting_zone->pos.x, starting_zone->pos.y + 6);
+	Room* sr = gs.level->get_room(starting_zone->bitmask.get_offset().x + starting_zone->bitmask.get_width() / 2, starting_zone->bitmask.get_offset().y + 6 + starting_zone->bitmask.get_height() / 2);
 	gs.playable_character = gs.level->create_object();
 	Object* o = gs.level->get_object(gs.playable_character);
 	o->visible = true;
