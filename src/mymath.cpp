@@ -6,22 +6,26 @@
 
 uint32_t w,x,y,z;
 
-void MyMath::start_rng()
+int MyMath::start_rng()
 {
 	std::random_device rd;
+	int seed = rd();
+	return start_rng(seed);
 	//rng = new std::mt19937(rd);
-	w = (uint32_t)rd();
-	x = (uint32_t)rd();
-	y = (uint32_t)rd();
-	z = (uint32_t)rd();
+	//w = (uint32_t)rd();
+	//x = (uint32_t)rd();
+	//y = (uint32_t)rd();
+	//z = (uint32_t)rd();
 }
 
-void MyMath::start_rng(int seed)
+int MyMath::start_rng(int seed)
 {
-	w = seed & 0x000000FF;
-	x = seed & 0x0000FF00;
-	y = seed & 0x00FF0000;
-	z = seed & 0xFF000000;
+	w = (uint32_t)seed & 0x000000FF;
+	x = (uint32_t)seed & 0x0000FF00;
+	y = (uint32_t)seed & 0x00FF0000;
+	z = (uint32_t)seed & 0xFF000000;
+	
+	return seed;
 }
 
 int MyMath::random_int(int minimum, int maximum)

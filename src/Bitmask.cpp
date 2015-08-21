@@ -200,3 +200,29 @@ void Bitmask::set_offset(int x, int y)
 	offset.x = x;
 	offset.y = y;
 }
+
+std::vector<Position> Bitmask::shortest_path(Position p0, Position p1)
+{
+
+}
+
+std::vector<Position> random_path(Position p0, Position p1, float randomness)
+{
+
+}
+
+#ifdef DEBUG
+std::string Bitmask::print()
+{
+	std::string retval = "";
+	for (int y = 0; y < height; ++y)
+	{
+		for (int x = 0; x < width; ++x)
+		{
+			retval += values[x + y * width] ? '1' : '0';
+		}
+		retval += '\n';
+	}
+	return retval;
+}
+#endif

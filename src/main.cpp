@@ -22,7 +22,11 @@
 void init(Console& console)
 {
 	//seed the RNG before we forget!
-	MyMath::start_rng(1558332593);
+	int seed = MyMath::start_rng(1558332593);
+	
+	#ifdef DEBUG
+		Log::write("Starting the game with the seed " + StringUtils::to_string(seed) + ".");
+	#endif
 
 	//some all-purpose frames
 	Console::Frame f("text_box",console.get_height() - 2, console.get_width(), 0,0,false, false, true);

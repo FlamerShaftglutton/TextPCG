@@ -42,4 +42,10 @@ public:
 	
 	bool overlaps(Bitmask& rhs);
 	bool touches(Bitmask& rhs);
+	std::vector<Position> shortest_path(Position p0, Position p1);
+	std::vector<Position> random_path(Position p0, Position p1, float randomness);
+	
+	#ifdef DEBUG
+		std::string print();
+	#endif
 };

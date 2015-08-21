@@ -607,6 +607,7 @@ void create_overworld(GameState& gs)
 		angles[i] = 6.28318530718f * (float)i / (float)num_angles;
 	}
 	std::vector<Zone*> complete_zones;
+	starting_zone->bitmask.set_offset(0,0);
 	//starting_zone->pos.x = starting_zone->pos.y = 0;
 	complete_zones.push_back(starting_zone);
 	std::vector<Zone*> incomplete_zones;
@@ -637,9 +638,9 @@ void create_overworld(GameState& gs)
 			//figure out where this spot would be
 			float f = angles[i];
 			Position op;
-			op.x = z->parent->bitmask.get_offset().x + (z->parent->bitmask.get_width()  - z->bitmask.get_width() ) / 2 + (int)(std::cos(f) *  2.0f * (float)(zone_radius + 3));
-			op.y = z->parent->bitmask.get_offset().y + (z->parent->bitmask.get_height() - z->bitmask.get_height()) / 2 + (int)(std::sin(f) * -2.0f * (float)(zone_radius + 3));
-			z->bitmask.set_offset(op.x - zone_radius, op.y - zone_radius);
+			op.x = z->parent->bitmask.get_offset().x + /*(z->parent->bitmask.get_width()  - z->bitmask.get_width() ) / 2*/ + (int)(std::cos(f) *  2.0f * (float)(zone_radius + 3));
+			op.y = z->parent->bitmask.get_offset().y + /*(z->parent->bitmask.get_height() - z->bitmask.get_height()) / 2*/ + (int)(std::sin(f) * -2.0f * (float)(zone_radius + 3));
+			z->bitmask.set_offset(op.x, op.y);
 			
 			//figure out if that touches any other zone (besides the parent)
 			bool touches = false;
@@ -853,13 +854,8 @@ void create_overworld(GameState& gs)
 			}
 			*/
 			
-			Position previous;
-			previous.x = best.x;
-			previous.y = best.y;
-			Position pp;
-			pp.x = previous.x;
-			pp.y = previous.y;
-			z->exits[c] = pp;
+			Position previous = best;
+			z->exits[c] = best;
 			
 			//now move one spot out from that point
 			if (gs.level->get_room(best.x + 1, best.y) == nullptr)
@@ -894,12 +890,20 @@ void create_overworld(GameState& gs)
 			#endif
 		
 			//use a heavily modified pathfinding algorithm
-			while (best.x != c->bitmask.get_offset().x && best.y != c->bitmask.get_offset().y)
+			for (int steps = 0; steps < 100; ++steps)
+			//while (best.x != c->bitmask.get_offset().x && best.y != c->bitmask.get_offset().y)
 			{
-				//first, check if this room touches the child zone
+				//first, check if this room is in the child zone
 				Room* tr = gs.level->get_room(best.x, best.y);
 				Room* pr = gs.level->get_room(previous.x, previous.y);
-				bool made_it = tr != nullptr;
+				bool made_it = c->bitmask(best.x, best.y);
+				
+				#ifdef DEBUG
+					if (made_it && tr == nullptr)
+					{
+						Log::write("Error: encountered a room while creating bridges that the bitmask says is filled in but has no room created yet...");
+					}
+				#endif
 				
 				if (!made_it)
 				{
