@@ -39,7 +39,7 @@ struct Zone
 	std::vector<Zone*> children;
 	std::map<Zone*,Position> exits;
 	Zone* parent;
-	//Position pos;
+	int theme;
 	
 	bool locked;
 	
@@ -97,43 +97,6 @@ struct node
 
 void create_dungeon(GameState& gs, ECS::Handle enemy_1, Dungeon dungeon_stats)
 {
-	//get the upper and lower bounds
-	/*
-	int min_rx = dungeon_stats.bitmask.get_offset().x;
-	int min_ry = dungeon_stats.bitmask.get_offset().y;
-	int max_rx = min_rx + dungeon_stats.bitmask.get_width() - 1;
-	int max_ry = min_ry + dungeon_stats.bitmask.get_height() - 1;
-	
-	if (min_rx < 1)
-	{
-		min_rx = 1;
-	}
-	if (min_ry < 1)
-	{
-		min_ry = 1;
-	}
-	if (max_rx > (gs.level->get_width() - 2))
-	{
-		max_rx = (gs.level->get_width() - 2);
-	}
-	if (max_ry > (gs.level->get_height() - 2))
-	{
-		max_ry = (gs.level->get_height() - 2);
-	}
-	
-	#ifdef DEBUG
-		if (max_rx <= min_rx || max_ry <= min_ry)
-		{
-			Log::write("Error: dungeon dimensions are invalid.");
-		}
-		
-		if (dungeon_stats.entrance.x < min_rx || dungeon_stats.entrance.x > max_rx || dungeon_stats.entrance.y < min_ry || dungeon_stats.entrance.y > max_ry)
-		{
-			Log::write("Error: dungeon entrance is outside of the dungeon.");
-		}
-	#endif
-	*/
-
 	//create a helper lambda
 	std::function<void(node*, std::vector<node*>&)> add_leaves = [&](node* mn, std::vector<node*>& al) { if (mn->is_leaf()) { al.push_back(mn); } else { for (int z = 0; z < 4; ++z) { if (mn->children[z] != nullptr && !mn->children[z]->locked) { add_leaves(mn->children[z],al); } } } };
 	
@@ -421,7 +384,7 @@ void create_dungeon(GameState& gs, ECS::Handle enemy_1, Dungeon dungeon_stats)
 	}
 }
 
-void create_zone(GameState& gs, ECS::Handle enemy_1, Zone* zone, int theme)
+void create_zone(GameState& gs, ECS::Handle enemy_1, Zone* zone)
 {
 	//theme stuff
 	std::string themes[] = {"Volcano","Forest","Plains","Desert","Mountains","Tundra","Urban"};
@@ -471,12 +434,12 @@ void create_zone(GameState& gs, ECS::Handle enemy_1, Zone* zone, int theme)
 			if (b(x,y) && gs.level->get_room(x,y) == nullptr)
 			{
 				Room* r = gs.level->get_room(gs.level->create_room(x, y));
-				r->set_description(descriptions[theme]);
-				r->set_short_description("A " + themes[theme] + " Region");
-				r->set_minimap_symbol(minimap_symbols[theme]);
+				r->set_description(descriptions[zone->theme]);
+				r->set_short_description("A " + themes[zone->theme] + " Region");
+				r->set_minimap_symbol(minimap_symbols[zone->theme]);
 				r->set_visited(true);
 				
-				if (b(x, y -1))
+				if (b(x, y - 1))
 				{
 					r->set_exit(Room::Exit::NORTH, Room::Exit_Status::Open);
 				}
@@ -638,8 +601,8 @@ void create_overworld(GameState& gs)
 			//figure out where this spot would be
 			float f = angles[i];
 			Position op;
-			op.x = z->parent->bitmask.get_offset().x + /*(z->parent->bitmask.get_width()  - z->bitmask.get_width() ) / 2*/ + (int)(std::cos(f) *  2.0f * (float)(zone_radius + 3));
-			op.y = z->parent->bitmask.get_offset().y + /*(z->parent->bitmask.get_height() - z->bitmask.get_height()) / 2*/ + (int)(std::sin(f) * -2.0f * (float)(zone_radius + 3));
+			op.x = z->parent->bitmask.get_offset().x + (int)(std::cos(f) *  2.0f * (float)(zone_radius + 3));
+			op.y = z->parent->bitmask.get_offset().y + (int)(std::sin(f) * -2.0f * (float)(zone_radius + 3));
 			z->bitmask.set_offset(op.x, op.y);
 			
 			//figure out if that touches any other zone (besides the parent)
@@ -659,9 +622,6 @@ void create_overworld(GameState& gs)
 			//if it doesn't touch, place it!
 			if (!touches)
 			{
-				//z->bitmask.set_offset(op.x,op.y);
-				//z->bitmask.get_offset().x = op.x;
-				//z->bitmask.get_offset().y = op.y;
 				complete_zones.push_back(z);
 				placed = true;
 				break;
@@ -785,14 +745,12 @@ void create_overworld(GameState& gs)
 	//for each zone (in reverse order)...
 	for (int i = (int)complete_zones.size() - 1; i >= 0; --i)
 	{
-		//get a random theme
-		int index = indexes[i];
-		
 		//fill in the zone definition
 		Zone* z  = complete_zones[i];
+		z->theme = indexes[i];
 		
 		//actually create the zone
-		create_zone(gs, enemy_1, z, index);
+		create_zone(gs, enemy_1, z);
 	}
 	
 	//now connect each zone with its children
@@ -835,51 +793,40 @@ void create_overworld(GameState& gs)
 					}
 				}
 			}
-			/*
-			for (int x = -zone_radius; x <= zone_radius; ++x)
-			{
-				for (int y = -zone_radius; y <= zone_radius; ++y)
-				{
-					if (distance_between_points(0,0,x,y) == zone_radius)
-					{
-						int dis = distance_between_points(z->pos.x + x, z->pos.y + y, c->pos.x, c->pos.y);
-						if (dis < closest_distance)
-						{
-							closest_distance = dis;
-							best.x = z->pos.x + x;
-							best.y = z->pos.y + y;
-						}
-					}
-				}
-			}
-			*/
 			
 			Position previous = best;
 			z->exits[c] = best;
+			std::string door_descriptions[] = {"A massive door made of obsidian and fire",
+											   "A massive door made of tangled trees and vines",
+											   "A massive door made of ivory and woven grass",
+											   "A massive door made of sand and stone",
+											   "A massive door made of stones capped with snow",
+											   "A massive door made of snow and ice",
+											   "A massive door made of marble"};
 			
 			//now move one spot out from that point
 			if (gs.level->get_room(best.x + 1, best.y) == nullptr)
 			{
 				gs.level->get_room(best.x, best.y)->set_exit(Room::Exit::EAST, Room::Exit_Status::Locked);
-				gs.level->get_room(best.x, best.y)->set_door_description("A massive door leading to another realm.",Room::Exit::EAST);
+				gs.level->get_room(best.x, best.y)->set_door_description(door_descriptions[c->theme],Room::Exit::EAST);
 				++best.x;
 			}
 			else if (gs.level->get_room(best.x - 1, best.y) == nullptr)
 			{
 				gs.level->get_room(best.x, best.y)->set_exit(Room::Exit::WEST, Room::Exit_Status::Locked);
-				gs.level->get_room(best.x, best.y)->set_door_description("A massive door leading to another realm.",Room::Exit::WEST);
+				gs.level->get_room(best.x, best.y)->set_door_description(door_descriptions[c->theme],Room::Exit::WEST);
 				--best.x;
 			}
 			else if (gs.level->get_room(best.x, best.y + 1) == nullptr)
 			{
 				gs.level->get_room(best.x, best.y)->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Locked);
-				gs.level->get_room(best.x, best.y)->set_door_description("A massive door leading to another realm.",Room::Exit::SOUTH);
+				gs.level->get_room(best.x, best.y)->set_door_description(door_descriptions[c->theme],Room::Exit::SOUTH);
 				++best.y;
 			}
 			else if (gs.level->get_room(best.x, best.y - 1) == nullptr)
 			{
 				gs.level->get_room(best.x, best.y)->set_exit(Room::Exit::NORTH, Room::Exit_Status::Locked);
-				gs.level->get_room(best.x, best.y)->set_door_description("A massive door leading to another realm.",Room::Exit::NORTH);
+				gs.level->get_room(best.x, best.y)->set_door_description(door_descriptions[c->theme],Room::Exit::NORTH);
 				--best.y;
 			}
 			#ifdef DEBUG
@@ -891,7 +838,6 @@ void create_overworld(GameState& gs)
 		
 			//use a heavily modified pathfinding algorithm
 			for (int steps = 0; steps < 100; ++steps)
-			//while (best.x != c->bitmask.get_offset().x && best.y != c->bitmask.get_offset().y)
 			{
 				//first, check if this room is in the child zone
 				Room* tr = gs.level->get_room(best.x, best.y);
@@ -1037,6 +983,14 @@ void create_overworld(GameState& gs)
 					  room_to_unlock->get_exit(Room::Exit::EAST) == Room::Exit_Status::Locked ? 1 :
 					  room_to_unlock->get_exit(Room::Exit::SOUTH) == Room::Exit_Status::Locked ? 2 : 3;
 			char dirs[] = "nesw";
+			std::string key_descs[] = {"A massive key made of obsidian and fire",
+								      "A massive key made of tangled trees and vines",
+								      "A massive key made of ivory and woven grass",
+								      "A massive key made of sand and stone",
+								      "A massive key made of stones capped with snow",
+								      "A massive key made of snow and ice",
+								      "A massive key made of marble"};
+			std::string key_desc = key_descs[z->mcguffin_opens->theme];
 		
 			#ifdef DEBUG
 				if (room_to_unlock == nullptr)
@@ -1056,8 +1010,8 @@ void create_overworld(GameState& gs)
 			ko->hitpoints = -1;
 			ko->attack = 0;
 			ko->hit_chance = 0.0f;
-			ko->name = "A Massive Key";
-			ko->description = "A huge key. Find the bridge it unlocks!";
+			ko->name = "A <fg=magenta>Massive <fg=green>Key";
+			ko->description = key_desc + ". Find the bridge it unlocks!";
 			ko->scripts.construct("",
 								  "",
 								  "(if (= (get current_room.handle) " + StringUtils::to_string((int)room_to_unlock->get_handle()) + ") (+ (set global.main_text (+ (get global.main_text) \"<fg=white><bg=black>\n\nThe gates of the bridge swing open, revealing a whole new realm.\")) (set current_room.open_" + dirs[dir] + " true) (destroy (get caller.handle))) (set global.main_text (+ (get global.main_text) \"<fg=white><bg=black>\n\nIt does nothing\")));",
@@ -1157,211 +1111,6 @@ void create_overworld(GameState& gs)
 			outfile << std::endl;
 		}
 	#endif
-/*
-	//create a starting space and 3 dungeons
-	node* starting_node = new node;
-	starting_node->x = 100;
-	starting_node->y = 150;
-	
-	node* d1 = new node;
-	d1->x = 80;
-	d1->y = 150;
-	d1->locked = false;
-	d1->parent = starting_node;
-	d1->children[0] = d1->children[1] = d1->children[2] = d1->children[3] = nullptr;
-	
-	node* d2 = new node;
-	d2->x = 110;
-	d2->y = 150;
-	d2->locked = false;
-	d2->parent = starting_node;
-	d2->children[0] = d2->children[1] = d2->children[2] = d2->children[3] = nullptr;
-	
-	node* d3 = new node;
-	d3->x = 100;
-	d3->y = 130;
-	d3->locked = false;
-	d3->parent = starting_node;
-	d3->children[0] = d3->children[1] = d3->children[2] = d3->children[3] = nullptr;
-	
-	starting_node->children[0] = d1;
-	starting_node->children[1] = d2;
-	starting_node->children[2] = d3;
-	starting_node->children[3] = nullptr;
-	
-	//create the last mcguffin
-	ECS::Handle mcguffin = -1;
-	mcguffin = gs.level->create_object();
-	Object* ko = gs.level->get_object(mcguffin);
-	ko->visible = true;
-	ko->visible_in_short_description = true;
-	ko->friendly = true;
-	ko->mobile = true;
-	ko->playable = false;
-	ko->open = true;
-	ko->holdable = false;
-	ko->object_container = -1;
-	ko->hitpoints = -1;
-	ko->attack = 0;
-	ko->hit_chance = 0.0f;
-	ko->name = "Princess xXx_SS5_Seph0r0th213_xXx";
-	ko->description = "A beautiful princess. She wears a pink dress, white gloves, and looks strangely familiar...";
-	ko->scripts.construct("(set 0 0);","(say (choose (get 0) \"Thank you for saving me brave warrior! You have my eternal thanks (and you won the game)!\" \"Thanks again (you can quit the game any time).\")); (set 0 1);","(say \"How dare you!\");","");
-	
-	while (starting_node->count_children() > 1)//the starting node counts itself, so we have to use 1 instead of 0
-	{
-		//pick a random (unlocked) node to put the mcguffin in
-		node* random_node = nullptr;
-		if (!starting_node->children[0]->locked && MyMath::random_int(0,2) == 0)
-		{
-			random_node = starting_node->children[0];
-		}
-		else if (!starting_node->children[1]->locked && MyMath::random_int(0,1) == 0)
-		{
-			random_node = starting_node->children[1];
-		}
-		else
-		{
-			random_node = starting_node->children[2];
-		}
-		
-		//jam the McGuffin in there and create the dungeon!
-		Dungeon d;
-		d.mcguffin = mcguffin;
-		d.width = MyMath::random_int(2,7);
-		d.height = MyMath::random_int(1 + 16 / d.width, 49 / d.width);
-		d.x = random_node->x;
-		d.y = random_node->y;
-		d.entrance.x = d.x + d.width / 2;
-		d.entrance.y = d.y + d.height - 1;
-		
-		create_dungeon(gs, enemy_1, d);
-		
-		//create the landing space out front
-		Room* rrr = gs.level->get_room(gs.level->create_room(d.entrance.x, d.entrance.y + 1));
-		rrr->set_short_description("Outside");
-		rrr->set_description("A grassey field sitting in the shade of the looming stone dungeon walls.");
-		rrr->set_minimap_symbol("<fg=yellow><bg=green>#");
-		rrr->set_visited(true);
-		rrr->set_door_description("a massive stone door", Room::Exit::NORTH);
-		rrr->set_exit(Room::Exit::EAST, Room::Exit_Status::Open);
-		rrr->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
-		rrr->set_exit(Room::Exit::WEST, Room::Exit_Status::Open);
-		
-		//now lock it and make a new key
-		random_node->locked = true;
-		if (starting_node->count_children() > 1)
-		{
-			rrr->set_exit(Room::Exit::NORTH, Room::Exit_Status::Locked);
-			mcguffin = gs.level->create_object();
-			Object* ko = gs.level->get_object(mcguffin);
-			ko->visible = true;
-			ko->visible_in_short_description = false;
-			ko->friendly = true;
-			ko->mobile = false;
-			ko->playable = false;
-			ko->open = false;
-			ko->holdable = true;
-			ko->object_container = -1;
-			ko->room_container = -1;
-			ko->hitpoints = -1;
-			ko->attack = 0;
-			ko->hit_chance = 0.0f;
-			ko->name = "A Massive Key";
-			ko->description = "A huge key. Find the dungeon it belongs to!";
-			ko->scripts.construct("",
-								  "",
-								  "(if (= (get current_room.handle) " + StringUtils::to_string((int)rrr->get_handle()) + ") (+ (set global.main_text (+ (get global.main_text) \"<fg=white><bg=black>\n\nThe huge doors of the dungeon swing open.\")) (set current_room.open_n true) (destroy (get caller.handle))) (set global.main_text (+ (get global.main_text) \"<fg=white><bg=black>\n\nIt does nothing\")));",
-								  "");
-		}
-		else
-		{
-			rrr->set_exit(Room::Exit::NORTH, Room::Exit_Status::Open);
-		}
-	}
-	
-	//fill in everything but the dungeons
-	for (int x = 1; x < gs.level->get_width() - 1; ++x)
-	{
-		for (int y = 1; y < gs.level->get_height() - 1; ++y)
-		{
-			if (gs.level->get_room(x,y) == nullptr)
-			{
-				Room* ro = gs.level->get_room(gs.level->create_room(x,y));
-				
-				ro->set_short_description("Outside");
-				ro->set_description("A sunny, grassey field.");
-				ro->set_minimap_symbol("<fg=white><bg=green>#");
-				ro->set_visited(true);
-				
-				if (y > 1 && (gs.level->get_room(x, y - 1) == nullptr || gs.level->get_room(x, y - 1)->get_exit(Room::Exit::SOUTH) == Room::Exit_Status::Open))
-				{
-					ro->set_exit(Room::Exit::NORTH, Room::Exit_Status::Open);
-				}
-				if (x < (gs.level->get_width() - 2) && (gs.level->get_room(x + 1, y) == nullptr || gs.level->get_room(x + 1, y)->get_exit(Room::Exit::WEST) == Room::Exit_Status::Open))
-				{
-					ro->set_exit(Room::Exit::EAST, Room::Exit_Status::Open);
-				}
-				if (y < (gs.level->get_height() - 2) && (gs.level->get_room(x, y + 1) == nullptr || gs.level->get_room(x, y + 1)->get_exit(Room::Exit::NORTH) == Room::Exit_Status::Open))
-				{
-					ro->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
-				}
-				if (x > 1 && (gs.level->get_room(x - 1, y) == nullptr || gs.level->get_room(x - 1, y)->get_exit(Room::Exit::EAST) == Room::Exit_Status::Open))
-				{
-					ro->set_exit(Room::Exit::WEST, Room::Exit_Status::Open);
-				}
-			}
-		}
-	}
-	
-	//update the starting node slightly
-	Room* sr = gs.level->get_room(starting_node->x, starting_node->y);
-	sr->set_short_description("Your Home");
-	sr->set_description("A patch of dirt. The remains of a campfire smolder here.");
-	sr->set_minimap_symbol("<fg=red><bg=yellow>%");
-
-	//put the player object at the starting location
-	gs.playable_character = gs.level->create_object();
-	Object* o = gs.level->get_object(gs.playable_character);
-	o->visible = true;
-	o->visible_in_short_description = true;
-	o->friendly = true;
-	o->mobile = true;
-	o->playable = true;
-	o->open = true;
-	o->holdable = false;
-	o->room_container = sr->get_handle();
-	o->object_container = -1;
-	o->hitpoints = 100;
-	o->attack = 10;
-	o->hit_chance = 0.75f;
-	o->name = "Myself";
-	o->description = "A <fg=red>hideous<fg=white> looking human. Possibly beaten, or possibly just always ugly. Hard to tell.";
-	o->scripts.construct("","","","");
-	sr->objects().push_back(o->get_handle());
-	
-	//create a map object that displays a crude map of the world on_use
-	
-	
-	//clean up the tree
-	std::vector<node*> to_delete;
-	to_delete.push_back(starting_node);
-	while (!to_delete.empty())
-	{
-		node* td = to_delete.back();
-		to_delete.pop_back();
-		for (std::size_t i = 0; i < 4; ++i)
-		{
-			if (td->children[i] != nullptr)
-			{
-				to_delete.push_back(td->children[i]);
-			}
-		}
-		
-		delete td;
-		td = nullptr;
-	}
-*/
 }
 
 void PCG::create_world(GameState& gs)

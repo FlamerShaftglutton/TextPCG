@@ -203,12 +203,16 @@ void Bitmask::set_offset(int x, int y)
 
 std::vector<Position> Bitmask::shortest_path(Position p0, Position p1)
 {
-
+	std::vector<Position> retval;
+	
+	return retval;
 }
 
 std::vector<Position> random_path(Position p0, Position p1, float randomness)
 {
-
+	std::vector<Position> retval;
+	
+	return retval;
 }
 
 #ifdef DEBUG
