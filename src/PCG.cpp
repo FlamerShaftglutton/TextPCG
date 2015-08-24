@@ -25,7 +25,7 @@ struct Dungeon
 	
 	Position entrance;
 	
-	ECS::Handle mcguffin;
+	ECS::Handle macguffin;
 };
 
 struct Zone
@@ -33,8 +33,8 @@ struct Zone
 	Bitmask bitmask;
 
 	Dungeon d;
-	ECS::Handle mcguffin;
-	Zone* mcguffin_opens = nullptr;
+	ECS::Handle macguffin;
+	Zone* macguffin_opens = nullptr;
 	
 	std::vector<Zone*> children;
 	std::map<Zone*,Position> exits;
@@ -205,7 +205,7 @@ void create_dungeon(GameState& gs, ECS::Handle enemy_1, Dungeon dungeon_stats)
 	}
 
 	//At this point we should have a map full of rooms and a tree full of nodes. Time to start placing locks and keys.
-	//put the McGuffin in the farthest room from the starting room
+	//put the MacGuffin in the farthest room from the starting room
 	node* random_node = starting_node;
 	while (!random_node->is_leaf() || random_node == starting_node)
 	{
@@ -229,7 +229,7 @@ void create_dungeon(GameState& gs, ECS::Handle enemy_1, Dungeon dungeon_stats)
 			random_node = best_kid;
 		}
 	}
-	ECS::Handle kh = dungeon_stats.mcguffin;
+	ECS::Handle kh = dungeon_stats.macguffin;
 	Object* ko = gs.level->get_object(kh);
 	ko->room_container = random_node->handle;
 	gs.level->get_room(random_node->handle)->objects().push_back(kh);
@@ -404,26 +404,38 @@ void create_zone(GameState& gs, ECS::Handle enemy_1, Zone* zone)
 								   "<fg=yellow><bg=red>H"};
 
 	//set up a dungeon skeleton, although don't actually fill it in yet
-	int dw = MyMath::random_int(2,7);
-	int dh = MyMath::random_int(1 + 16 / dw, 49 / dw > 10 ? 10 : 49/dw);
-	Position dungeon_offset;
-	dungeon_offset.x = zone->bitmask.get_offset().x + (zone->bitmask.get_width() - dw) / 2;
-	dungeon_offset.y = zone->bitmask.get_offset().y + (zone->bitmask.get_height() - dh) / 2;
-	Dungeon d;
-	d.bitmask = Bitmask(dw, dh, dungeon_offset);
-	d.entrance.x = dungeon_offset.x + dw / 2;
-	d.entrance.y = dungeon_offset.y + dh - 1;
-	d.mcguffin = zone->mcguffin = gs.level->create_object();
-	for (int x = 0; x < dw; ++x)
+	if (zone->theme == 0)
 	{
-		for (int y = 0; y < dh; ++y)
+		Position dungeon_offset(zone->bitmask.get_offset().x + (zone->bitmask.get_width() - 9) / 2, zone->bitmask.get_offset().y + (zone->bitmask.get_height() - 5) / 2);
+		zone->d.bitmask = Bitmask("111111111\n011111110\n001111100\n000111000\n000010000", dungeon_offset);
+		zone->d.entrance.x = dungeon_offset.x + 4;
+		zone->d.entrance.y = dungeon_offset.y + 4;
+	}
+	else
+	{
+		int dw = MyMath::random_int(2,7);
+		int dh = MyMath::random_int(1 + 16 / dw, 49 / dw > 10 ? 10 : 49/dw);
+		Position dungeon_offset;
+		dungeon_offset.x = zone->bitmask.get_offset().x + (zone->bitmask.get_width() - dw) / 2;
+		dungeon_offset.y = zone->bitmask.get_offset().y + (zone->bitmask.get_height() - dh) / 2;
+		zone->d.bitmask = Bitmask(dw, dh, dungeon_offset);
+		zone->d.entrance.x = dungeon_offset.x + dw / 2;
+		zone->d.entrance.y = dungeon_offset.y + dh - 1;
+		for (int x = 0; x < dw; ++x)
 		{
-			d.bitmask.set(x + dungeon_offset.x, y + dungeon_offset.y, true);
+			for (int y = 0; y < dh; ++y)
+			{
+				zone->d.bitmask.set(x + dungeon_offset.x, y + dungeon_offset.y, true);
+			}
 		}
 	}
+	
+	//attach a MacGuffin to the room
+	zone->d.macguffin = zone->macguffin = gs.level->create_object();
+	
 
 	//first fill up every square that isn't part of the dungeon
-	Bitmask b = zone->bitmask - d.bitmask;
+	Bitmask b = zone->bitmask - zone->d.bitmask;
 	Position offset = b.get_offset();
 	int mx = offset.x + b.get_width();
 	int my = offset.y + b.get_height();
@@ -466,11 +478,11 @@ void create_zone(GameState& gs, ECS::Handle enemy_1, Zone* zone)
 	}
 	
 	//now make the dungeon!
-	create_dungeon(gs, enemy_1, d);
+	create_dungeon(gs, enemy_1, zone->d);
 	
 	//now connect it to the outside
-	gs.level->get_room(d.entrance.x, d.entrance.y)->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
-	gs.level->get_room(d.entrance.x, d.entrance.y + 1)->set_exit(Room::Exit::NORTH, Room::Exit_Status::Open);
+	gs.level->get_room(zone->d.entrance.x, zone->d.entrance.y)->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
+	gs.level->get_room(zone->d.entrance.x, zone->d.entrance.y + 1)->set_exit(Room::Exit::NORTH, Room::Exit_Status::Open);
 }
 
 void create_overworld(GameState& gs)
@@ -547,20 +559,20 @@ void create_overworld(GameState& gs)
 	//loop until every zone has a 'key' and a lock
 	while (starting_zone->count_children() > 1)//the starting node counts itself, so we have to use 1 instead of 0
 	{
-		//slap the mcguffin into it
-		random_zone->mcguffin_opens = previous_zone;
+		//slap the macguffin into it
+		random_zone->macguffin_opens = previous_zone;
 		
 		//lock it
 		random_zone->locked = true;
 		
-		//pick a random (unlocked) zone with no unlocked children to put the next mcguffin in
+		//pick a random (unlocked) zone with no unlocked children to put the next macguffin in
 		std::vector<Zone*> available_leaves;
 		add_leaves(starting_zone, available_leaves);
 
 		previous_zone = random_zone;
 		random_zone = available_leaves[MyMath::random_int(0,available_leaves.size() - 1)];
 	}
-	starting_zone->mcguffin_opens = previous_zone;
+	starting_zone->macguffin_opens = previous_zone;
 	
 	//position each zone
 	const int num_angles = 16;
@@ -952,13 +964,56 @@ void create_overworld(GameState& gs)
 		}
 	}
 	
-	//now create the mcguffins (the dungeons/zones will have references to them, but they won't be filled in yet)
+	//now that all of the connections have been made, create some roads!
+	stack.clear();
+	stack.push_back(starting_zone);
+	
+	while (!stack.empty())
+	{
+		Zone* z = stack.back();
+		stack.pop_back();
+		
+		//create a bitmask for pathfinding
+		Bitmask b = z->bitmask - z->d.bitmask;
+		
+		//find a road from each exit to the dungeon entrance
+		for (std::pair<Zone*, Position> p : z->exits)
+		{
+			Position zde = z->d.entrance;
+			++zde.y;
+			std::vector<Position> steps = b.random_path(p.second, zde, 1.75f);
+			#ifdef DEBUG
+				if (steps.empty())
+				{
+					std::string s = b.to_string();
+					
+					s[p.second.x - b.get_offset().x + (p.second.y - b.get_offset().y) * (b.get_width() + 1)] = 'S';
+					s[zde.x - b.get_offset().x + (zde.y - b.get_offset().y) * (b.get_width() + 1)] = 'F';
+					
+					Log::write("Error: no path found between destinations: \n" + s);
+				}
+			#endif
+			
+			for (Position pp : steps)
+			{
+				gs.level->get_room(pp.x, pp.y)->set_minimap_symbol("<fg=white><bg=magenta>#");
+			}
+		}
+		
+		//add all of this node's children to the stack
+		for (Zone* c : z->children)
+		{
+			stack.push_back(c);
+		}
+	}
+	
+	//now create the macguffins (the dungeons/zones will have references to them, but they won't be filled in yet)
 	for (Zone* z : complete_zones)
 	{
-		Object* ko = gs.level->get_object(z->mcguffin);
-		if (z->mcguffin_opens == nullptr)
+		Object* ko = gs.level->get_object(z->macguffin);
+		if (z->macguffin_opens == nullptr)
 		{
-			//create a final mcguffin (the princess)
+			//create a final macguffin (the princess)
 			ko->visible = true;
 			ko->visible_in_short_description = true;
 			ko->friendly = true;
@@ -977,7 +1032,7 @@ void create_overworld(GameState& gs)
 		else
 		{
 			//get the room to unlock
-			Position pos_to_unlock = z->mcguffin_opens->parent->exits[z->mcguffin_opens];
+			Position pos_to_unlock = z->macguffin_opens->parent->exits[z->macguffin_opens];
 			Room* room_to_unlock = gs.level->get_room(pos_to_unlock.x, pos_to_unlock.y);
 			int dir = room_to_unlock->get_exit(Room::Exit::NORTH) == Room::Exit_Status::Locked ? 0 :
 					  room_to_unlock->get_exit(Room::Exit::EAST) == Room::Exit_Status::Locked ? 1 :
@@ -990,7 +1045,7 @@ void create_overworld(GameState& gs)
 								      "A massive key made of stones capped with snow",
 								      "A massive key made of snow and ice",
 								      "A massive key made of marble"};
-			std::string key_desc = key_descs[z->mcguffin_opens->theme];
+			std::string key_desc = key_descs[z->macguffin_opens->theme];
 		
 			#ifdef DEBUG
 				if (room_to_unlock == nullptr)

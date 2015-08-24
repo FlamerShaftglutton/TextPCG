@@ -7,6 +7,9 @@ struct Position
 {
 	int x = 0;
 	int y = 0;
+	
+	Position() { }
+	Position(int p_x, int p_y) : x(p_x), y(p_y) { }
 };
 
 class Bitmask
@@ -46,6 +49,6 @@ public:
 	std::vector<Position> random_path(Position p0, Position p1, float randomness);
 	
 	#ifdef DEBUG
-		std::string print();
+		std::string to_string();
 	#endif
 };

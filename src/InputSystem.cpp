@@ -575,9 +575,39 @@ void InputSystem::do_work(Console& console, GameState& gs)
 				std::size_t pos = lower_input.rfind(' ');
 				if (pos == lower_input.find(' '))
 				{
-					ECS::Handle h = (ECS::Handle)StringUtils::stoi(lower_input.substr(9));
-					next_room = gs.level->get_room(h);
-					Log::write("Teleporting to room " + StringUtils::to_string((int)h) + "...");
+					std::string rest = lower_input.substr(9);
+					
+					if (rest[0] == 'n' || rest[0] == 's' || rest[0] == 'e' || rest[0] == 'w')
+					{
+						int ox,oy;
+						gs.level->get_room(current_room_handle)->get_xy(ox,oy);
+						
+						if (rest[0] == 'n')
+						{
+							oy -= 1;
+						}
+						else if (rest[0] == 'e')
+						{
+							ox += 1;
+						}
+						else if (rest[0] == 's')
+						{
+							oy += 1;
+						}
+						else
+						{
+							ox -= 1;
+						}
+						
+						next_room = gs.level->get_room(ox, oy);
+						Log::write("Teleporting '" + rest + "'...");
+					}
+					else
+					{
+						ECS::Handle h = (ECS::Handle)StringUtils::stoi(lower_input.substr(9));
+						next_room = gs.level->get_room(h);
+						Log::write("Teleporting to room " + StringUtils::to_string((int)h) + "...");
+					}
 				}
 				else
 				{

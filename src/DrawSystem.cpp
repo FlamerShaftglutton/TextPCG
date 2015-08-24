@@ -107,13 +107,14 @@ void DrawSystem::draw_minimap(Console& console, GameState& gs, int minimap_frame
 						if (symb.length() == 0)
 						{
 							Room::Exit_Status es = top_room->get_exit(Room::Exit::WEST);
-							if (es == Room::Exit_Status::Open)//if (gs.level->get_open_neighbor(top_room->get_handle(), Room::Exit::WEST) != -1)
-							{
-								symb = "<fg=white><bg=black>-";
-							}
-							else if (es == Room::Exit_Status::Locked)//else if (top_room->get_exit(Room::Exit::WEST) == Room::Exit_Status::Locked)
+							ECS::Handle neighbor = gs.level->get_open_neighbor(top_room->get_handle(), Room::Exit::WEST);
+							if (es == Room::Exit_Status::Locked || (neighbor != -1 && gs.level->get_room(neighbor)->get_exit(Room::Exit::EAST) == Room::Exit_Status::Locked))
 							{
 								symb = "<fg=red><bg=black>-";
+							}
+							else if (es == Room::Exit_Status::Open)//if (gs.level->get_open_neighbor(top_room->get_handle(), Room::Exit::WEST) != -1)
+							{
+								symb = "<fg=white><bg=black>-";
 							}
 						}
 					}
@@ -123,13 +124,14 @@ void DrawSystem::draw_minimap(Console& console, GameState& gs, int minimap_frame
 						if (symb.length() == 0)
 						{
 							Room::Exit_Status es = top_room->get_exit(Room::Exit::EAST);
-							if (es == Room::Exit_Status::Open)//if (gs.level->get_open_neighbor(top_room->get_handle(), Room::Exit::WEST) != -1)
-							{
-								symb = "<fg=white><bg=black>-";
-							}
-							else if (es == Room::Exit_Status::Locked)//else if (top_room->get_exit(Room::Exit::WEST) == Room::Exit_Status::Locked)
+							ECS::Handle neighbor = gs.level->get_open_neighbor(top_room->get_handle(), Room::Exit::EAST);
+							if (es == Room::Exit_Status::Locked || (neighbor != -1 && gs.level->get_room(neighbor)->get_exit(Room::Exit::WEST) == Room::Exit_Status::Locked))
 							{
 								symb = "<fg=red><bg=black>-";
+							}
+							else if (es == Room::Exit_Status::Open)//if (gs.level->get_open_neighbor(top_room->get_handle(), Room::Exit::WEST) != -1)
+							{
+								symb = "<fg=white><bg=black>-";
 							}
 						}
 					}
@@ -139,13 +141,14 @@ void DrawSystem::draw_minimap(Console& console, GameState& gs, int minimap_frame
 						if (symb.length() == 0)
 						{
 							Room::Exit_Status es = top_room->get_exit(Room::Exit::NORTH);
-							if (es == Room::Exit_Status::Open)//if (gs.level->get_open_neighbor(top_room->get_handle(), Room::Exit::WEST) != -1)
-							{
-								symb = "<fg=white><bg=black>|";
-							}
-							else if (es == Room::Exit_Status::Locked)//else if (top_room->get_exit(Room::Exit::WEST) == Room::Exit_Status::Locked)
+							ECS::Handle neighbor = gs.level->get_open_neighbor(top_room->get_handle(), Room::Exit::NORTH);
+							if (es == Room::Exit_Status::Locked || (neighbor != -1 && gs.level->get_room(neighbor)->get_exit(Room::Exit::SOUTH) == Room::Exit_Status::Locked))
 							{
 								symb = "<fg=red><bg=black>|";
+							}
+							else if (es == Room::Exit_Status::Open)//if (gs.level->get_open_neighbor(top_room->get_handle(), Room::Exit::WEST) != -1)
+							{
+								symb = "<fg=white><bg=black>|";
 							}
 						}
 					}
@@ -155,13 +158,14 @@ void DrawSystem::draw_minimap(Console& console, GameState& gs, int minimap_frame
 						if (symb.length() == 0)
 						{
 							Room::Exit_Status es = top_room->get_exit(Room::Exit::SOUTH);
+							ECS::Handle neighbor = gs.level->get_open_neighbor(top_room->get_handle(), Room::Exit::SOUTH);
+							if (es == Room::Exit_Status::Locked || (neighbor != -1 && gs.level->get_room(neighbor)->get_exit(Room::Exit::NORTH) == Room::Exit_Status::Locked))
+							{
+								symb = "<fg=red><bg=black>|";
+							}
 							if (es == Room::Exit_Status::Open)//if (gs.level->get_open_neighbor(top_room->get_handle(), Room::Exit::WEST) != -1)
 							{
 								symb = "<fg=white><bg=black>|";
-							}
-							else if (es == Room::Exit_Status::Locked)//else if (top_room->get_exit(Room::Exit::WEST) == Room::Exit_Status::Locked)
-							{
-								symb = "<fg=red><bg=black>|";
 							}
 						}
 					}
