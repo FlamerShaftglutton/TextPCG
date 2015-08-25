@@ -13,6 +13,7 @@
 #include <vector>
 #include <functional>
 #include <map>
+#include <algorithm>
 
 #ifdef DEBUG
 	#include "Log.hpp"
@@ -411,6 +412,64 @@ void create_zone(GameState& gs, ECS::Handle enemy_1, Zone* zone)
 		zone->d.entrance.x = dungeon_offset.x + 4;
 		zone->d.entrance.y = dungeon_offset.y + 4;
 	}
+	else if (zone->theme == 1)
+	{
+		Position dungeon_offset(zone->bitmask.get_offset().x + (zone->bitmask.get_width() - 7) / 2, zone->bitmask.get_offset().y + (zone->bitmask.get_height() - 7) / 2);
+		zone->d.bitmask = Bitmask("0011100\n0111110\n1111111\n1111111\n1111111\n0111110\n0011100", dungeon_offset);
+		zone->d.entrance.x = dungeon_offset.x + 3;
+		zone->d.entrance.y = dungeon_offset.y + 6;
+	}
+	else if (zone->theme == 2)
+	{
+		Position dungeon_offset{0,0};
+		
+		zone->d.bitmask = Bitmask(7,7,dungeon_offset);
+		
+		Position sp(3,6);
+		std::vector<Position> stack;
+		stack.push_back(sp);
+		
+		for (int i = 0; i < 30; ++i)
+		{
+			//grab something from the stack
+			int index = MyMath::random_int(0, stack.size() - 1);
+			Position p = stack[index];
+			stack[index] = stack.back();
+			stack.pop_back();
+			
+			//fill in that position
+			zone->d.bitmask.set(p,true);
+			
+			//add in the children
+			if (p.x > 0)
+			{
+				stack.push_back(Position(p.x - 1, p.y));
+			}
+			if (p.x < 6)
+			{
+				stack.push_back(Position(p.x + 1, p.y));
+			}
+			if (p.y > 0)
+			{
+				stack.push_back(Position(p.x, p.y - 1));
+			}
+			if (p.y < 6)
+			{
+				stack.push_back(Position(p.x, p.y + 1));
+			}
+		}
+		
+		zone->d.bitmask.shrink_to_fit();
+		
+		//now adjust the offset
+		dungeon_offset.x = zone->bitmask.get_offset().x + (zone->bitmask.get_width() - zone->d.bitmask.get_width()) / 2;
+		dungeon_offset.y = zone->bitmask.get_offset().y + (zone->bitmask.get_height() - zone->d.bitmask.get_height()) / 2;
+		zone->d.bitmask.set_offset(dungeon_offset);
+		
+		//now adjust the entrance
+		zone->d.entrance.x = dungeon_offset.x + zone->d.bitmask.get_width() / 2;
+		zone->d.entrance.y = dungeon_offset.y + zone->d.bitmask.get_height() - 1;
+	}
 	else
 	{
 		int dw = MyMath::random_int(2,7);
@@ -429,6 +488,10 @@ void create_zone(GameState& gs, ECS::Handle enemy_1, Zone* zone)
 			}
 		}
 	}
+	
+	//now check if the starting zone is on a valid space
+	for (;!zone->bitmask(zone->d.entrance) && zone->d.entrance.y >= zone->bitmask.get_offset().y; --zone->d.entrance.y);
+	for (;!zone->bitmask(zone->d.entrance) && zone->d.entrance.y <= zone->bitmask.get_offset().y + zone->bitmask.get_height(); ++zone->d.entrance.y);
 	
 	//attach a MacGuffin to the room
 	zone->d.macguffin = zone->macguffin = gs.level->create_object();
@@ -489,13 +552,14 @@ void create_overworld(GameState& gs)
 {
 	//create a starting zones
 	Zone* starting_zone = new Zone;
+	std::vector<Zone*> all_zones;
 	std::vector<Zone*> stack;
 	stack.push_back(starting_zone);
 	
 	//create a tree of zones
 	int num_zones = 6;
-	int zone_radius = 7;
-	auto distance_between_points = [](int x1, int y1, int x2, int y2){float diff_x = float(x1 - x2), diff_y = float(y1 - y2); return (int)(std::sqrt(diff_x * diff_x + diff_y * diff_y)); };
+	//int zone_radius = 7;
+	//auto distance_between_points = [](int x1, int y1, int x2, int y2){float diff_x = float(x1 - x2), diff_y = float(y1 - y2); return (int)(std::sqrt(diff_x * diff_x + diff_y * diff_y)); };
 	for (int i = 0; i < num_zones; ++i)
 	{
 		int index = MyMath::random_int(0, stack.size() - 1);
@@ -511,21 +575,70 @@ void create_overworld(GameState& gs)
 		}
 	}
 	
+	//create a list of all of the zones
 	stack.clear();
 	stack.push_back(starting_zone);
 	while (!stack.empty())
 	{
-		//grab the next thing on the stack
-		int index = MyMath::random_int(0, stack.size() - 1);
-		Zone* z = stack[index];
-		stack[index] = stack.back();
+		Zone* z = stack.back();
 		stack.pop_back();
 		
+		all_zones.push_back(z);
+		
+		for (Zone* zz : z->children)
+		{
+			stack.push_back(zz);
+		}
+	}
+	
+	//fill in some basic stuff for each zone
+	for (Zone* z : all_zones)
+	{
 		//fill up the bitmask
 		Position p;
 		p.x = 0;
 		p.y = 0;
-		z->bitmask = Bitmask(zone_radius * 2 + 1, zone_radius * 2 + 1, p);
+		z->bitmask = Bitmask(15, 15, p);
+		
+		p = {3,3};
+		
+		std::vector<Position> ps;
+		ps.push_back(p);
+		int num_rooms = MyMath::random_int(51, 178);
+		
+		for (int i = 0; i < num_rooms && !ps.empty(); ++i)
+		{
+			//grab a random entry
+			int index = MyMath::random_int(0, ps.size() - 1);
+			p = ps[index];
+			ps[index] = ps.back();
+			ps.pop_back();
+			
+			//fill it in
+			z->bitmask.set(p,true);
+			
+			//add in all of the children
+			if (p.x > 0)
+			{
+				ps.push_back(Position(p.x - 1, p.y));
+			}
+			if (p.x < z->bitmask.get_width() - 1)
+			{
+				ps.push_back(Position(p.x + 1, p.y));
+			}
+			if (p.y > 0)
+			{
+				ps.push_back(Position(p.x, p.y - 1));
+			}
+			if (p.y < z->bitmask.get_height() - 1)
+			{
+				ps.push_back(Position(p.x, p.y + 1));
+			}
+		}
+		
+		//now that it is populated, crop it
+		z->bitmask.shrink_to_fit();
+		/*
 		for (int x = -zone_radius; x <= zone_radius; ++x)
 		{
 			for (int y = -zone_radius; y <= zone_radius; ++y)
@@ -536,12 +649,7 @@ void create_overworld(GameState& gs)
 				}
 			}
 		}
-		
-		//add all of this thing's children
-		for (Zone* zz : z->children)
-		{
-			stack.push_back(zz);
-		}
+		*/
 	}
 	
 	//create a helper lambda
@@ -608,13 +716,14 @@ void create_overworld(GameState& gs)
 		
 		//figure out where to put this zone
 		bool placed = false;
+		int minimum_distance = 6 + (std::max(z->parent->bitmask.get_width(), z->parent->bitmask.get_height()) + std::max(z->bitmask.get_width(), z->bitmask.get_height())) / 2;
 		for (int i = 0; i < num_angles; ++i)
 		{
 			//figure out where this spot would be
 			float f = angles[i];
 			Position op;
-			op.x = z->parent->bitmask.get_offset().x + (int)(std::cos(f) *  2.0f * (float)(zone_radius + 3));
-			op.y = z->parent->bitmask.get_offset().y + (int)(std::sin(f) * -2.0f * (float)(zone_radius + 3));
+			op.x = z->parent->bitmask.get_offset().x + (int)( std::cos(f) * minimum_distance);
+			op.y = z->parent->bitmask.get_offset().y + (int)(-std::sin(f) * minimum_distance);
 			z->bitmask.set_offset(op.x, op.y);
 			
 			//figure out if that touches any other zone (besides the parent)
@@ -681,7 +790,7 @@ void create_overworld(GameState& gs)
 	int min_y =  100000;
 	int max_x = -100000;
 	int max_y = -100000;
-	for (Zone* z : complete_zones)
+	for (Zone* z : all_zones)
 	{
 		if (z->bitmask.get_offset().x < min_x)
 		{
@@ -708,11 +817,8 @@ void create_overworld(GameState& gs)
 	int height = max_y - min_y;
 	
 	
-	for (Zone* z : complete_zones)
+	for (Zone* z : all_zones)
 	{
-		//z->bitmask.get_offset().x -= min_x;
-		//z->bitmask.get_offset().y -= min_y;
-		
 		Position zp = z->bitmask.get_offset();
 		z->bitmask.set_offset(zp.x - min_x, zp.y - min_y);
 	}
@@ -766,244 +872,193 @@ void create_overworld(GameState& gs)
 	}
 	
 	//now connect each zone with its children
-	stack.clear();
-	stack.push_back(starting_zone);
-	
-	while (!stack.empty())
+	for (Zone* z : all_zones)
 	{
-		Zone* z = stack.back();
-		stack.pop_back();
-		
-		//for each child...
+		//for each child of this zone...
 		for (Zone* c : z->children)
 		{
-			//before making bridges, add this child to the stack!
+			//before making roads, add this child to the stack!
 			stack.push_back(c);
-		
-			//find a starting point
-			Position best;
-			best.x = -1;
-			best.y = -1;
-			int closest_distance = 1000000;
-			Position sp = z->bitmask.get_offset();
-			int mx = sp.x + z->bitmask.get_width();
-			int my = sp.y + z->bitmask.get_height();
-			for (int x = sp.x; x < mx; ++x)
+			
+			//create a composite bitmask to use
+			Bitmask composite_bitmask = (z->bitmask + c->bitmask).set_all(true) - z->d.bitmask - c->d.bitmask;
+			//subtract all of the other zones (if necessary)
+			for (Zone* oz : all_zones)
 			{
-				for (int y = sp.y; y < my; ++y)
+				if (oz != z && oz != c)
 				{
-					if (z->bitmask(x,y))
-					{
-						int dis = distance_between_points(x,y,c->bitmask.get_offset().x + c->bitmask.get_width() / 2,c->bitmask.get_offset().y + c->bitmask.get_height() / 2);
-						
-						if (dis < closest_distance)
+					composite_bitmask -= oz->bitmask;
+				}
+			}
+			
+			//find the starting and ending points
+			Position starting_position = z->d.entrance;
+			++starting_position.y;
+			Position ending_position = c->d.entrance;
+			++ending_position.y;
+			
+			//now create a path between them
+			std::vector<Position> steps = composite_bitmask.random_path(starting_position, ending_position, 1.5f);
+			
+			//now reset the bitmask
+			//composite_bitmask = z->bitmask + c->bitmask;
+			
+			//now actually carve out that path
+			std::size_t i;
+			for (i = 0; i < steps.size(); ++i)
+			{
+				//get the step
+				Position& p = steps[i];
+				
+				//now add it to the bitmask for later
+				composite_bitmask.set(p.x,p.y,true);
+			
+				//if this room doesn't exist yet then create a bridge!
+				if (gs.level->get_room(p.x,p.y) == nullptr)
+				{
+					#ifdef DEBUG
+						if (i == 0 || i == steps.size() - 1)
 						{
-							closest_distance = dis;
-							best.x = x;
-							best.y = y;
+							Log::write("Error: Could not create bridge as there was no land to connect to!");
+						}
+					#endif
+				
+					//first up, create the room
+					Room* r = gs.level->get_room(gs.level->create_room(p.x,p.y));
+					
+					//now fill in the strings
+					r->set_description("A bridge leading between realms.");
+					r->set_short_description("A Bridge");
+					r->set_minimap_symbol("<fg=white><bg=magenta>#");
+					r->set_visited(true);
+					
+					//now fill in the exits
+					Position pp = steps[i - 1];
+					Position np = steps[i + 1];
+					if (pp.x < p.x || np.x < p.x)
+					{
+						r->set_exit(Room::Exit::WEST, Room::Exit_Status::Open);
+					}
+					if (pp.x > p.x || np.x > p.x)
+					{
+						r->set_exit(Room::Exit::EAST, Room::Exit_Status::Open);
+					}
+					if (pp.y < p.y || np.y < p.y)
+					{
+						r->set_exit(Room::Exit::NORTH, Room::Exit_Status::Open);
+					}
+					if (pp.y > p.y || np.y > p.y)
+					{
+						r->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
+					}
+				}
+				//if this room does already exist then update it to look like a road
+				else
+				{
+					gs.level->get_room(p.x, p.y)->set_minimap_symbol("<fg=white><bg=magenta>#");
+					
+					//also, fill in the exit if the previous or next step is a bridge
+					if (i > 0)
+					{
+						Position pp = steps[i - 1];
+						if (!z->bitmask(pp) && !c->bitmask(pp))//gs.level->get_room(pp.x, pp.y) == nullptr)
+						{
+							Room::Exit e = p.x < pp.x ? Room::Exit::EAST : p.x > pp.x ? Room::Exit::WEST : p.y < pp.y ? Room::Exit::SOUTH : Room::Exit::NORTH;
+							
+							gs.level->get_room(p.x, p.y)->set_exit(e, Room::Exit_Status::Open);
+						}
+					}
+					if (i < steps.size() - 1)
+					{
+						Position np = steps[i + 1];
+						if (!z->bitmask(np) && !c->bitmask(np))
+						{
+							Room::Exit e = p.x < np.x ? Room::Exit::EAST : p.x > np.x ? Room::Exit::WEST : p.y < np.y ? Room::Exit::SOUTH : Room::Exit::NORTH;
+							
+							gs.level->get_room(p.x, p.y)->set_exit(e, Room::Exit_Status::Open);
 						}
 					}
 				}
 			}
 			
-			Position previous = best;
-			z->exits[c] = best;
-			std::string door_descriptions[] = {"A massive door made of obsidian and fire",
-											   "A massive door made of tangled trees and vines",
-											   "A massive door made of ivory and woven grass",
-											   "A massive door made of sand and stone",
-											   "A massive door made of stones capped with snow",
-											   "A massive door made of snow and ice",
-											   "A massive door made of marble"};
+			//now that the path is carved out, find the shortest path between them
+			//steps = composite_bitmask.shortest_path(starting_position, ending_position);
 			
-			//now move one spot out from that point
-			if (gs.level->get_room(best.x + 1, best.y) == nullptr)
+			//now step through the path and find the exit points for this zone
+			for (i = 0; i < steps.size(); ++i)
 			{
-				gs.level->get_room(best.x, best.y)->set_exit(Room::Exit::EAST, Room::Exit_Status::Locked);
-				gs.level->get_room(best.x, best.y)->set_door_description(door_descriptions[c->theme],Room::Exit::EAST);
-				++best.x;
-			}
-			else if (gs.level->get_room(best.x - 1, best.y) == nullptr)
-			{
-				gs.level->get_room(best.x, best.y)->set_exit(Room::Exit::WEST, Room::Exit_Status::Locked);
-				gs.level->get_room(best.x, best.y)->set_door_description(door_descriptions[c->theme],Room::Exit::WEST);
-				--best.x;
-			}
-			else if (gs.level->get_room(best.x, best.y + 1) == nullptr)
-			{
-				gs.level->get_room(best.x, best.y)->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Locked);
-				gs.level->get_room(best.x, best.y)->set_door_description(door_descriptions[c->theme],Room::Exit::SOUTH);
-				++best.y;
-			}
-			else if (gs.level->get_room(best.x, best.y - 1) == nullptr)
-			{
-				gs.level->get_room(best.x, best.y)->set_exit(Room::Exit::NORTH, Room::Exit_Status::Locked);
-				gs.level->get_room(best.x, best.y)->set_door_description(door_descriptions[c->theme],Room::Exit::NORTH);
-				--best.y;
-			}
-			#ifdef DEBUG
-			else
-			{
-				Log::write("Error: Next room wasn't available!?");
-			}
-			#endif
-		
-			//use a heavily modified pathfinding algorithm
-			for (int steps = 0; steps < 100; ++steps)
-			{
-				//first, check if this room is in the child zone
-				Room* tr = gs.level->get_room(best.x, best.y);
-				Room* pr = gs.level->get_room(previous.x, previous.y);
-				bool made_it = c->bitmask(best.x, best.y);
+				Position p = steps[i];
+				Position pn = steps[i + 1];
 				
-				#ifdef DEBUG
-					if (made_it && tr == nullptr)
+				//if this spot is land and the next spot is water
+				if (z->bitmask(p) && !z->bitmask(pn))
+				{
+					//then look ahead to confirm that this is indeed the correct bridge
+					bool right_bridge = false;
+					for (std::size_t j = i + 1; j < steps.size(); ++j)
 					{
-						Log::write("Error: encountered a room while creating bridges that the bitmask says is filled in but has no room created yet...");
+						//if we hit the child zone, we're on the right bridge!
+						if (c->bitmask(steps[j]))
+						{
+							right_bridge = true;
+							break;
+						}
+						
+						//if we backtracked into our own zone again, then this is not the right bridge
+						else if (z->bitmask(steps[j]))
+						{
+							//skip ahead
+							i = j - 1;
+							break;
+						}
 					}
-				#endif
-				
-				if (!made_it)
-				{
-					tr = gs.level->get_room(gs.level->create_room(best.x, best.y));
-				}
-				
-				//fill in the exits between these two areas
-				if (best.x > previous.x)
-				{
-					tr->set_exit(Room::Exit::WEST, Room::Exit_Status::Open);
-					if (pr->get_exit(Room::Exit::EAST) != Room::Exit_Status::Locked)
-					{
-						pr->set_exit(Room::Exit::EAST, Room::Exit_Status::Open);
-					}
-				}
-				else if (best.x < previous.x)
-				{
-					tr->set_exit(Room::Exit::EAST, Room::Exit_Status::Open);
-					if (pr->get_exit(Room::Exit::WEST) != Room::Exit_Status::Locked)
-					{
-						pr->set_exit(Room::Exit::WEST, Room::Exit_Status::Open);
-					}
-				}
-				else if (best.y > previous.y)
-				{
-					tr->set_exit(Room::Exit::NORTH, Room::Exit_Status::Open);
-					if (pr->get_exit(Room::Exit::SOUTH) != Room::Exit_Status::Locked)
-					{
-						pr->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
-					}
-				}
-				else if (best.y < previous.y)
-				{
-					tr->set_exit(Room::Exit::SOUTH, Room::Exit_Status::Open);
-					if (pr->get_exit(Room::Exit::NORTH) != Room::Exit_Status::Locked)
-					{
-						pr->set_exit(Room::Exit::NORTH, Room::Exit_Status::Open);
-					}
-				}
-				#ifdef DEBUG
-				else
-				{
-					Log::write("Error: Uh, previous node and best node are equivalent?");
-				}
-				#endif
-				
-				//if this was a room in the child zone, we're done!
-				if (made_it)
-				{
-					Position ppp;
-					ppp.x = best.x;
-					ppp.y = best.y;
-					c->exits[z] = ppp;
 					
+					//if it's not the right bridge, then skip ahead
+					if (right_bridge)
+					{
+						//store the exit
+						z->exits[c] = p;
+						
+						//create the locked door
+						std::string door_descriptions[] = {"A massive door made of obsidian and fire",
+														   "A massive door made of tangled trees and vines",
+														   "A massive door made of ivory and woven grass",
+														   "A massive door made of sand and stone",
+														   "A massive door made of stones capped with snow",
+														   "A massive door made of snow and ice",
+														   "A massive door made of marble"};
+						Room::Exit e = p.x < pn.x ? Room::Exit::EAST : p.x > pn.x ? Room::Exit::WEST : p.y < pn.y ? Room::Exit::SOUTH : Room::Exit::NORTH;
+						Room* er = gs.level->get_room(p.x,p.y);
+						
+						#ifdef DEBUG
+							if (er == nullptr)
+							{
+								Log::write("Error: tried to create a gate in a non-existent room!");
+							}
+						#endif
+						
+						er->set_exit(e, Room::Exit_Status::Locked);
+						er->set_door_description(door_descriptions[c->theme], e);
+						
+						//bust out
+						break;
+					}
+				}
+			}
+			
+			//now step through the rest of the path to find the entrance point for the child zone
+			//TODO: determine if this is still necessary
+			for (; i < steps.size(); ++i)
+			{
+				if (c->bitmask(steps[i]) && !c->bitmask(steps[i - 1]))
+				{
+					//store the exit
+					c->exits[z] = steps[i];
+					
+					//bust out
 					break;
 				}
-				else
-				{
-					//otherwise, fill in this room a bit more
-					tr->set_description("A bridge leading between realms.");
-					tr->set_short_description("A Bridge");
-					tr->set_minimap_symbol("<fg=white><bg=magenta>#");
-					tr->set_visited(true);
-					
-					//and then figure out where the next room would be
-					closest_distance = 100000;
-					int nbx,nby;
-					if (distance_between_points(best.x, best.y - 1, c->bitmask.get_offset().x + c->bitmask.get_width() / 2, c->bitmask.get_offset().y + c->bitmask.get_height() / 2) < closest_distance)
-					{
-						closest_distance = distance_between_points(best.x, best.y - 1, c->bitmask.get_offset().x + c->bitmask.get_width() / 2, c->bitmask.get_offset().y + c->bitmask.get_height() / 2);
-						nbx = best.x;
-						nby = best.y - 1;
-					}
-					if (distance_between_points(best.x + 1, best.y, c->bitmask.get_offset().x + c->bitmask.get_width() / 2, c->bitmask.get_offset().y + c->bitmask.get_height() / 2) < closest_distance)
-					{
-						closest_distance = distance_between_points(best.x + 1, best.y, c->bitmask.get_offset().x + c->bitmask.get_width() / 2, c->bitmask.get_offset().y + c->bitmask.get_height() / 2);
-						nbx = best.x + 1;
-						nby = best.y;
-					}
-					if (distance_between_points(best.x, best.y + 1, c->bitmask.get_offset().x + c->bitmask.get_width() / 2, c->bitmask.get_offset().y + c->bitmask.get_height() / 2) < closest_distance)
-					{
-						closest_distance = distance_between_points(best.x, best.y + 1, c->bitmask.get_offset().x + c->bitmask.get_width() / 2, c->bitmask.get_offset().y + c->bitmask.get_height() / 2);
-						nbx = best.x;
-						nby = best.y + 1;
-					}
-					if (distance_between_points(best.x - 1, best.y, c->bitmask.get_offset().x + c->bitmask.get_width() / 2, c->bitmask.get_offset().y + c->bitmask.get_height() / 2) < closest_distance)
-					{
-						closest_distance = distance_between_points(best.x - 1, best.y, c->bitmask.get_offset().x + c->bitmask.get_width() / 2, c->bitmask.get_offset().y + c->bitmask.get_height() / 2);
-						nbx = best.x - 1;
-						nby = best.y;
-					}
-					
-					previous.x = best.x;
-					previous.y = best.y;
-					
-					best.x = nbx;
-					best.y = nby;
-				}
 			}
-		}
-	}
-	
-	//now that all of the connections have been made, create some roads!
-	stack.clear();
-	stack.push_back(starting_zone);
-	
-	while (!stack.empty())
-	{
-		Zone* z = stack.back();
-		stack.pop_back();
-		
-		//create a bitmask for pathfinding
-		Bitmask b = z->bitmask - z->d.bitmask;
-		
-		//find a road from each exit to the dungeon entrance
-		for (std::pair<Zone*, Position> p : z->exits)
-		{
-			Position zde = z->d.entrance;
-			++zde.y;
-			std::vector<Position> steps = b.random_path(p.second, zde, 1.5f);
-			#ifdef DEBUG
-				if (steps.empty())
-				{
-					std::string s = b.to_string();
-					
-					s[p.second.x - b.get_offset().x + (p.second.y - b.get_offset().y) * (b.get_width() + 1)] = 'S';
-					s[zde.x - b.get_offset().x + (zde.y - b.get_offset().y) * (b.get_width() + 1)] = 'F';
-					
-					Log::write("Error: no path found between destinations: \n" + s);
-				}
-			#endif
-			
-			for (Position pp : steps)
-			{
-				gs.level->get_room(pp.x, pp.y)->set_minimap_symbol("<fg=white><bg=magenta>#");
-			}
-		}
-		
-		//add all of this node's children to the stack
-		for (Zone* c : z->children)
-		{
-			stack.push_back(c);
 		}
 	}
 	

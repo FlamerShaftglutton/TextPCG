@@ -93,43 +93,68 @@ bool Bitmask::operator()(Position p)
 	return get(p);
 }
 
-void Bitmask::set(int x, int y, bool val)
+Bitmask& Bitmask::set(int x, int y, bool val)
 {
 	if (x >= offset.x && x < offset.x + width && y >= offset.y && y < offset.y + height)
 	{
 		values[x - offset.x + (y - offset.y) * width] = val;
 	}
+	
+	return *this;
 }
 
-void Bitmask::set(Position p, bool val)
+Bitmask& Bitmask::set(Position p, bool val)
 {
-	set(p.x, p.y, val);
+	return set(p.x, p.y, val);
+}
+
+Bitmask& Bitmask::set_all(bool val)
+{
+	values.assign(width * height, val);
+	
+	return *this;
+}
+
+Bitmask& Bitmask::set_offset(Position o)
+{
+	return set_offset(o.x, o.y);
+}
+
+Bitmask& Bitmask::set_offset(int x, int y)
+{
+	offset.x = x;
+	offset.y = y;
+	
+	return *this;
 }
 
 Bitmask Bitmask::operator-(Bitmask& rhs)
 {
-	//first up, figure out the dimensions for the new one
-	Position no;
-	no.x = offset.x < rhs.offset.x ? offset.x : rhs.offset.x;
-	no.y = offset.y < rhs.offset.y ? offset.y : rhs.offset.y;
+	Bitmask retval = *this;
 	
-	int w = -no.x + (offset.x + width >= rhs.offset.x + rhs.width ? offset.x + width : rhs.offset.x + rhs.width);
-	int h = -no.y + (offset.y + height >= rhs.offset.y + rhs.height ? offset.y + height : rhs.offset.y + rhs.height);
-	
-	Bitmask retval(w,h,no);
-	
-	for (int y = 0; y < h; ++y)
+	return retval -= rhs;	
+}
+
+Bitmask& Bitmask::operator-=(Bitmask& rhs)
+{
+	for (int y = 0; y < height; ++y)
 	{
-		for (int x = 0; x < w; ++x)
+		for (int x = 0; x < width; ++x)
 		{
-			retval.values[x + y * w] = get(no.x + x, no.y + y) && !rhs(no.x + x, no.y + y);
+			values[x + y * width] = values[x + y * width] && !rhs(offset.x + x, offset.y + y);
 		}
 	}
 	
-	return retval;
+	return *this;
 }
 
 Bitmask Bitmask::operator+(Bitmask& rhs)
+{
+	Bitmask retval = *this;
+	return retval += rhs;
+}
+
+Bitmask& Bitmask::operator+=(Bitmask& rhs)
 {
 	//first up, figure out the dimensions for the new one
 	Position no;
@@ -149,7 +174,117 @@ Bitmask Bitmask::operator+(Bitmask& rhs)
 		}
 	}
 	
-	return retval;
+	*this = retval;
+	
+	return *this;
+}
+
+Bitmask& Bitmask::shrink_to_fit()
+{
+	//determine how far right to go
+	int min_x = 0;
+	bool found = false;
+	for (; min_x < width; ++min_x)
+	{
+		for (int y = 0; y < height; ++y)
+		{
+			if (get(min_x,y))
+			{
+				found = true;
+				break;
+			}
+		}
+		
+		if (found)
+		{
+			break;
+		}
+	}
+	
+	//determine how far down to go
+	int min_y = 0;
+	found = false;
+	for (; min_y < height; ++min_y)
+	{
+		for (int x = min_x; x < width; ++x)
+		{
+			if (get(x,min_y))
+			{
+				found = true;
+				break;
+			}
+		}
+		
+		if (found)
+		{
+			break;
+		}
+	}
+	
+	//determine the new width
+	int max_x = width - 1;
+	found = false;
+	for (; max_x >= min_x; --max_x)
+	{
+		for (int y = min_y; y < height; ++y)
+		{
+			if (get(max_x, y))
+			{
+				found = true;
+				break;
+			}
+		}
+		
+		if (found)
+		{
+			break;
+		}
+	}
+	
+	//determine the new height
+	int max_y = height - 1;
+	found = false;
+	for (; max_y >= min_y; --max_y)
+	{
+		for (int x = min_x; x <= max_x; ++x)
+		{
+			if (get(x, max_y))
+			{
+				found = true;
+				break;
+			}
+		}
+		
+		if (found)
+		{
+			break;
+		}
+	}
+	
+	//now figure out if we even need to shrink
+	if (min_x > 0 || min_y > 0 || max_x < width - 1 || max_y < height - 1)
+	{
+		//create a new value container
+		int n_width = max_x - min_x + 1;
+		int n_height = max_y - min_y + 1;
+		std::vector<bool> new_vals;
+		new_vals.assign(n_width * n_height, false);
+		
+		//now fill in the new values
+		for (std::size_t i = 0; i < new_vals.size(); ++i)
+		{
+			new_vals[i] = get(min_x + (i % n_width), min_y + i / n_width);
+		}
+		
+		//now copy all the new stuff into this instance
+		width = n_width;
+		height = n_height;
+		values = new_vals;
+		offset.x += min_x;
+		offset.y += min_y;
+	}
+	
+	return *this;
 }
 
 bool Bitmask::overlaps(Bitmask& rhs)
@@ -193,17 +328,6 @@ bool Bitmask::touches(Bitmask& rhs)
 	return false;
 }
 
-void Bitmask::set_offset(Position o)
-{
-	set_offset(o.x, o.y);
-}
-
-void Bitmask::set_offset(int x, int y)
-{
-	offset.x = x;
-	offset.y = y;
-}
-
 struct pf_node
 {
 	pf_node* parent;
@@ -243,9 +367,7 @@ std::vector<Position> Bitmask::shortest_path(Position p0, Position p1)
 		return l.end();
 	};
 	
-	//auto comparator = [](pf_node* lhs, pf_node* rhs){ return lhs->distance_from_start + lhs->estimated_distance_from_end > rhs->distance_from_start + rhs->estimated_distance_from_end; };
 	auto g = [](Position start, Position end) { return std::abs(start.x - end.x) + std::abs(start.y - end.y); };
-	//std::priority_queue<pf_node*, std::vector<pf_node*>, decltype(comparator)> open(comparator);
 	std::forward_list<pf_node*> open;
 	std::vector<pf_node*> closed(width * height, nullptr);
 	pf_node* starting_node = new pf_node;
