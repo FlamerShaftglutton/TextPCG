@@ -923,7 +923,7 @@ void create_overworld(GameState& gs)
 					//otherwise, fill in this room a bit more
 					tr->set_description("A bridge leading between realms.");
 					tr->set_short_description("A Bridge");
-					tr->set_minimap_symbol("<fg=black><bg=white>#");
+					tr->set_minimap_symbol("<fg=white><bg=magenta>#");
 					tr->set_visited(true);
 					
 					//and then figure out where the next room would be
@@ -981,7 +981,7 @@ void create_overworld(GameState& gs)
 		{
 			Position zde = z->d.entrance;
 			++zde.y;
-			std::vector<Position> steps = b.random_path(p.second, zde, 1.75f);
+			std::vector<Position> steps = b.random_path(p.second, zde, 1.5f);
 			#ifdef DEBUG
 				if (steps.empty())
 				{
