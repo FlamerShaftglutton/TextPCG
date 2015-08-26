@@ -490,13 +490,12 @@ void create_zone(GameState& gs, ECS::Handle enemy_1, Zone* zone)
 	}
 	
 	//now check if the starting zone is on a valid space
-	for (;!zone->bitmask(zone->d.entrance) && zone->d.entrance.y >= zone->bitmask.get_offset().y; --zone->d.entrance.y);
-	for (;!zone->bitmask(zone->d.entrance) && zone->d.entrance.y <= zone->bitmask.get_offset().y + zone->bitmask.get_height(); ++zone->d.entrance.y);
+	for (;!zone->bitmask(zone->d.entrance.x, zone->d.entrance.y + 1) && zone->d.entrance.y >= zone->bitmask.get_offset().y; --zone->d.entrance.y);
+	for (;!zone->bitmask(zone->d.entrance.x, zone->d.entrance.y + 1) && zone->d.entrance.y <= zone->bitmask.get_offset().y + zone->bitmask.get_height(); ++zone->d.entrance.y);
 	
 	//attach a MacGuffin to the room
 	zone->d.macguffin = zone->macguffin = gs.level->create_object();
 	
-
 	//first fill up every square that isn't part of the dungeon
 	Bitmask b = zone->bitmask - zone->d.bitmask;
 	Position offset = b.get_offset();
@@ -900,9 +899,6 @@ void create_overworld(GameState& gs)
 			//now create a path between them
 			std::vector<Position> steps = composite_bitmask.random_path(starting_position, ending_position, 1.5f);
 			
-			//now reset the bitmask
-			//composite_bitmask = z->bitmask + c->bitmask;
-			
 			//now actually carve out that path
 			std::size_t i;
 			for (i = 0; i < steps.size(); ++i)
@@ -981,9 +977,6 @@ void create_overworld(GameState& gs)
 				}
 			}
 			
-			//now that the path is carved out, find the shortest path between them
-			//steps = composite_bitmask.shortest_path(starting_position, ending_position);
-			
 			//now step through the path and find the exit points for this zone
 			for (i = 0; i < steps.size(); ++i)
 			{
@@ -1013,7 +1006,7 @@ void create_overworld(GameState& gs)
 						}
 					}
 					
-					//if it's not the right bridge, then skip ahead
+					//if it's the right bridge...
 					if (right_bridge)
 					{
 						//store the exit
