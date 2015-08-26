@@ -389,7 +389,7 @@ void create_zone(GameState& gs, ECS::Handle enemy_1, Zone* zone)
 {
 	//theme stuff
 	std::string themes[] = {"Volcano","Forest","Plains","Desert","Mountains","Tundra","Urban"};
-	std::string descriptions[] = {"A hot, unforgiving patch of blacked dirt.",
+	std::string descriptions[] = {"A hot, unforgiving patch of blackened dirt.",
 								  "A small clearing surrounded by trees and shrubs.",
 								  "A wide open clearing of grass and flowers.",
 								  "A dune of sand with a few sharp rocks and even sharper plants.",
@@ -490,8 +490,18 @@ void create_zone(GameState& gs, ECS::Handle enemy_1, Zone* zone)
 	}
 	
 	//now check if the starting zone is on a valid space
-	for (;!zone->bitmask(zone->d.entrance.x, zone->d.entrance.y + 1) && zone->d.entrance.y >= zone->bitmask.get_offset().y; --zone->d.entrance.y);
-	for (;!zone->bitmask(zone->d.entrance.x, zone->d.entrance.y + 1) && zone->d.entrance.y <= zone->bitmask.get_offset().y + zone->bitmask.get_height(); ++zone->d.entrance.y);
+	int ny = zone->d.entrance.y;
+	for (;!zone->bitmask(zone->d.entrance.x, ny + 1) && ny >= zone->bitmask.get_offset().y - zone->d.bitmask.get_height() - 2; --ny);
+	for (;!zone->bitmask(zone->d.entrance.x, ny + 1) && ny <= zone->bitmask.get_offset().y + zone->bitmask.get_height(); ++ny);
+	
+	if (ny != zone->d.entrance.y)
+	{
+		Position d_offset = zone->d.bitmask.get_offset();
+		d_offset.y += ny - zone->d.entrance.y;
+		zone->d.bitmask.set_offset(d_offset);
+		
+		zone->d.entrance.y = ny;
+	}
 	
 	//attach a MacGuffin to the room
 	zone->d.macguffin = zone->macguffin = gs.level->create_object();
@@ -598,12 +608,14 @@ void create_overworld(GameState& gs)
 		p.x = 0;
 		p.y = 0;
 		z->bitmask = Bitmask(15, 15, p);
+		int max_rooms = (int)(z->bitmask.get_width() * z->bitmask.get_height() * 0.9f);
+		int min_rooms = max_rooms / 2;
 		
-		p = {3,3};
+		p = {7,7};
 		
 		std::vector<Position> ps;
 		ps.push_back(p);
-		int num_rooms = MyMath::random_int(51, 178);
+		int num_rooms = MyMath::random_int(min_rooms, max_rooms);
 		
 		for (int i = 0; i < num_rooms && !ps.empty(); ++i)
 		{
@@ -614,7 +626,14 @@ void create_overworld(GameState& gs)
 			ps.pop_back();
 			
 			//fill it in
-			z->bitmask.set(p,true);
+			if (z->bitmask(p))
+			{
+				--i;
+			}
+			else
+			{
+				z->bitmask.set(p,true);
+			}
 			
 			//add in all of the children
 			if (p.x > 0)
@@ -637,18 +656,6 @@ void create_overworld(GameState& gs)
 		
 		//now that it is populated, crop it
 		z->bitmask.shrink_to_fit();
-		/*
-		for (int x = -zone_radius; x <= zone_radius; ++x)
-		{
-			for (int y = -zone_radius; y <= zone_radius; ++y)
-			{
-				if (distance_between_points(x,y,0,0) <= zone_radius)
-				{
-					z->bitmask.set(x + zone_radius, y + zone_radius, true);
-				}
-			}
-		}
-		*/
 	}
 	
 	//create a helper lambda
@@ -725,17 +732,14 @@ void create_overworld(GameState& gs)
 			op.y = z->parent->bitmask.get_offset().y + (int)(-std::sin(f) * minimum_distance);
 			z->bitmask.set_offset(op.x, op.y);
 			
-			//figure out if that touches any other zone (besides the parent)
+			//figure out if that touches any other zone
 			bool touches = false;
 			for (Zone* oz : complete_zones)
 			{
-				if (oz != z->parent)
+				if ((z->bitmask + z->d.bitmask).touches(oz->bitmask))
 				{
-					if (oz->bitmask.touches(z->bitmask))
-					{
-						touches = true;
-						break;
-					}
+					touches = true;
+					break;
 				}
 			}
 			
@@ -880,13 +884,18 @@ void create_overworld(GameState& gs)
 			stack.push_back(c);
 			
 			//create a composite bitmask to use
-			Bitmask composite_bitmask = (z->bitmask + c->bitmask).set_all(true) - z->d.bitmask - c->d.bitmask;
-			//subtract all of the other zones (if necessary)
+			Bitmask composite_bitmask(width,height, {0,0});
+			composite_bitmask.set_all(true);
+			composite_bitmask -= z->d.bitmask;
+			composite_bitmask -= c->d.bitmask;
+			
+			//subtract all of the other zones
 			for (Zone* oz : all_zones)
 			{
 				if (oz != z && oz != c)
 				{
 					composite_bitmask -= oz->bitmask;
+					composite_bitmask -= oz->d.bitmask;
 				}
 			}
 			
@@ -1139,7 +1148,7 @@ void create_overworld(GameState& gs)
 	}
 	
 	//put the player object in the starting zone
-	Room* sr = gs.level->get_room(starting_zone->bitmask.get_offset().x + starting_zone->bitmask.get_width() / 2, starting_zone->bitmask.get_offset().y + 6 + starting_zone->bitmask.get_height() / 2);
+	Room* sr = gs.level->get_room(starting_zone->d.entrance.x, starting_zone->d.entrance.y + 1);
 	gs.playable_character = gs.level->create_object();
 	Object* o = gs.level->get_object(gs.playable_character);
 	o->visible = true;
